@@ -11,7 +11,8 @@ import { Toolbar } from '@/features/toolbar/components';
 import { ActiveUsers } from '@/features/collaboration/components';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore } from '@/stores';
-import { subscribeToCanvas } from '@/lib/firebase';
+import { subscribeToCanvas, setOnline } from '@/lib/firebase';
+import { useAuth } from '@/features/auth/hooks';
 
 function CanvasPage() {
   console.log('CanvasPage rendering...');
@@ -21,6 +22,35 @@ function CanvasPage() {
 
   // Get canvas store setObjects method
   const { setObjects } = useCanvasStore();
+
+  // Get current user for presence
+  const { currentUser } = useAuth();
+
+  /**
+   * Set user as online with automatic disconnect handling
+   * Firebase onDisconnect() will mark user offline on:
+   * - Browser close/crash
+   * - Network disconnect
+   * - Tab close
+   */
+  useEffect(() => {
+    if (!currentUser) return;
+
+    console.log('Setting user online with presence tracking...');
+
+    const username = currentUser.email || 'Anonymous';
+
+    // Set user online (includes automatic onDisconnect cleanup)
+    setOnline('main', currentUser.uid, username)
+      .then(() => {
+        console.log('Presence: User marked online');
+      })
+      .catch((error) => {
+        console.error('Failed to set user online:', error);
+      });
+
+    // Note: No explicit cleanup needed - onDisconnect() handles it
+  }, [currentUser]);
 
   /**
    * Subscribe to Firestore for real-time canvas updates

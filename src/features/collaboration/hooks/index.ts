@@ -5,4 +5,4 @@
  */
 
 export { useCursors } from './useCursors'
-// Example: export { usePresence } from './usePresence'
+export { usePresence, type PresenceWithColor } from './usePresence'

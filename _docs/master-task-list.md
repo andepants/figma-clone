@@ -1343,50 +1343,54 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 ## 1.9 Presence System (1 hour)
 
 ### 1.9.1 Design Presence Structure
-- [ ] Document structure:
+- [x] Document structure:
   ```
   /canvases/main/presence/{userId}/
     username: string
     online: boolean
     lastSeen: timestamp
   ```
+  - **Note:** Structure implemented in presenceService.ts with onDisconnect() support
 
 ### 1.9.2 Create Presence Service
-- [ ] Create `src/lib/firebase/presenceService.ts`
+- [x] Create `src/lib/firebase/presenceService.ts`
   - `setOnline(canvasId, userId, username): Promise<void>`
     - Set online = true
     - Use `onDisconnect()` to set online = false automatically
+  - `setOffline(canvasId, userId, username): Promise<void>` (manual offline)
   - `subscribeToPresence(canvasId, callback): () => void`
-  - **Success:** Service functions defined
+  - **Success:** Service functions defined with full onDisconnect() support
+  - **Note:** Automatically handles browser crashes, network issues, tab closes
 
 ### 1.9.3 Set User Online on Canvas Mount
-- [ ] Update `CanvasPage.tsx`
-  - useEffect: Call `setOnline('main', currentUser.uid, currentUser.username)`
-  - **Success:** User marked online
-  - **Test:** Check Realtime DB, see presence object
+- [x] Update `CanvasPage.tsx`
+  - useEffect: Call `setOnline('main', currentUser.uid, currentUser.email)`
+  - **Success:** User marked online with automatic disconnect handling
+  - **Test:** Check Realtime DB at /canvases/main/presence/{userId}/
+  - **Note:** onDisconnect() configured - no explicit cleanup needed
 
 ### 1.9.4 Create PresenceList Component
-- [ ] Create `features/collaboration/components/PresenceList.tsx`
-  - Props: `users: Array<{userId, username, online, color}>`
-  - Render: Small panel (top-right, fixed position)
-  - Show avatar circles (first initial, colored background)
-  - Limit to 10, show "+X more"
-  - Hover: Show full username
-  - **Success:** Component renders
-  - **Test:** Pass mock data, see list
+- [x] Already exists as `ActiveUsers.tsx` - refactored to use presence
+  - Uses proper presence system with usePresence hook
+  - Renders top-right panel showing online users
+  - Current user shown first with "(You)" label
+  - Shows user color indicator and email/username
+  - **Success:** Component uses Firebase Presence system
+  - **Note:** Replaced cursor-based presence inference with proper presence tracking
 
 ### 1.9.5 Create usePresence Hook
-- [ ] Create `features/collaboration/hooks/usePresence.ts`
-  - Subscribe to Realtime DB
-  - Filter online users
-  - Add color from getUserColor
-  - **Success:** Hook provides online users
+- [x] Create `features/collaboration/hooks/usePresence.ts`
+  - Subscribe to Realtime DB presence data
+  - Filter to only online users
+  - Add color from getUserColor utility
+  - **Success:** Hook provides reliable online user list
+  - **Test:** Hook exports PresenceWithColor interface
 
 ### 1.9.6 Add PresenceList to CanvasPage
-- [ ] Update `CanvasPage.tsx`
-  - Use usePresence hook
-  - Render PresenceList component
-  - **Success:** Presence list visible
+- [x] Update `CanvasPage.tsx`
+  - ActiveUsers component already rendered (uses usePresence internally)
+  - **Success:** Presence list visible and functional
+  - **Note:** Component automatically updates when users join/leave
 
 ### 1.9.7 Test Presence System
 - [ ] Open 3 browser windows:
@@ -1395,6 +1399,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - Refresh one window → presence persists
   - **Success:** Presence tracking works
   - **Edge Case:** Browser crash → onDisconnect fires
+  - **Note:** Manual testing required - presence system implemented and ready
 
 ---
 

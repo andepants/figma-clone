@@ -2,12 +2,12 @@
  * ActiveUsers Component
  *
  * Displays a list of currently active users on the canvas.
- * Shows each user's assigned color and email, with the current user highlighted.
+ * Uses Firebase Presence system with automatic disconnect detection.
+ * Shows each user's assigned color and username, with the current user highlighted.
  */
 
 import { useMemo } from 'react'
-import { useCursors } from '../hooks'
-import { getUserColor } from '../utils'
+import { usePresence } from '../hooks'
 import { useAuth } from '@/features/auth/hooks'
 
 /**
@@ -15,7 +15,7 @@ import { useAuth } from '@/features/auth/hooks'
  */
 interface ActiveUser {
   userId: string
-  email: string
+  username: string
   color: string
   isCurrentUser: boolean
 }
@@ -25,7 +25,10 @@ interface ActiveUser {
  *
  * Renders a panel in the top-right corner showing all online users.
  * The current user appears first with a "(You)" label.
- * Each user is displayed with their cursor color and email.
+ * Each user is displayed with their cursor color and username.
+ *
+ * Uses Firebase Presence system with onDisconnect() for reliable
+ * online/offline status that handles browser crashes and network issues.
  *
  * @example
  * ```tsx
@@ -33,52 +36,41 @@ interface ActiveUser {
  * ```
  */
 export function ActiveUsers() {
-  const cursors = useCursors('main')
+  const onlineUsers = usePresence('main')
   const { currentUser } = useAuth()
 
   /**
    * Combine current user with other active users
-   * Filter out stale cursors (older than 30 seconds)
    * Sort with current user first
    */
   const activeUsers = useMemo((): ActiveUser[] => {
     const users: ActiveUser[] = []
-    const now = Date.now()
-    const STALE_THRESHOLD = 30000 // 30 seconds
 
     // Add current user first
     if (currentUser) {
       users.push({
         userId: currentUser.uid,
-        email: currentUser.email || 'Unknown',
-        color: getUserColor(currentUser.uid),
+        username: currentUser.email || 'Unknown',
+        color: onlineUsers.find(u => u.userId === currentUser.uid)?.color || '#888',
         isCurrentUser: true,
       })
     }
 
-    // Add other users from cursors (filter out stale ones)
-    cursors.forEach((cursor) => {
-      // Skip if this is somehow the current user (shouldn't happen but be safe)
-      if (cursor.userId === currentUser?.uid) return
-
-      // Filter stale cursors
-      const lastUpdate =
-        typeof cursor.lastUpdate === 'number' ? cursor.lastUpdate : 0
-      if (now - lastUpdate > STALE_THRESHOLD) return
-
-      // Use username field which contains email or display name
-      const email = cursor.username || 'Unknown'
+    // Add other online users from presence system
+    onlineUsers.forEach((user) => {
+      // Skip current user (already added)
+      if (user.userId === currentUser?.uid) return
 
       users.push({
-        userId: cursor.userId,
-        email,
-        color: cursor.color,
+        userId: user.userId,
+        username: user.username,
+        color: user.color,
         isCurrentUser: false,
       })
     })
 
     return users
-  }, [cursors, currentUser])
+  }, [onlineUsers, currentUser])
 
   // If no users (shouldn't happen but handle gracefully)
   if (activeUsers.length === 0) {
@@ -110,12 +102,12 @@ export function ActiveUsers() {
                 aria-label={`User color: ${user.color}`}
               />
 
-              {/* Email with truncation */}
+              {/* Username with truncation */}
               <span
                 className="flex-1 truncate text-sm text-neutral-700"
-                title={user.email}
+                title={user.username}
               >
-                {user.email}
+                {user.username}
               </span>
 
               {/* Current user indicator */}
