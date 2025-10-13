@@ -601,34 +601,35 @@ src/
 
 ## 0.10 Create Environment Template and Documentation
 
-- [ ] **0.10.1** Create `.env.example` file
+- [x] **0.10.1** Create `.env.example` file
   - Copy structure from .env.local
   - Replace real values with placeholders
   - **Success:** Template file created
   - **Test:** File has all variables with placeholder values
 
-- [ ] **0.10.2** Update README.md with setup instructions
+- [x] **0.10.2** Update README.md with setup instructions
   - Add "Setup" section
   - Document: clone, npm install, env setup, Firebase config
   - **Success:** Clear setup instructions
   - **Test:** Another person could follow steps
 
-- [ ] **0.10.3** Document Firebase configuration steps
+- [x] **0.10.3** Document Firebase configuration steps
   - Add section explaining where to get Firebase config
   - **Success:** Clear Firebase setup docs
   - **Test:** Instructions are complete
 
-- [ ] **0.10.4** Add development commands to README
+- [x] **0.10.4** Add development commands to README
   - Document: `npm run dev`, `npm run build`, `npm run deploy`
   - **Success:** Commands documented
   - **Test:** All important commands listed
 
-- [ ] **0.10.5** Commit initial setup to git
+- [x] **0.10.5** Commit initial setup to git
   - Run: `git add .`
   - Run: `git commit -m "Initial project setup"`
   - **Success:** Initial commit created
   - **Test:** Run `git log` shows commit
   - **Edge Case:** Make sure .env.local is NOT committed
+  - **Note:** Commit 18aed3e created with comprehensive Phase 0 summary
 
 ---
 
@@ -694,406 +695,982 @@ Before proceeding to Phase 1, verify ALL of these:
 
 **Goal:** Working collaborative canvas with real-time sync passing all MVP criteria.
 
-## 1.1 Authentication UI Components
+**Key Feature:** Dynamic shape creation using click-drag-release pattern (shapes size as you drag).
 
-- [ ] **1.1.1** Install shadcn dialog component
-  - Run: `npx shadcn-ui@latest add dialog`
-  - **Success:** Dialog component added to components/ui/
-  - **Test:** Check components/ui/dialog.tsx exists
+**Important - Using Up-to-Date Documentation:**
+When working with 3rd party libraries (Firebase, shadcn/ui, Konva, etc.), use the context7 MCP to get the latest documentation:
+1. Call `mcp__context7__resolve-library-id` with the library name (e.g., 'firebase', 'shadcn')
+2. Call `mcp__context7__get-library-docs` with the returned library ID
+3. Use the documentation to ensure you're using current APIs and best practices
 
-- [ ] **1.1.2** Install shadcn button and input components
-  - Run: `npx shadcn-ui@latest add button input label`
-  - **Success:** All 3 components added
-  - **Test:** Check components/ui/ has button, input, label
+This is especially important for Firebase SDK methods and shadcn/ui component APIs, which may have changed since the knowledge cutoff.
 
-- [ ] **1.1.3** Create `src/types/auth.types.ts`
-  - Define AuthMode type: 'login' | 'signup'
-  - Define User interface
+---
+
+## 1.1 Authentication Feature (2-3 hours)
+
+### 1.1.1 Install shadcn Components
+- [ ] **Documentation:** Use context7 MCP to get latest shadcn/ui docs before starting
+  - Call `mcp__context7__resolve-library-id` with 'shadcn'
+  - Call `mcp__context7__get-library-docs` to see installation and component usage
+- [ ] Run: `npx shadcn-ui@latest add dialog button input label card`
+  - **Success:** All components added to components/ui/
+  - **Test:** Check components/ui/ has dialog, button, input, label, card
+  - **Edge Case:** If install fails, check shadcn/ui is initialized (0.8.5)
+
+### 1.1.2 Create Auth Types
+- [ ] Create `src/types/auth.types.ts`
+  - Define AuthMode: `'login' | 'signup'`
+  - Define User interface: `{ uid: string; email: string | null; username: string | null }`
+  - Define AuthError interface: `{ code: string; message: string }`
+  - **Success:** Types defined with JSDoc comments
+  - **Test:** No TypeScript errors, can import from @/types/auth.types
+  - **Edge Case:** Ensure nullable fields for email/username
+
+### 1.1.3 Build Auth Modal Component
+- [ ] Create `features/auth/components/AuthModal.tsx`
+  - Import Dialog from shadcn
+  - Props: `isOpen: boolean`, `onClose: () => void`, `initialMode?: AuthMode`
+  - State: `mode: AuthMode` (toggle login/signup)
+  - Toggle button: "Don't have an account? Sign up"
+  - **Success:** Modal structure complete with header
+  - **Test:** Component compiles, imports from @/features/auth/components
+  - **Edge Case:** Modal closes on backdrop click, escape key
+
+### 1.1.4 Build Login Form
+- [ ] Create `features/auth/components/LoginForm.tsx`
+  - Form fields: email (type="email"), password (type="password")
+  - State: `{ email, password, loading, error }`
+  - Submit button: "Log In" (disabled while loading)
+  - Error display: Red text below form
+  - **Success:** Form renders with validation UI
+  - **Test:** Typing updates state, submit button toggles
+  - **Edge Case:** Enter key submits form
+
+### 1.1.5 Build Signup Form
+- [ ] Create `features/auth/components/SignupForm.tsx`
+  - Form fields: username, email, password
+  - State: `{ username, email, password, loading, error }`
+  - Validation: username min 3 chars, password min 6 chars
+  - Submit button: "Sign Up" (disabled while loading)
+  - **Success:** Form renders with all fields
+  - **Test:** Validation shows errors below inputs
+  - **Edge Case:** Password field shows/hides with eye icon
+
+### 1.1.6 Integrate Forms into Auth Modal
+- [ ] Update `AuthModal.tsx`
+  - Render LoginForm when mode === 'login'
+  - Render SignupForm when mode === 'signup'
+  - Pass onSuccess callback to both forms
+  - **Success:** Forms switch smoothly
+  - **Test:** Toggle button switches between forms
+  - **Edge Case:** Form state resets on mode change
+
+### 1.1.7 Create useAuth Hook
+- [ ] Create `features/auth/hooks/useAuth.ts`
+  - State: `currentUser: User | null`, `loading: boolean`
+  - onAuthStateChanged listener in useEffect
+  - Methods: `login()`, `signup()`, `logout()`
+  - Export hook and context provider
+  - **Success:** Hook tracks auth state
+  - **Test:** Can call hook from component, auth persists on refresh
+  - **Edge Case:** Cleanup listener on unmount
+
+### 1.1.8 Implement Firebase Auth Functions
+- [ ] **Documentation:** Use context7 MCP to get latest Firebase Auth documentation
+  - Call `mcp__context7__resolve-library-id` with 'firebase'
+  - Call `mcp__context7__get-library-docs` with topic 'authentication'
+  - Review current Auth API methods (createUserWithEmailAndPassword, signInWithEmailAndPassword, etc.)
+- [ ] Update `lib/firebase/auth.ts`
+  - `signUpWithEmail(email, password, username)`: creates user, sets displayName
+  - `signInWithEmail(email, password)`: logs in user
+  - `signOutUser()`: signs out
+  - `getAuthErrorMessage(error)`: maps Firebase errors to friendly messages
+  - **Success:** All functions defined with types
+  - **Test:** Call from console, check Firebase console
+  - **Edge Case:** Handle "email-already-in-use", "weak-password", "user-not-found"
+
+### 1.1.9 Connect Forms to Firebase
+- [ ] Update `LoginForm.tsx`
+  - Use useAuth hook
+  - Call login() on submit
+  - Handle errors with getAuthErrorMessage
+  - On success: close modal, navigate to /canvas
+  - **Success:** Login works end-to-end
+  - **Test:** Login with valid/invalid credentials
+  - **Edge Case:** Show loading state, disable form during submission
+
+- [ ] Update `SignupForm.tsx`
+  - Use useAuth hook
+  - Call signup() on submit
+  - Set displayName from username field
+  - On success: close modal, navigate to /canvas
+  - **Success:** Signup creates user
+  - **Test:** Create user, check Firebase Auth console
+  - **Edge Case:** Validate email format, password strength
+
+### 1.1.10 Create Protected Route
+- [ ] Create `features/auth/components/ProtectedRoute.tsx`
+  - Use useAuth hook
+  - Show loading spinner while auth state loads
+  - Redirect to "/" if !currentUser (use Navigate with replace)
+  - Render children if authenticated
+  - **Success:** Route protection works
+  - **Test:** Access /canvas logged out → redirects
+  - **Edge Case:** No flash of content before redirect
+
+### 1.1.11 Update App Routing
+- [ ] Update `src/App.tsx`
+  - Wrap app with AuthProvider (from useAuth)
+  - Wrap /canvas route with ProtectedRoute
+  - **Success:** Auth protection active
+  - **Test:** Can't access canvas without login
+
+### 1.1.12 Add Auth Modal to Landing Page
+- [ ] Update `src/pages/LandingPage.tsx`
+  - State: `authModalOpen: boolean`
+  - Replace "Go to Canvas" with "Get Started" (opens auth modal)
+  - If logged in, auto-redirect to /canvas (useEffect + useNavigate)
+  - **Success:** Modal opens on button click
+  - **Test:** Click button, see modal, login redirects
+  - **Edge Case:** Logged-in users bypass landing page
+
+### 1.1.13 Test Auth Flow End-to-End
+- [ ] Manual testing checklist:
+  - Signup with new account → auto-navigate to canvas
+  - Logout → redirect to landing
+  - Login with existing account → navigate to canvas
+  - Refresh on canvas → stay logged in
+  - Access /canvas logged out → redirect to landing
+  - Invalid email/password → show error
+  - Weak password → show error
+  - **Success:** All scenarios work
+  - **Test:** Network disconnect during auth (graceful error)
+
+---
+
+## 1.2 Canvas Store (Zustand) (1 hour)
+
+### 1.2.1 Define Canvas Types
+- [ ] Create `src/types/canvas.types.ts`
+  - `ShapeType: 'rectangle' | 'circle' | 'text'`
+  - `BaseCanvasObject: { id: string; type: ShapeType; x: number; y: number; createdBy: string; createdAt: number; updatedAt: number }`
+  - `Rectangle extends BaseCanvasObject: { type: 'rectangle'; width: number; height: number; fill: string }`
+  - `Circle, Text` interfaces (for Phase 2, define stubs)
+  - `CanvasObject: Rectangle | Circle | Text`
+  - **Success:** All types defined with JSDoc
+  - **Test:** No TypeScript errors
+  - **Edge Case:** Union type works with discriminated union pattern
+
+### 1.2.2 Create Canvas Store
+- [ ] Create `src/stores/canvasStore.ts`
+  - State: `objects: CanvasObject[]`, `selectedId: string | null`
+  - Actions:
+    - `addObject(object: CanvasObject): void`
+    - `updateObject(id: string, updates: Partial<CanvasObject>): void`
+    - `removeObject(id: string): void`
+    - `selectObject(id: string | null): void`
+    - `clearSelection(): void`
+    - `setObjects(objects: CanvasObject[]): void` (for Firestore sync)
+  - **Success:** Store created with types
+  - **Test:** Import and call actions in console
+  - **Edge Case:** updateObject handles nested properties
+
+### 1.2.3 Test Store Independently
+- [ ] Test in browser console:
+  - `useCanvasStore.getState().addObject({ ... })`
+  - `useCanvasStore.getState().objects` (verify added)
+  - Add 10 objects, update one, remove one, select one
+  - **Success:** All CRUD operations work
+  - **Test:** State updates trigger re-renders (test with React DevTools)
+  - **Edge Case:** Concurrent updates don't lose data
+
+### 1.2.4 Create Store Barrel Export
+- [ ] Update `src/stores/index.ts`
+  - `export * from './canvasStore'`
+  - **Success:** Can import from @/stores
+  - **Test:** `import { useCanvasStore } from '@/stores'` works
+
+---
+
+## 1.3 Basic Konva Canvas Setup (1-2 hours)
+
+### 1.3.1 Create Canvas Stage Component
+- [ ] **Documentation:** Use context7 MCP to get latest Konva/react-konva documentation
+  - Call `mcp__context7__resolve-library-id` with 'konva' and 'react-konva'
+  - Call `mcp__context7__get-library-docs` to review Stage, Layer, and Shape APIs
+- [ ] Create `features/canvas-core/components/CanvasStage.tsx`
+  - Import Stage, Layer from react-konva
+  - State: `dimensions: { width: number; height: number }`
+  - Initialize with `window.innerWidth`, `window.innerHeight`
+  - Render Stage with Layer (empty for now)
+  - **Success:** Component renders full-screen canvas
+  - **Test:** No console errors, import from @/features/canvas-core/components
+
+### 1.3.2 Add Window Resize Handler
+- [ ] Update `CanvasStage.tsx`
+  - useEffect with resize listener
+  - Update dimensions on resize
+  - Cleanup listener on unmount
+  - **Success:** Canvas resizes with window
+  - **Test:** Resize browser window, canvas adjusts
+  - **Edge Case:** Debounce resize (100ms) for performance
+
+### 1.3.3 Add Canvas Background
+- [ ] Update `CanvasStage.tsx`
+  - Add Rect to background Layer
+  - Fill: #f5f5f5, width/height from dimensions
+  - Layer props: `listening={false}` (optimization)
+  - **Success:** Gray background renders
+  - **Test:** See #f5f5f5 background
+  - **Edge Case:** Background always behind objects (layer order)
+
+### 1.3.4 Implement Pan (Drag Stage)
+- [ ] Update `CanvasStage.tsx`
+  - State: `stagePos: { x: number; y: number }`
+  - Stage props: `draggable={true}`, `x={stagePos.x}`, `y={stagePos.y}`
+  - onDragEnd: update stagePos
+  - Cursor: "grab" default, "grabbing" while dragging
+  - **Success:** Canvas pans smoothly
+  - **Test:** Drag in all directions, 60 FPS
+  - **Edge Case:** Pan while objects exist (all move together)
+
+### 1.3.5 Implement Zoom (Wheel Event)
+- [ ] Update `CanvasStage.tsx`
+  - State: `stageScale: number` (default: 1)
+  - onWheel handler:
+    - Get pointer position
+    - Calculate new scale (current * (1 ± 0.1))
+    - Clamp scale: Math.max(0.1, Math.min(5, newScale))
+    - Transform: zoom towards cursor (not center)
+    - Update stageScale and stagePos
+  - **Success:** Zoom centers on cursor
+  - **Test:** Zoom in/out, test limits (0.1, 5.0)
+  - **Edge Case:** Zoom calculation: `stage.getAbsoluteTransform().invert().point(pointerPos)`
+
+### 1.3.6 Add Canvas to CanvasPage
+- [ ] Update `src/pages/CanvasPage.tsx`
+  - Import CanvasStage
+  - Replace placeholder with `<CanvasStage />`
+  - Remove padding/margins (full-screen canvas)
+  - **Success:** Canvas renders on /canvas route
+  - **Test:** Navigate to /canvas, see full-screen gray canvas
+
+### 1.3.7 Test Canvas Interactions
+- [ ] Manual testing:
+  - Pan in all directions
+  - Zoom in to 5.0x (max)
+  - Zoom out to 0.1x (min)
+  - Pan while zoomed in/out
+  - Rapid pan + zoom (test performance)
+  - **Success:** 60 FPS, smooth interactions
+  - **Test:** Chrome DevTools Performance tab
+  - **Edge Case:** Trackpad pinch-to-zoom (browser default, may need preventDefault)
+
+---
+
+## 1.4 Tool Store & Toolbar (1 hour)
+
+### 1.4.1 Create Tool Types
+- [ ] Create `src/types/tool.types.ts`
+  - `ToolType: 'select' | 'rectangle' | 'circle' | 'text'`
+  - `Tool: { id: ToolType; name: string; icon: LucideIcon; shortcut: string }`
   - **Success:** Types defined
   - **Test:** No TypeScript errors
 
-- [ ] **1.1.4** Create `features/auth/components/AuthModal.tsx`
-  - Import Dialog from shadcn
-  - Create component with isOpen and onClose props
-  - Add state for mode (login vs signup)
-  - Add toggle button between modes
-  - **Success:** Modal structure created
-  - **Test:** Component compiles, can be imported from `@/features/auth/components`
+### 1.4.2 Create Tool Store
+- [ ] Create `src/stores/toolStore.ts`
+  - State: `activeTool: ToolType` (default: 'select')
+  - Action: `setActiveTool(tool: ToolType): void`
+  - **Success:** Store created
+  - **Test:** Change tool in console, state updates
 
-- [ ] **1.1.5** Create `features/auth/components/LoginForm.tsx`
-  - Create form with email and password inputs
-  - Add login button
-  - Add state for form values
-  - **Success:** Login form complete
-  - **Test:** Form renders with all fields
-  - **Edge Case:** Don't implement actual login yet
+### 1.4.3 Create Toolbar Component
+- [ ] Create `features/toolbar/components/Toolbar.tsx`
+  - Import tools: Mouse (select), Square (rectangle)
+  - Map tools to buttons
+  - Use toolStore to track active tool
+  - Style: Absolute positioned, top-left, floating panel
+  - Active tool: Blue background (#0ea5e9)
+  - **Success:** Toolbar renders with 2 buttons
+  - **Test:** Click tools, active state changes
+  - **Edge Case:** Keyboard shortcuts (V = select, R = rectangle)
 
-- [ ] **1.1.6** Create `features/auth/components/SignupForm.tsx`
-  - Create form with email, password, and username inputs
-  - Add signup button
-  - Add state for form values
-  - **Success:** Signup form complete
-  - **Test:** Form renders with all fields
+### 1.4.4 Add Toolbar to CanvasPage
+- [ ] Update `src/pages/CanvasPage.tsx`
+  - Import Toolbar
+  - Render above CanvasStage (z-index)
+  - **Success:** Toolbar visible on canvas
+  - **Test:** Tool selection works
 
-- [ ] **1.1.7** Integrate forms into AuthModal
-  - Show LoginForm when mode is 'login'
-  - Show SignupForm when mode is 'signup'
-  - **Success:** Forms switch based on mode
-  - **Test:** Toggle between forms works
+### 1.4.5 Implement Keyboard Shortcuts
+- [ ] Create `features/toolbar/hooks/useToolShortcuts.ts`
+  - useEffect with keydown listener
+  - V key → setActiveTool('select')
+  - R key → setActiveTool('rectangle')
+  - Escape → clearSelection (canvasStore)
+  - Cleanup on unmount
+  - **Success:** Shortcuts work
+  - **Test:** Press V, R, Escape
+  - **Edge Case:** Don't trigger if user is typing in input
 
-- [ ] **1.1.8** Add AuthModal to LandingPage
-  - Import AuthModal
-  - Add "Get Started" button
-  - Add state for modal open/close
-  - **Success:** Button opens modal
-  - **Test:** Click button, modal appears
-  - **Edge Case:** Modal should close on backdrop click
-
-- [ ] **1.1.9** Style forms using Tailwind
-  - Apply styling per theme-rules.md
-  - Use neutral colors and proper spacing
-  - **Success:** Forms look polished
-  - **Test:** Visual inspection matches design
-
-- [ ] **1.1.10** Add form validation UI
-  - Show error messages below inputs
-  - Disable button while submitting
-  - **Success:** Validation feedback visible
-  - **Test:** Empty form shows errors
-  - **Edge Case:** Don't implement actual validation yet
+- [ ] Update `CanvasPage.tsx`
+  - Call useToolShortcuts() hook
+  - **Success:** Shortcuts active on canvas
 
 ---
 
-## 1.2 Firebase Authentication Integration
+## 1.5 Dynamic Rectangle Creation (2-3 hours)
 
-- [ ] **1.2.1** Create auth helper functions in `lib/firebase/auth.ts`
-  - Create signUpWithEmail function
-  - Create signInWithEmail function
-  - Create signOutUser function
-  - **Success:** Functions defined with proper types
-  - **Test:** No TypeScript errors
+**Key Feature:** Click-drag-release pattern (not preset sizes).
 
-- [ ] **1.2.2** Implement signUpWithEmail
-  - Use createUserWithEmailAndPassword from Firebase
-  - Update user profile with displayName (username)
-  - Return user object
-  - **Success:** Function creates user
-  - **Test:** Call function with test credentials (in console)
-  - **Edge Case:** Handle Firebase auth errors
+### 1.5.1 Create Shape Creation Hook
+- [ ] Create `features/canvas-core/hooks/useShapeCreation.ts`
+  - State: `previewShape: CanvasObject | null`, `isCreating: boolean`, `startPoint: { x, y } | null`
+  - Logic:
+    - onMouseDown: If activeTool === 'rectangle', set startPoint, isCreating = true
+    - onMouseMove: If isCreating, update previewShape (calculate width/height from startPoint to current)
+    - onMouseUp: If isCreating, finalize shape (add to canvasStore), reset state
+  - Handle coordinate transforms (screen → canvas coords)
+  - Minimum size: 10x10 px (enforce on mouseUp)
+  - **Success:** Hook manages creation state
+  - **Test:** Console log shape dimensions during drag
 
-- [ ] **1.2.3** Implement signInWithEmail
-  - Use signInWithEmailAndPassword from Firebase
-  - Return user object
-  - **Success:** Function logs in user
-  - **Test:** Call function with existing user
-  - **Edge Case:** Handle wrong password error
+### 1.5.2 Implement Coordinate Transform Utility
+- [ ] Create `features/canvas-core/utils/coordinates.ts`
+  - `screenToCanvasCoords(stage: Konva.Stage, screenPoint: { x, y }): { x, y }`
+    - Get stage transform: `stage.getAbsoluteTransform().copy().invert()`
+    - Apply: `transform.point(screenPoint)`
+  - **Success:** Function converts coords correctly
+  - **Test:** Log coords at different zoom/pan levels
+  - **Edge Case:** Handle stage = null (return screen coords)
 
-- [ ] **1.2.4** Create `features/auth/hooks/useAuth.ts`
-  - Create hook with currentUser and loading state
-  - Add onAuthStateChanged listener
-  - **Success:** Hook tracks auth state
-  - **Test:** Hook can be called in component, import from `@/features/auth/hooks`
+### 1.5.3 Integrate Shape Creation into CanvasStage
+- [ ] Update `features/canvas-core/components/CanvasStage.tsx`
+  - Use `useShapeCreation` hook
+  - Attach mouse handlers to Stage: onMouseDown, onMouseMove, onMouseUp
+  - Only trigger if activeTool === 'rectangle' (check toolStore)
+  - If activeTool === 'select', allow pan (draggable)
+  - **Success:** Tool mode controls behavior
+  - **Test:** Select tool = pan, rectangle tool = create
 
-- [ ] **1.2.5** Implement auth state listener
-  - Use onAuthStateChanged to track user
-  - Update currentUser state when auth changes
-  - Set loading to false when done
-  - **Success:** Auth state syncs with Firebase
-  - **Test:** Login updates currentUser
-  - **Edge Case:** Clean up listener on unmount
+### 1.5.4 Render Preview Shape
+- [ ] Update `CanvasStage.tsx`
+  - If `previewShape` exists, render it (Rect component)
+  - Style: Dashed stroke (#0ea5e9), transparent fill, strokeWidth: 2
+  - Layer: Objects layer (above background, below cursors later)
+  - **Success:** Preview shows while dragging
+  - **Test:** Click-drag, see blue dashed rectangle growing
+  - **Edge Case:** Preview disappears on mouseUp
 
-- [ ] **1.2.6** Add login/signup methods to useAuth
-  - Add login method that calls signInWithEmail
-  - Add signup method that calls signUpWithEmail
-  - Add logout method that calls signOutUser
-  - **Success:** Methods available in hook
-  - **Test:** Can call methods from component
+### 1.5.5 Handle Negative Dimensions
+- [ ] Update `useShapeCreation.ts` onMouseMove logic
+  - Calculate: `width = Math.abs(currentX - startX)`, `height = Math.abs(currentY - startY)`
+  - Position: `x = Math.min(startX, currentX)`, `y = Math.min(startY, currentY)`
+  - **Success:** Can drag in any direction
+  - **Test:** Drag up-left, up-right, down-left, down-right
+  - **Edge Case:** All directions produce positive width/height
 
-- [ ] **1.2.7** Connect LoginForm to Firebase
-  - Use useAuth hook
-  - Call login method on form submit
-  - Handle success and errors
-  - **Success:** Login works end-to-end
-  - **Test:** Can login with real credentials
-  - **Edge Case:** Show error if login fails
+### 1.5.6 Enforce Minimum Size
+- [ ] Update `useShapeCreation.ts` onMouseUp logic
+  - If width < 10, set width = 10
+  - If height < 10, set height = 10
+  - **Success:** No tiny shapes created
+  - **Test:** Click without dragging → 10x10 shape
+  - **Edge Case:** Drag 3px → 10x10 shape
 
-- [ ] **1.2.8** Connect SignupForm to Firebase
-  - Use useAuth hook
-  - Call signup method on form submit
-  - Set displayName from username field
-  - Handle success and errors
-  - **Success:** Signup works end-to-end
-  - **Test:** Create new user, check Firebase console
-  - **Edge Case:** Email must be unique
+### 1.5.7 Create Rectangle Shape Component
+- [ ] Create `features/canvas-core/shapes/Rectangle.tsx`
+  - Props: `rectangle: Rectangle`, `isSelected: boolean`, `onSelect: () => void`
+  - Render Konva Rect: x, y, width, height, fill
+  - onClick: call onSelect (only if select tool active)
+  - Selection border: Blue 3px stroke if isSelected
+  - **Success:** Rectangle component renders
+  - **Test:** Render from canvasStore.objects
+  - **Edge Case:** Click only fires if activeTool === 'select'
 
-- [ ] **1.2.9** Add error handling to forms
-  - Catch Firebase errors
-  - Show user-friendly error messages
-  - Create getAuthErrorMessage helper
-  - **Success:** Errors display clearly
-  - **Test:** Try invalid login, see error message
-  - **Edge Case:** Handle network errors
+### 1.5.8 Render Rectangles from Store
+- [ ] Update `CanvasStage.tsx`
+  - Get objects from canvasStore
+  - Map over objects.filter(obj => obj.type === 'rectangle')
+  - Render Rectangle component for each
+  - Pass isSelected, onSelect
+  - **Success:** Rectangles render
+  - **Test:** Create 5 shapes, all visible
 
-- [ ] **1.2.10** Test auth persistence
-  - Login, refresh page
-  - **Success:** Still logged in after refresh
-  - **Test:** currentUser persists
-  - **Edge Case:** Firebase handles persistence automatically
-
----
-
-## 1.3 Protected Canvas Route
-
-- [ ] **1.3.1** Create `features/auth/components/ProtectedRoute.tsx`
-  - Create component that wraps children
-  - Use useAuth hook from `@/features/auth/hooks`
-  - **Success:** Component created
-  - **Test:** Can import component from `@/features/auth/components`
-
-- [ ] **1.3.2** Add loading state handling
-  - Show loading spinner while checking auth
-  - **Success:** Loading state works
-  - **Test:** Brief spinner shows on page load
-  - **Edge Case:** Don't flash spinner too quickly
-
-- [ ] **1.3.3** Add redirect for unauthenticated users
-  - Use Navigate from react-router-dom
-  - Redirect to "/" if no currentUser
-  - Use replace prop to avoid back button issues
-  - **Success:** Redirects work
-  - **Test:** Access /canvas when logged out → redirects to /
-
-- [ ] **1.3.4** Wrap CanvasPage route with ProtectedRoute
-  - Update App.tsx
-  - Wrap /canvas route element with ProtectedRoute
-  - **Success:** Route is protected
-  - **Test:** Can't access canvas without login
-
-- [ ] **1.3.5** Add auto-redirect for authenticated users
-  - In LandingPage, check if user is logged in
-  - If logged in, navigate to /canvas automatically
-  - **Success:** Logged-in users skip landing
-  - **Test:** Login → auto-navigate to canvas
-  - **Edge Case:** Don't create redirect loop
-
-- [ ] **1.3.6** Test protected route thoroughly
-  - Try accessing /canvas logged out
-  - Login and verify auto-redirect
-  - Refresh on /canvas when logged in
-  - **Success:** All scenarios work correctly
-  - **Test:** Manual testing with different states
+### 1.5.9 Test Dynamic Creation
+- [ ] Manual testing:
+  - Switch to rectangle tool (R key)
+  - Click-drag small (20x20) → creates
+  - Click-drag large (200x300) → creates
+  - Click without drag → 10x10 minimum
+  - Drag in all 4 directions → all work
+  - Create 10 shapes rapidly → all appear
+  - Switch to select tool (V key) → creation stops, pan works
+  - **Success:** All creation scenarios work
+  - **Edge Case:** Creation during zoom/pan (coords correct)
 
 ---
 
-## 1.4 Basic Konva Canvas Setup
+## 1.6 Rectangle Selection & Manipulation (1-2 hours)
 
-- [ ] **1.4.1** Create `features/canvas-core/components/CanvasStage.tsx`
-  - Import Stage and Layer from react-konva
-  - Create component with stage and empty layer
-  - **Success:** Component created
-  - **Test:** No TypeScript errors, import from `@/features/canvas-core/components`
+### 1.6.1 Implement Selection Logic
+- [ ] Update `features/canvas-core/shapes/Rectangle.tsx`
+  - onClick handler:
+    - Check activeTool === 'select'
+    - If yes: `canvasStore.selectObject(rectangle.id)`
+    - If no: ignore click
+  - **Success:** Click selects rectangle
+  - **Test:** Click shape → selectedId updates in store
 
-- [ ] **1.4.2** Set stage dimensions to window size
-  - Use useState for width and height
-  - Initialize with window.innerWidth and innerHeight
-  - **Success:** Stage fills viewport
-  - **Test:** Stage renders full screen
+### 1.6.2 Implement Deselection
+- [ ] Update `CanvasStage.tsx`
+  - onClick handler on Stage:
+    - If target === background: `canvasStore.clearSelection()`
+  - **Success:** Click background deselects
+  - **Test:** Select shape → click background → deselected
 
-- [ ] **1.4.3** Add window resize listener
-  - Use useEffect to listen to resize
-  - Update dimensions state on resize
-  - Clean up listener on unmount
-  - **Success:** Canvas resizes with window
-  - **Test:** Resize browser, canvas adjusts
-  - **Edge Case:** Remember to remove listener
+### 1.6.3 Add Selection Visual
+- [ ] Update `Rectangle.tsx`
+  - If isSelected:
+    - stroke: #0ea5e9, strokeWidth: 3
+    - Add 8 resize handles (4 corners, white squares, 8x8px)
+  - **Success:** Selected shape shows blue border + handles
+  - **Test:** Select shape, see visual feedback
 
-- [ ] **1.4.4** Add canvas background
-  - Add Rect to Layer with canvas background color (#f5f5f5)
-  - Set width and height to stage dimensions
-  - Make sure it's behind other objects
-  - **Success:** Canvas has light gray background
-  - **Test:** See gray background in browser
+### 1.6.4 Implement Drag-to-Move
+- [ ] Update `Rectangle.tsx`
+  - Add draggable prop: `draggable={isSelected && activeTool === 'select'}`
+  - onDragMove: Optimistic update (update local position immediately)
+  - onDragEnd: Update canvasStore + sync to Firebase (later)
+  - **Success:** Can drag selected shapes
+  - **Test:** Select → drag → position updates
+  - **Edge Case:** Only selected shapes draggable
 
-- [ ] **1.4.5** Add CanvasStage to CanvasPage
-  - Import CanvasStage in CanvasPage.tsx
-  - Replace placeholder text with component
-  - **Success:** Canvas renders on /canvas page
-  - **Test:** Navigate to /canvas, see full-screen canvas
+### 1.6.5 Add Cursor States
+- [ ] Update `Rectangle.tsx`
+  - onMouseEnter: Set cursor = "move" (if select tool + selected)
+  - onMouseLeave: Set cursor = "default"
+  - **Success:** Cursor changes on hover
+  - **Test:** Hover over shape, cursor changes
 
-- [ ] **1.4.6** Test canvas renders correctly
-  - Login and go to /canvas
-  - **Success:** Full-screen gray canvas
-  - **Test:** No console errors, smooth render
-  - **Edge Case:** Check on different browser sizes
-
----
-
-## 1.5 Canvas Pan Functionality
-
-- [ ] **1.5.1** Make Stage draggable
-  - Add `draggable` prop to Stage
-  - **Success:** Stage can be dragged
-  - **Test:** Click and drag moves canvas
-  - **Edge Case:** Everything moves including background
-
-- [ ] **1.5.2** Add drag cursor visual feedback
-  - Add onDragStart handler
-  - Set cursor to "grabbing"
-  - **Success:** Cursor changes during drag
-  - **Test:** See grabbing cursor when dragging
-
-- [ ] **1.5.3** Reset cursor on drag end
-  - Add onDragEnd handler
-  - Set cursor back to "grab" or "default"
-  - **Success:** Cursor resets after drag
-  - **Test:** Cursor returns to normal
-
-- [ ] **1.5.4** Store pan position in state
-  - Add state for stage position (x, y)
-  - Update on drag end
-  - **Success:** Position tracked
-  - **Test:** Position changes when panning
-
-- [ ] **1.5.5** Test panning thoroughly
-  - Pan in all directions
-  - Pan quickly and slowly
-  - **Success:** Smooth panning with no lag
-  - **Test:** 60 FPS during pan
-  - **Edge Case:** Performance should not degrade
+### 1.6.6 Test Selection & Movement
+- [ ] Manual testing:
+  - Create 3 rectangles
+  - Select first → blue border
+  - Select second → first deselects, second selects
+  - Click background → deselect
+  - Drag selected shape → moves
+  - Drag unselected shape → doesn't move
+  - Switch to rectangle tool → shapes not selectable
+  - **Success:** All selection scenarios work
+  - **Edge Case:** Rapid selection switching (no lag)
 
 ---
 
-## 1.6 Canvas Zoom Functionality
+## 1.7 Firestore Integration (2 hours)
 
-- [ ] **1.6.1** Add wheel event listener to Stage
-  - Add `onWheel` prop to Stage
-  - **Success:** Wheel events captured
-  - **Test:** Console log shows wheel events
+### 1.7.1 Design Firestore Structure
+- [ ] **Documentation:** Use context7 MCP to get latest Firestore documentation
+  - Call `mcp__context7__resolve-library-id` with 'firebase'
+  - Call `mcp__context7__get-library-docs` with topic 'firestore'
+  - Review current Firestore data modeling, onSnapshot, and update methods
+- [ ] Document structure:
+  ```
+  /canvases/main/
+    objects: CanvasObject[]
+    metadata: { createdAt: timestamp, lastModified: timestamp }
+  ```
+  - **Success:** Structure documented
+  - **Test:** Create doc manually in Firebase console
 
-- [ ] **1.6.2** Calculate zoom delta from wheel event
-  - Get deltaY from event
-  - Determine if zooming in or out
-  - **Success:** Direction detected correctly
-  - **Test:** Scroll up zooms in, down zooms out
+### 1.7.2 Create Canvas Service
+- [ ] Create `src/lib/firebase/canvasService.ts`
+  - `subscribeToCanvas(canvasId: string, callback: (objects: CanvasObject[]) => void): () => void`
+    - onSnapshot listener
+    - Returns unsubscribe function
+  - `updateCanvasObjects(canvasId: string, objects: CanvasObject[]): Promise<void>`
+    - Update doc with new objects array + lastModified timestamp
+  - **Success:** Service functions defined
+  - **Test:** Call from console, check Firestore
 
-- [ ] **1.6.3** Calculate new zoom level
-  - Use scaleBy factor (1.1 recommended)
-  - Get current scale from stage
-  - Calculate new scale
-  - **Success:** Zoom calculation works
-  - **Test:** Console log shows correct scale values
+### 1.7.3 Implement Debounced Updates
+- [ ] Create `src/lib/utils/debounce.ts`
+  - `debounce(fn, delay)` helper
+  - **Success:** Debounce function works
 
-- [ ] **1.6.4** Clamp zoom between min and max
-  - Min: 0.1, Max: 5.0
-  - Use Math.max and Math.min to clamp
-  - **Success:** Zoom stays in range
-  - **Test:** Can't zoom beyond limits
-  - **Edge Case:** Test extreme scroll amounts
+- [ ] Update `canvasService.ts`
+  - Wrap `updateCanvasObjects` with debounce (500ms)
+  - Export as `debouncedUpdateCanvas`
+  - **Success:** Updates debounced
+  - **Test:** Rapid updates → only one Firebase write
 
-- [ ] **1.6.5** Implement zoom towards cursor
-  - Get pointer position from stage
-  - Calculate mouse point in canvas space
-  - Apply zoom transformation
-  - Adjust stage position to zoom towards cursor
-  - **Success:** Zooms towards mouse
-  - **Test:** Zoom centers on cursor location
+### 1.7.4 Subscribe to Firestore in CanvasPage
+- [ ] Update `src/pages/CanvasPage.tsx`
+  - useEffect: `subscribeToCanvas('main', (objects) => canvasStore.setObjects(objects))`
+  - Cleanup: unsubscribe on unmount
+  - **Success:** Firestore → Store sync
+  - **Test:** Update Firestore manually → canvas updates
 
-- [ ] **1.6.6** Update stage scale
-  - Use stage.scale() to set new scale
-  - Apply to both X and Y
-  - **Success:** Canvas zooms
-  - **Test:** Visual zoom effect works
+### 1.7.5 Sync Local Changes to Firestore
+- [ ] Update `useShapeCreation.ts` onMouseUp
+  - After adding to store: `debouncedUpdateCanvas('main', canvasStore.getState().objects)`
+  - **Success:** Created shapes sync to Firestore
+  - **Test:** Create shape → check Firestore within 500ms
 
-- [ ] **1.6.7** Test zoom functionality
-  - Zoom in and out
-  - Zoom on different parts of canvas
-  - Test zoom limits
-  - **Success:** Smooth zoom with no issues
-  - **Test:** 60 FPS during zoom
-  - **Edge Case:** Works with trackpad and mouse wheel
+- [ ] Update `Rectangle.tsx` onDragEnd
+  - After updating store: sync to Firestore
+  - **Success:** Moved shapes sync
+  - **Test:** Move shape → check Firestore
 
----
+### 1.7.6 Handle Optimistic Updates
+- [ ] Pattern:
+  1. User action → update local store immediately (instant UI feedback)
+  2. Sync to Firestore (debounced)
+  3. Firestore broadcasts → other clients receive update
+  4. Local client ignores own update (check timestamp or ID)
+  - **Success:** No duplicate updates
+  - **Test:** Create shape, verify only one store update
 
----
+### 1.7.7 Test Multi-User Sync
+- [ ] Open 2 browser windows:
+  - Window A: Create rectangle
+  - Window B: See rectangle appear within 500ms
+  - Window B: Move rectangle
+  - Window A: See rectangle move
+  - Both: Create shapes rapidly (10 shapes in 10 seconds)
+  - **Success:** All changes sync correctly
+  - **Edge Case:** Concurrent edits (last-write-wins, both see final state)
 
-## 1.7 Zustand Canvas Store
-
-- [ ] **1.7.1** Create `types/canvas.types.ts` with base types
-  - Define ShapeType: 'rectangle' | 'circle' | 'text'
-  - Define BaseCanvasObject interface
-  - Define Rectangle, Circle, Text interfaces
-  - **Success:** All types defined
-  - **Test:** No TypeScript errors
-
-- [ ] **1.7.2** Create `stores/canvasStore.ts`
-  - Import create from zustand
-  - Define CanvasStore interface
-  - **Success:** Store interface created
-  - **Test:** TypeScript recognizes types
-
-- [ ] **1.7.3** Add objects array to store state
-  - Initialize as empty array
-  - Type as CanvasObject[]
-  - **Success:** State property added
-  - **Test:** Can access objects in store
-
-- [ ] **1.7.4** Add selectedId to store state
-  - Initialize as null
-  - Type as string | null
-  - **Success:** State property added
-  - **Test:** Can access selectedId
-
-- [ ] **1.7.5** Implement addObject action
-  - Accept CanvasObject parameter
-  - Append to objects array
-  - **Success:** Can add objects to store
-  - **Test:** Call action, check state updates
-
-- [ ] **1.7.6** Implement updateObject action
-  - Accept id and Partial<CanvasObject>
-  - Find and update object by id
-  - **Success:** Can update objects
-  - **Test:** Update object, check state reflects change
-
-- [ ] **1.7.7** Implement removeObject action
-  - Accept id parameter
-  - Filter out object with matching id
-  - **Success:** Can remove objects
-  - **Test:** Remove object, check it's gone
-
-- [ ] **1.7.8** Implement selectObject action
-  - Accept id parameter (string | null)
-  - Set selectedId
-  - **Success:** Can select/deselect objects
-  - **Test:** Select object, check state
-
-- [ ] **1.7.9** Test store with dev tools
-  - Open browser dev tools
-  - Add objects via console
-  - Verify state updates
-  - **Success:** Store works correctly
-  - **Test:** All CRUD operations work
-  - **Edge Case:** State updates trigger re-renders
+### 1.7.8 Handle Offline Mode
+- [ ] Test with network disabled:
+  - Create shapes → queued locally
+  - Re-enable network → shapes sync
+  - **Success:** Firestore offline persistence works
+  - **Test:** Chrome DevTools → offline mode
 
 ---
 
-*Due to length constraints, this master task list continues with sections 1.8 through 3.20. The full document covers all phases with the same level of granular detail - each with checkboxes, success criteria, tests, and edge cases.*
+## 1.8 Multiplayer Cursors (2-3 hours)
 
-*To implement the complete checklist:*
+### 1.8.1 Design Realtime DB Structure
+- [ ] **Documentation:** Use context7 MCP to get latest Firebase Realtime Database documentation
+  - Call `mcp__context7__resolve-library-id` with 'firebase'
+  - Call `mcp__context7__get-library-docs` with topic 'realtime database'
+  - Review current RTDB API: ref(), set(), onValue(), onDisconnect()
+- [ ] Document structure:
+  ```
+  /canvases/main/cursors/{userId}/
+    x: number
+    y: number
+    username: string
+    color: string
+    lastUpdate: timestamp
+  ```
+  - **Success:** Structure documented
 
-**Remaining Sections:**
-- 1.8-1.20: Complete Phase 1 MVP (Rectangle rendering, Firestore sync, Cursors, Presence)
-- 2.1-2.20: Phase 2 Enhanced Canvas (Circle, Text, Operations, Mobile, Polish)
-- 3.1-3.20: Phase 3 AI Agent (Setup, Tools, Commands, Multi-step operations)
+### 1.8.2 Create Cursor Service
+- [ ] Create `src/lib/firebase/cursorService.ts`
+  - `updateCursor(canvasId, userId, position: {x, y}, username, color): Promise<void>`
+  - `subscribeToCursors(canvasId, callback): () => void`
+    - Listen to entire `/cursors/` path
+    - Return unsubscribe
+  - **Success:** Service functions defined
 
-**Each section follows the same pattern:**
-- Checkbox for tracking
-- Numbered tasks (X.Y.Z format)
-- Success criteria
-- Test instructions
-- Edge cases to watch for
+### 1.8.3 Implement Throttled Cursor Updates
+- [ ] Create `src/lib/utils/throttle.ts`
+  - `throttle(fn, delay)` helper
 
-**Total Tasks:** Approximately 200+ granular, testable steps across all phases.
+- [ ] Update `cursorService.ts`
+  - Wrap `updateCursor` with throttle (50ms)
+  - Export as `throttledUpdateCursor`
+  - **Success:** Cursor updates throttled
+
+### 1.8.4 Create Cursor Component
+- [ ] Create `features/collaboration/components/Cursor.tsx`
+  - Props: `x, y, username, color`
+  - Render: SVG cursor icon (M0,0 L0,16 L4,12 L8,16 L12,12 L8,8 Z)
+  - Username label: Small badge below cursor (Tailwind)
+  - Color: Cursor fill + label background
+  - **Success:** Cursor renders
+  - **Test:** Render at 100,100 with name "Test User"
+
+### 1.8.5 Implement Cursor Color Assignment
+- [ ] Create `features/collaboration/utils/colorAssignment.ts`
+  - `getUserColor(userId: string): string`
+    - Hash userId to index: `hashCode(userId) % COLORS.length`
+    - COLORS: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
+  - **Success:** Consistent colors per user
+  - **Test:** Same userId → same color
+
+### 1.8.6 Create useCursors Hook
+- [ ] Create `features/collaboration/hooks/useCursors.ts`
+  - State: `cursors: Array<{userId, x, y, username, color}>`
+  - Subscribe to Realtime DB on mount
+  - Filter out own cursor (currentUser.uid)
+  - Cleanup on unmount
+  - **Success:** Hook provides cursor data
+  - **Test:** Log cursors state
+
+### 1.8.7 Update Own Cursor Position
+- [ ] Update `CanvasStage.tsx`
+  - onMouseMove: Get canvas coords, call throttledUpdateCursor
+  - Use auth.currentUser.uid, username, color
+  - **Success:** Own cursor updates in Realtime DB
+  - **Test:** Check Realtime DB, see cursor object
+
+### 1.8.8 Render Other Users' Cursors
+- [ ] Update `CanvasStage.tsx`
+  - Use useCursors hook
+  - Add new Layer (cursors, `listening={false}`)
+  - Map over cursors, render Cursor component
+  - **Success:** Other cursors visible
+  - **Test:** Open 2 windows, move mouse, see cursor in other window
+
+### 1.8.9 Test Cursor Performance
+- [ ] Performance testing:
+  - Rapid mouse movement → smooth cursor updates
+  - 3 concurrent users → all cursors visible, <50ms latency
+  - Check FPS (should stay 60)
+  - **Success:** 60 FPS with 3 moving cursors
+  - **Edge Case:** Cursor at different zoom levels (coords correct)
+
+---
+
+## 1.9 Presence System (1 hour)
+
+### 1.9.1 Design Presence Structure
+- [ ] Document structure:
+  ```
+  /canvases/main/presence/{userId}/
+    username: string
+    online: boolean
+    lastSeen: timestamp
+  ```
+
+### 1.9.2 Create Presence Service
+- [ ] Create `src/lib/firebase/presenceService.ts`
+  - `setOnline(canvasId, userId, username): Promise<void>`
+    - Set online = true
+    - Use `onDisconnect()` to set online = false automatically
+  - `subscribeToPresence(canvasId, callback): () => void`
+  - **Success:** Service functions defined
+
+### 1.9.3 Set User Online on Canvas Mount
+- [ ] Update `CanvasPage.tsx`
+  - useEffect: Call `setOnline('main', currentUser.uid, currentUser.username)`
+  - **Success:** User marked online
+  - **Test:** Check Realtime DB, see presence object
+
+### 1.9.4 Create PresenceList Component
+- [ ] Create `features/collaboration/components/PresenceList.tsx`
+  - Props: `users: Array<{userId, username, online, color}>`
+  - Render: Small panel (top-right, fixed position)
+  - Show avatar circles (first initial, colored background)
+  - Limit to 10, show "+X more"
+  - Hover: Show full username
+  - **Success:** Component renders
+  - **Test:** Pass mock data, see list
+
+### 1.9.5 Create usePresence Hook
+- [ ] Create `features/collaboration/hooks/usePresence.ts`
+  - Subscribe to Realtime DB
+  - Filter online users
+  - Add color from getUserColor
+  - **Success:** Hook provides online users
+
+### 1.9.6 Add PresenceList to CanvasPage
+- [ ] Update `CanvasPage.tsx`
+  - Use usePresence hook
+  - Render PresenceList component
+  - **Success:** Presence list visible
+
+### 1.9.7 Test Presence System
+- [ ] Open 3 browser windows:
+  - All 3 show each other in presence list
+  - Close one window → disappears from others within 3 seconds
+  - Refresh one window → presence persists
+  - **Success:** Presence tracking works
+  - **Edge Case:** Browser crash → onDisconnect fires
+
+---
+
+## 1.10 UI Polish & Performance (1-2 hours)
+
+### 1.10.1 Add Loading States
+- [ ] Create `components/common/Loading.tsx`
+  - Spinner component
+  - Use in ProtectedRoute, CanvasPage (initial load)
+  - **Success:** Loading states visible
+
+### 1.10.2 Add Error Boundaries
+- [ ] Create `components/common/ErrorBoundary.tsx`
+  - Catch React errors
+  - Show friendly error message
+  - **Success:** Errors don't crash app
+
+### 1.10.3 Optimize Re-Renders
+- [ ] Update `Rectangle.tsx`
+  - Wrap with React.memo
+  - **Success:** Re-renders only when props change
+
+- [ ] Update `Cursor.tsx`
+  - Wrap with React.memo
+  - **Success:** Cursor re-renders minimized
+
+### 1.10.4 Performance Audit
+- [ ] Chrome DevTools Performance tab:
+  - Record while creating 10 shapes
+  - Check FPS (target: 60)
+  - Check sync latency (target: <100ms shapes, <50ms cursors)
+  - **Success:** Meets performance targets
+  - **Edge Case:** Test with 100 shapes (should still be 60 FPS)
+
+### 1.10.5 Add Toast Notifications
+- [ ] **Documentation:** Use context7 MCP to get latest shadcn/ui toast documentation
+  - Call `mcp__context7__get-library-docs` with topic 'toast'
+  - Review toast component API and usage patterns
+- [ ] Install shadcn toast: `npx shadcn-ui@latest add toast`
+- [ ] Add toasts for:
+  - Shape created
+  - Sync error
+  - User joined/left
+  - **Success:** Toasts appear
+
+### 1.10.6 Style Pass
+- [ ] Verify all colors match theme-rules.md:
+  - Primary: #0ea5e9 (selected, buttons)
+  - Neutral: #f5f5f5 (canvas bg), #e5e7eb (borders)
+  - Error: #ef4444
+  - **Success:** Consistent styling
+  - **Test:** Visual inspection
+
+---
+
+## 1.11 MVP Validation Checklist
+
+**Must pass ALL before Phase 1 complete:**
+
+### Functional Requirements
+- [ ] User can sign up with email/password/username
+- [ ] User can log in with email/password
+- [ ] User stays logged in after page refresh
+- [ ] Canvas loads with persisted shapes from Firestore
+- [ ] User can switch between select (V) and rectangle (R) tools
+- [ ] User can create rectangles with click-drag-release (dynamic sizing)
+- [ ] Rectangles have minimum size 10x10px
+- [ ] Dragging in any direction creates correct shape
+- [ ] Click without drag creates 10x10 minimum rectangle
+- [ ] User can select rectangles (click when select tool active)
+- [ ] User can deselect (click background)
+- [ ] User can drag selected rectangles
+- [ ] Rectangle changes sync to Firestore within 500ms
+- [ ] Multiple users see each other's shapes in real-time
+- [ ] Multiple users see each other's cursors with username labels
+- [ ] Presence list shows online users
+- [ ] User can pan canvas (drag background when select tool active)
+- [ ] User can zoom canvas (mouse wheel, 0.1x - 5.0x)
+
+### Performance Requirements
+- [ ] 60 FPS during pan
+- [ ] 60 FPS during zoom
+- [ ] 60 FPS while dragging shapes
+- [ ] 60 FPS with 100+ shapes on canvas
+- [ ] <100ms sync latency for shape changes
+- [ ] <50ms sync latency for cursor positions
+- [ ] No memory leaks after 5 minutes of use
+
+### Multi-User Requirements
+- [ ] Open 2 browser windows logged in as different users
+- [ ] User A creates shape → User B sees it within 500ms
+- [ ] User B moves shape → User A sees it update
+- [ ] User A moves cursor → User B sees cursor with label
+- [ ] Both users appear in each other's presence list
+- [ ] User A closes tab → User B sees them go offline within 3 seconds
+- [ ] Users can edit simultaneously without conflicts
+- [ ] Concurrent shape creation (both create at once) → both shapes appear
+
+### Edge Cases
+- [ ] Network disconnect → graceful error, resume on reconnect
+- [ ] Invalid login credentials → show error message
+- [ ] Weak password → show error before Firebase call
+- [ ] Empty canvas loads correctly (no errors)
+- [ ] Click without drag creates minimum size shape (not 0x0)
+- [ ] Drag up-left, up-right, down-left, down-right all work
+- [ ] Drag 3px → 10x10 shape (minimum enforced)
+- [ ] Tool change cancels shape preview
+- [ ] Pan works only when select tool active
+- [ ] Shape creation works only when rectangle tool active
+- [ ] Selection works only when select tool active
+- [ ] Cursor coords correct at any zoom/pan level
+- [ ] Rapid tool switching (V, R, V, R) → no errors
+- [ ] Rapid shape creation (10 shapes in 5 seconds) → all persist
+
+### Deployment
+- [ ] Build succeeds: `npm run build` (no TypeScript errors)
+- [ ] Preview works: `npm run preview`
+- [ ] Deploy succeeds: `firebase deploy --only hosting`
+- [ ] Deployed app accessible at Firebase URL
+- [ ] All features work in production build
+- [ ] Multiple users can access and collaborate
+
+### Code Quality
+- [ ] All files under 500 lines
+- [ ] All functions have JSDoc comments
+- [ ] No console errors in production
+- [ ] All imports use @ alias (no relative ../../../)
+- [ ] All components in correct feature slices
+- [ ] Barrel exports work (index.ts files)
+- [ ] TypeScript strict mode passes
+- [ ] No 'any' types used
+
+---
+
+## Phase 1 Success Criteria
+
+Phase 1 is complete when:
+
+1. ✅ **All checklist items above pass**
+2. ✅ **Demo-ready:** You can show someone: "Sign up → Create shapes by dragging → See their cursor → Both edit simultaneously"
+3. ✅ **Performance targets met:** 60 FPS, <100ms sync shapes, <50ms sync cursors
+4. ✅ **No console errors**
+5. ✅ **Deployed and publicly accessible**
+6. ✅ **Code follows architecture:** Vertical slices, max 500 lines/file, proper imports
+
+**When all complete, commit with:** `feat: Complete Phase 1 MVP with dynamic shape creation and real-time collaboration`
+
+---
+
+## Key Implementation Notes
+
+### Dynamic Shape Creation Pattern
+```typescript
+// onMouseDown (rectangle tool active)
+startPoint = canvasCoords(mouseEvent)
+isCreating = true
+
+// onMouseMove (while isCreating)
+currentPoint = canvasCoords(mouseEvent)
+width = Math.abs(currentPoint.x - startPoint.x)
+height = Math.abs(currentPoint.y - startPoint.y)
+x = Math.min(startPoint.x, currentPoint.x)
+y = Math.min(startPoint.y, currentPoint.y)
+previewShape = { x, y, width, height }
+
+// onMouseUp
+if (width < 10) width = 10
+if (height < 10) height = 10
+finalShape = { ...previewShape, width, height }
+canvasStore.addObject(finalShape)
+isCreating = false
+previewShape = null
+```
+
+### Coordinate Transform
+```typescript
+function screenToCanvasCoords(stage, screenPoint) {
+  const transform = stage.getAbsoluteTransform().copy().invert()
+  return transform.point(screenPoint)
+}
+```
+
+### Optimistic Updates
+```typescript
+// 1. Update local immediately
+canvasStore.updateObject(id, updates)
+
+// 2. Sync to Firebase (debounced 500ms)
+debouncedUpdateCanvas('main', canvasStore.getState().objects)
+
+// 3. Firebase broadcasts to others
+// 4. Local ignores own update (Firestore listener checks timestamp)
+```
+
+---
+
+## File Structure (Phase 1 Complete)
+
+```
+src/
+├── features/
+│   ├── auth/
+│   │   ├── components/
+│   │   │   ├── AuthModal.tsx
+│   │   │   ├── LoginForm.tsx
+│   │   │   ├── SignupForm.tsx
+│   │   │   ├── ProtectedRoute.tsx
+│   │   │   └── index.ts
+│   │   ├── hooks/
+│   │   │   ├── useAuth.ts
+│   │   │   └── index.ts
+│   │   └── utils/
+│   │       ├── authHelpers.ts
+│   │       └── index.ts
+│   ├── canvas-core/
+│   │   ├── components/
+│   │   │   ├── CanvasStage.tsx
+│   │   │   └── index.ts
+│   │   ├── shapes/
+│   │   │   ├── Rectangle.tsx
+│   │   │   └── index.ts
+│   │   ├── hooks/
+│   │   │   ├── useCanvas.ts
+│   │   │   ├── useShapeCreation.ts
+│   │   │   └── index.ts
+│   │   └── utils/
+│   │       ├── coordinates.ts
+│   │       └── index.ts
+│   ├── collaboration/
+│   │   ├── components/
+│   │   │   ├── Cursor.tsx
+│   │   │   ├── PresenceList.tsx
+│   │   │   └── index.ts
+│   │   ├── hooks/
+│   │   │   ├── useCursors.ts
+│   │   │   ├── usePresence.ts
+│   │   │   └── index.ts
+│   │   └── utils/
+│   │       ├── colorAssignment.ts
+│   │       └── index.ts
+│   └── toolbar/
+│       ├── components/
+│       │   ├── Toolbar.tsx
+│       │   ├── ToolButton.tsx
+│       │   └── index.ts
+│       └── hooks/
+│           ├── useActiveTool.ts
+│           ├── useToolShortcuts.ts
+│           └── index.ts
+├── stores/
+│   ├── canvasStore.ts
+│   ├── toolStore.ts
+│   └── index.ts
+├── lib/
+│   ├── firebase/
+│   │   ├── config.ts
+│   │   ├── auth.ts
+│   │   ├── canvasService.ts
+│   │   ├── cursorService.ts
+│   │   ├── presenceService.ts
+│   │   └── index.ts
+│   └── utils/
+│       ├── debounce.ts
+│       ├── throttle.ts
+│       └── index.ts
+├── types/
+│   ├── auth.types.ts
+│   ├── canvas.types.ts
+│   ├── tool.types.ts
+│   └── index.ts
+├── components/
+│   └── common/
+│       ├── Loading.tsx
+│       ├── ErrorBoundary.tsx
+│       └── index.ts
+└── pages/
+    ├── LandingPage.tsx
+    └── CanvasPage.tsx
+```
 
 ---
 
