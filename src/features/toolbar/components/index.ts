@@ -5,5 +5,4 @@
  */
 
 // Export toolbar components here as they are created
-// Example: export { Toolbar } from './Toolbar'
-// Example: export { ToolButton } from './ToolButton'
+export { Toolbar } from './Toolbar';

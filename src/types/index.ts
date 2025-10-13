@@ -5,6 +5,6 @@
  */
 
 // Export types here as they are created
-// Example: export * from './auth.types'
-// Example: export * from './canvas.types'
-// Example: export * from './tool.types'
+export * from './auth.types';
+export * from './canvas.types';
+export * from './tool.types';

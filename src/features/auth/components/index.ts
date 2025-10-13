@@ -5,7 +5,7 @@
  */
 
 // Export auth components here as they are created
-// Example: export { AuthModal } from './AuthModal'
-// Example: export { LoginForm } from './LoginForm'
-// Example: export { SignupForm } from './SignupForm'
-// Example: export { ProtectedRoute } from './ProtectedRoute'
+export { AuthModal } from './AuthModal';
+export { LoginForm } from './LoginForm';
+export { SignupForm } from './SignupForm';
+export { ProtectedRoute } from './ProtectedRoute';

@@ -10,7 +10,11 @@
 
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import {
+  getFirestore,
+  type Firestore,
+  enableIndexedDbPersistence,
+} from 'firebase/firestore'
 import { getDatabase, type Database } from 'firebase/database'
 
 // Firebase configuration from environment variables
@@ -45,3 +49,15 @@ export const app: FirebaseApp = initializeApp(firebaseConfig)
 export const auth: Auth = getAuth(app)
 export const firestore: Firestore = getFirestore(app)
 export const realtimeDb: Database = getDatabase(app)
+
+// Enable offline persistence for Firestore
+// This allows the app to work offline and sync when reconnected
+enableIndexedDbPersistence(firestore).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    // Multiple tabs open, persistence can only be enabled in one tab at a time
+    console.warn('Offline persistence failed: Multiple tabs open')
+  } else if (err.code === 'unimplemented') {
+    // The current browser doesn't support offline persistence
+    console.warn('Offline persistence not supported by browser')
+  }
+})

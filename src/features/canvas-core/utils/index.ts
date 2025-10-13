@@ -4,5 +4,5 @@
  * Export all canvas-related utilities.
  */
 
-// Export canvas utilities here as they are created
-// Example: export { screenToCanvasCoords } from './coordinates'
+// Export canvas utilities
+export * from './coordinates';

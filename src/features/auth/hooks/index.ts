@@ -5,4 +5,4 @@
  */
 
 // Export auth hooks here as they are created
-// Example: export { useAuth } from './useAuth'
+export { useAuth, AuthProvider } from './useAuth';

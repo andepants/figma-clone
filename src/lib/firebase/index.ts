@@ -13,6 +13,7 @@ export {
   signUpWithEmail,
   signInWithEmail,
   signOutUser,
+  getAuthErrorMessage,
   type User,
 } from './auth'
 
@@ -46,3 +47,10 @@ export {
   push,
   type DatabaseReference,
 } from './realtimedb'
+
+// Export Canvas Service
+export {
+  subscribeToCanvas,
+  updateCanvasObjects,
+  debouncedUpdateCanvas,
+} from './canvasService'

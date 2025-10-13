@@ -5,5 +5,4 @@
  */
 
 // Export toolbar hooks here as they are created
-// Example: export { useActiveTool } from './useActiveTool'
-// Example: export { useToolShortcuts } from './useToolShortcuts'
+export { useToolShortcuts } from './useToolShortcuts';
