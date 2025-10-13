@@ -5,4 +5,4 @@
  */
 
 // Export canvas components here as they are created
-// Example: export { CanvasStage } from './CanvasStage'
+export { CanvasStage } from './CanvasStage';

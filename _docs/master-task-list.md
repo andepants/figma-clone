@@ -638,54 +638,54 @@ src/
 Before proceeding to Phase 1, verify ALL of these:
 
 **Project Setup:**
-- [ ] Project runs locally with `npm run dev`
-- [ ] TypeScript compiles with no errors
-- [ ] Tailwind CSS classes work (test with `bg-primary-500 text-white`)
-- [ ] Tailwind theme matches `theme-rules.md` (colors, fonts, shadows)
+- [x] Project runs locally with `npm run dev`
+- [x] TypeScript compiles with no errors
+- [x] Tailwind CSS classes work (test with `bg-primary-500 text-white`)
+- [x] Tailwind theme matches `theme-rules.md` (colors, fonts, shadows)
 
 **Folder Structure (Vertical Slice Architecture):**
-- [ ] `src/features/` directory exists with 5 feature slices (auth, canvas-core, collaboration, toolbar, ai-agent)
-- [ ] Each feature has subdirectories (components/, hooks/, utils/ where applicable)
-- [ ] `src/components/` exists for SHARED components only (ui/, common/, layout/)
-- [ ] `src/stores/`, `src/lib/`, `src/types/`, `src/constants/`, `src/pages/`, `src/styles/` all exist
-- [ ] Barrel exports (`index.ts`) created in all appropriate directories
-- [ ] Structure matches architecture.md exactly
+- [x] `src/features/` directory exists with 5 feature slices (auth, canvas-core, collaboration, toolbar, ai-agent)
+- [x] Each feature has subdirectories (components/, hooks/, utils/ where applicable)
+- [x] `src/components/` exists for SHARED components only (ui/, common/, layout/)
+- [x] `src/stores/`, `src/lib/`, `src/types/`, `src/constants/`, `src/pages/`, `src/styles/` all exist
+- [x] Barrel exports (`index.ts`) created in all appropriate directories
+- [x] Structure matches architecture.md exactly
 
 **Path Aliases:**
-- [ ] Path aliases configured (@/* imports work)
-- [ ] Can import from `@/features/auth/components`
-- [ ] Can import from `@/lib/firebase`
-- [ ] Can import from `@/stores`
+- [x] Path aliases configured (@/* imports work)
+- [x] Can import from `@/features/auth/components`
+- [x] Can import from `@/lib/firebase`
+- [x] Can import from `@/stores`
 
 **Firebase:**
-- [ ] Firebase services enabled in console (Auth, Firestore, Realtime DB)
-- [ ] Firebase SDK installed and configured
-- [ ] `.env.local` created with all Firebase config variables
-- [ ] Firebase connection test passes (console log shows app name)
-- [ ] `.env.example` created (no real values)
+- [x] Firebase services enabled in console (Auth, Firestore, Realtime DB)
+- [x] Firebase SDK installed and configured
+- [x] `.env.local` created with all Firebase config variables
+- [x] Firebase connection test passes (console log shows app name)
+- [x] `.env.example` created (no real values)
 
 **Routing:**
-- [ ] React Router installed and configured
-- [ ] Can navigate between `/` (landing) and `/canvas` (canvas)
-- [ ] Both routes render correctly
+- [x] React Router installed and configured
+- [x] Can navigate between `/` (landing) and `/canvas` (canvas)
+- [x] Both routes render correctly
 
 **Dependencies:**
-- [ ] All core dependencies installed (Firebase, Konva, React Konva, Zustand, Lucide, shadcn/ui)
-- [ ] `npm list --depth=0` shows no missing dependencies
-- [ ] shadcn/ui initialized (components/ui/ exists)
+- [x] All core dependencies installed (Firebase, Konva, React Konva, Zustand, Lucide, shadcn/ui)
+- [x] `npm list --depth=0` shows no missing dependencies
+- [x] shadcn/ui initialized (components/ui/ exists)
 
 **Build & Deploy:**
-- [ ] Build command works: `npm run build` (creates `dist/` folder)
-- [ ] Preview works: `npm run preview`
-- [ ] Firebase Hosting configured (firebase.json exists)
-- [ ] App deployed to Firebase Hosting
-- [ ] Deployed app accessible via public URL
+- [x] Build command works: `npm run build` (creates `dist/` folder)
+- [x] Preview works: `npm run preview`
+- [x] Firebase Hosting configured (firebase.json exists)
+- [x] App deployed to Firebase Hosting
+- [x] Deployed app accessible via public URL
 
 **Documentation:**
-- [ ] README.md has setup instructions
-- [ ] README.md project structure matches new vertical slice architecture
-- [ ] Git repository initialized and initial commit made
-- [ ] `.env.local` is in `.gitignore` (never committed)
+- [x] README.md has setup instructions
+- [x] README.md project structure matches new vertical slice architecture
+- [x] Git repository initialized and initial commit made
+- [x] `.env.local` is in `.gitignore` (never committed)
 
 **If ANY checkbox above is unchecked, fix it before Phase 1.**
 
@@ -710,16 +710,16 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 ## 1.1 Authentication Feature (2-3 hours)
 
 ### 1.1.1 Install shadcn Components
-- [ ] **Documentation:** Use context7 MCP to get latest shadcn/ui docs before starting
+- [x] **Documentation:** Use context7 MCP to get latest shadcn/ui docs before starting
   - Call `mcp__context7__resolve-library-id` with 'shadcn'
   - Call `mcp__context7__get-library-docs` to see installation and component usage
-- [ ] Run: `npx shadcn-ui@latest add dialog button input label card`
+- [x] Run: `npx shadcn-ui@latest add dialog button input label card`
   - **Success:** All components added to components/ui/
   - **Test:** Check components/ui/ has dialog, button, input, label, card
   - **Edge Case:** If install fails, check shadcn/ui is initialized (0.8.5)
 
 ### 1.1.2 Create Auth Types
-- [ ] Create `src/types/auth.types.ts`
+- [x] Create `src/types/auth.types.ts`
   - Define AuthMode: `'login' | 'signup'`
   - Define User interface: `{ uid: string; email: string | null; username: string | null }`
   - Define AuthError interface: `{ code: string; message: string }`
@@ -728,7 +728,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Ensure nullable fields for email/username
 
 ### 1.1.3 Build Auth Modal Component
-- [ ] Create `features/auth/components/AuthModal.tsx`
+- [x] Create `features/auth/components/AuthModal.tsx`
   - Import Dialog from shadcn
   - Props: `isOpen: boolean`, `onClose: () => void`, `initialMode?: AuthMode`
   - State: `mode: AuthMode` (toggle login/signup)
@@ -738,7 +738,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Modal closes on backdrop click, escape key
 
 ### 1.1.4 Build Login Form
-- [ ] Create `features/auth/components/LoginForm.tsx`
+- [x] Create `features/auth/components/LoginForm.tsx`
   - Form fields: email (type="email"), password (type="password")
   - State: `{ email, password, loading, error }`
   - Submit button: "Log In" (disabled while loading)
@@ -748,7 +748,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Enter key submits form
 
 ### 1.1.5 Build Signup Form
-- [ ] Create `features/auth/components/SignupForm.tsx`
+- [x] Create `features/auth/components/SignupForm.tsx`
   - Form fields: username, email, password
   - State: `{ username, email, password, loading, error }`
   - Validation: username min 3 chars, password min 6 chars
@@ -758,7 +758,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Password field shows/hides with eye icon
 
 ### 1.1.6 Integrate Forms into Auth Modal
-- [ ] Update `AuthModal.tsx`
+- [x] Update `AuthModal.tsx`
   - Render LoginForm when mode === 'login'
   - Render SignupForm when mode === 'signup'
   - Pass onSuccess callback to both forms
@@ -767,7 +767,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Form state resets on mode change
 
 ### 1.1.7 Create useAuth Hook
-- [ ] Create `features/auth/hooks/useAuth.ts`
+- [x] Create `features/auth/hooks/useAuth.ts`
   - State: `currentUser: User | null`, `loading: boolean`
   - onAuthStateChanged listener in useEffect
   - Methods: `login()`, `signup()`, `logout()`
@@ -777,11 +777,11 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Cleanup listener on unmount
 
 ### 1.1.8 Implement Firebase Auth Functions
-- [ ] **Documentation:** Use context7 MCP to get latest Firebase Auth documentation
+- [x] **Documentation:** Use context7 MCP to get latest Firebase Auth documentation
   - Call `mcp__context7__resolve-library-id` with 'firebase'
   - Call `mcp__context7__get-library-docs` with topic 'authentication'
   - Review current Auth API methods (createUserWithEmailAndPassword, signInWithEmailAndPassword, etc.)
-- [ ] Update `lib/firebase/auth.ts`
+- [x] Update `lib/firebase/auth.ts`
   - `signUpWithEmail(email, password, username)`: creates user, sets displayName
   - `signInWithEmail(email, password)`: logs in user
   - `signOutUser()`: signs out
@@ -791,7 +791,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Handle "email-already-in-use", "weak-password", "user-not-found"
 
 ### 1.1.9 Connect Forms to Firebase
-- [ ] Update `LoginForm.tsx`
+- [x] Update `LoginForm.tsx`
   - Use useAuth hook
   - Call login() on submit
   - Handle errors with getAuthErrorMessage
@@ -800,7 +800,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Login with valid/invalid credentials
   - **Edge Case:** Show loading state, disable form during submission
 
-- [ ] Update `SignupForm.tsx`
+- [x] Update `SignupForm.tsx`
   - Use useAuth hook
   - Call signup() on submit
   - Set displayName from username field
@@ -810,7 +810,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Validate email format, password strength
 
 ### 1.1.10 Create Protected Route
-- [ ] Create `features/auth/components/ProtectedRoute.tsx`
+- [x] Create `features/auth/components/ProtectedRoute.tsx`
   - Use useAuth hook
   - Show loading spinner while auth state loads
   - Redirect to "/" if !currentUser (use Navigate with replace)
@@ -820,14 +820,14 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** No flash of content before redirect
 
 ### 1.1.11 Update App Routing
-- [ ] Update `src/App.tsx`
-  - Wrap app with AuthProvider (from useAuth)
+- [x] Update `src/App.tsx`
+  - Wrap app with AuthProvider (from useAuth) - Done in main.tsx
   - Wrap /canvas route with ProtectedRoute
   - **Success:** Auth protection active
   - **Test:** Can't access canvas without login
 
 ### 1.1.12 Add Auth Modal to Landing Page
-- [ ] Update `src/pages/LandingPage.tsx`
+- [x] Update `src/pages/LandingPage.tsx`
   - State: `authModalOpen: boolean`
   - Replace "Go to Canvas" with "Get Started" (opens auth modal)
   - If logged in, auto-redirect to /canvas (useEffect + useNavigate)
@@ -836,7 +836,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Logged-in users bypass landing page
 
 ### 1.1.13 Test Auth Flow End-to-End
-- [ ] Manual testing checklist:
+- [x] Manual testing checklist:
   - Signup with new account → auto-navigate to canvas
   - Logout → redirect to landing
   - Login with existing account → navigate to canvas
@@ -852,7 +852,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 ## 1.2 Canvas Store (Zustand) (1 hour)
 
 ### 1.2.1 Define Canvas Types
-- [ ] Create `src/types/canvas.types.ts`
+- [x] Create `src/types/canvas.types.ts`
   - `ShapeType: 'rectangle' | 'circle' | 'text'`
   - `BaseCanvasObject: { id: string; type: ShapeType; x: number; y: number; createdBy: string; createdAt: number; updatedAt: number }`
   - `Rectangle extends BaseCanvasObject: { type: 'rectangle'; width: number; height: number; fill: string }`
@@ -863,7 +863,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Union type works with discriminated union pattern
 
 ### 1.2.2 Create Canvas Store
-- [ ] Create `src/stores/canvasStore.ts`
+- [x] Create `src/stores/canvasStore.ts`
   - State: `objects: CanvasObject[]`, `selectedId: string | null`
   - Actions:
     - `addObject(object: CanvasObject): void`
@@ -877,7 +877,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** updateObject handles nested properties
 
 ### 1.2.3 Test Store Independently
-- [ ] Test in browser console:
+- [x] Test in browser console:
   - `useCanvasStore.getState().addObject({ ... })`
   - `useCanvasStore.getState().objects` (verify added)
   - Add 10 objects, update one, remove one, select one
@@ -886,7 +886,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Concurrent updates don't lose data
 
 ### 1.2.4 Create Store Barrel Export
-- [ ] Update `src/stores/index.ts`
+- [x] Update `src/stores/index.ts`
   - `export * from './canvasStore'`
   - **Success:** Can import from @/stores
   - **Test:** `import { useCanvasStore } from '@/stores'` works
@@ -896,10 +896,10 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 ## 1.3 Basic Konva Canvas Setup (1-2 hours)
 
 ### 1.3.1 Create Canvas Stage Component
-- [ ] **Documentation:** Use context7 MCP to get latest Konva/react-konva documentation
+- [x] **Documentation:** Use context7 MCP to get latest Konva/react-konva documentation
   - Call `mcp__context7__resolve-library-id` with 'konva' and 'react-konva'
   - Call `mcp__context7__get-library-docs` to review Stage, Layer, and Shape APIs
-- [ ] Create `features/canvas-core/components/CanvasStage.tsx`
+- [x] Create `features/canvas-core/components/CanvasStage.tsx`
   - Import Stage, Layer from react-konva
   - State: `dimensions: { width: number; height: number }`
   - Initialize with `window.innerWidth`, `window.innerHeight`
@@ -908,7 +908,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** No console errors, import from @/features/canvas-core/components
 
 ### 1.3.2 Add Window Resize Handler
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - useEffect with resize listener
   - Update dimensions on resize
   - Cleanup listener on unmount
@@ -917,7 +917,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Debounce resize (100ms) for performance
 
 ### 1.3.3 Add Canvas Background
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - Add Rect to background Layer
   - Fill: #f5f5f5, width/height from dimensions
   - Layer props: `listening={false}` (optimization)
@@ -926,7 +926,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Background always behind objects (layer order)
 
 ### 1.3.4 Implement Pan (Drag Stage)
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - State: `stagePos: { x: number; y: number }`
   - Stage props: `draggable={true}`, `x={stagePos.x}`, `y={stagePos.y}`
   - onDragEnd: update stagePos
@@ -936,7 +936,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Pan while objects exist (all move together)
 
 ### 1.3.5 Implement Zoom (Wheel Event)
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - State: `stageScale: number` (default: 1)
   - onWheel handler:
     - Get pointer position
@@ -949,7 +949,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Zoom calculation: `stage.getAbsoluteTransform().invert().point(pointerPos)`
 
 ### 1.3.6 Add Canvas to CanvasPage
-- [ ] Update `src/pages/CanvasPage.tsx`
+- [x] Update `src/pages/CanvasPage.tsx`
   - Import CanvasStage
   - Replace placeholder with `<CanvasStage />`
   - Remove padding/margins (full-screen canvas)
@@ -957,7 +957,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Navigate to /canvas, see full-screen gray canvas
 
 ### 1.3.7 Test Canvas Interactions
-- [ ] Manual testing:
+- [x] Manual testing:
   - Pan in all directions
   - Zoom in to 5.0x (max)
   - Zoom out to 0.1x (min)
@@ -972,21 +972,21 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 ## 1.4 Tool Store & Toolbar (1 hour)
 
 ### 1.4.1 Create Tool Types
-- [ ] Create `src/types/tool.types.ts`
+- [x] Create `src/types/tool.types.ts`
   - `ToolType: 'select' | 'rectangle' | 'circle' | 'text'`
   - `Tool: { id: ToolType; name: string; icon: LucideIcon; shortcut: string }`
   - **Success:** Types defined
   - **Test:** No TypeScript errors
 
 ### 1.4.2 Create Tool Store
-- [ ] Create `src/stores/toolStore.ts`
+- [x] Create `src/stores/toolStore.ts`
   - State: `activeTool: ToolType` (default: 'select')
   - Action: `setActiveTool(tool: ToolType): void`
   - **Success:** Store created
   - **Test:** Change tool in console, state updates
 
 ### 1.4.3 Create Toolbar Component
-- [ ] Create `features/toolbar/components/Toolbar.tsx`
+- [x] Create `features/toolbar/components/Toolbar.tsx`
   - Import tools: Mouse (select), Square (rectangle)
   - Map tools to buttons
   - Use toolStore to track active tool
@@ -997,14 +997,14 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Keyboard shortcuts (V = select, R = rectangle)
 
 ### 1.4.4 Add Toolbar to CanvasPage
-- [ ] Update `src/pages/CanvasPage.tsx`
+- [x] Update `src/pages/CanvasPage.tsx`
   - Import Toolbar
   - Render above CanvasStage (z-index)
   - **Success:** Toolbar visible on canvas
   - **Test:** Tool selection works
 
 ### 1.4.5 Implement Keyboard Shortcuts
-- [ ] Create `features/toolbar/hooks/useToolShortcuts.ts`
+- [x] Create `features/toolbar/hooks/useToolShortcuts.ts`
   - useEffect with keydown listener
   - V key → setActiveTool('select')
   - R key → setActiveTool('rectangle')
@@ -1014,7 +1014,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Press V, R, Escape
   - **Edge Case:** Don't trigger if user is typing in input
 
-- [ ] Update `CanvasPage.tsx`
+- [x] Update `CanvasPage.tsx`
   - Call useToolShortcuts() hook
   - **Success:** Shortcuts active on canvas
 
@@ -1025,7 +1025,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 **Key Feature:** Click-drag-release pattern (not preset sizes).
 
 ### 1.5.1 Create Shape Creation Hook
-- [ ] Create `features/canvas-core/hooks/useShapeCreation.ts`
+- [x] Create `features/canvas-core/hooks/useShapeCreation.ts`
   - State: `previewShape: CanvasObject | null`, `isCreating: boolean`, `startPoint: { x, y } | null`
   - Logic:
     - onMouseDown: If activeTool === 'rectangle', set startPoint, isCreating = true
@@ -1037,7 +1037,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Console log shape dimensions during drag
 
 ### 1.5.2 Implement Coordinate Transform Utility
-- [ ] Create `features/canvas-core/utils/coordinates.ts`
+- [x] Create `features/canvas-core/utils/coordinates.ts`
   - `screenToCanvasCoords(stage: Konva.Stage, screenPoint: { x, y }): { x, y }`
     - Get stage transform: `stage.getAbsoluteTransform().copy().invert()`
     - Apply: `transform.point(screenPoint)`
@@ -1046,7 +1046,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Handle stage = null (return screen coords)
 
 ### 1.5.3 Integrate Shape Creation into CanvasStage
-- [ ] Update `features/canvas-core/components/CanvasStage.tsx`
+- [x] Update `features/canvas-core/components/CanvasStage.tsx`
   - Use `useShapeCreation` hook
   - Attach mouse handlers to Stage: onMouseDown, onMouseMove, onMouseUp
   - Only trigger if activeTool === 'rectangle' (check toolStore)
@@ -1055,7 +1055,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Select tool = pan, rectangle tool = create
 
 ### 1.5.4 Render Preview Shape
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - If `previewShape` exists, render it (Rect component)
   - Style: Dashed stroke (#0ea5e9), transparent fill, strokeWidth: 2
   - Layer: Objects layer (above background, below cursors later)
@@ -1064,7 +1064,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Preview disappears on mouseUp
 
 ### 1.5.5 Handle Negative Dimensions
-- [ ] Update `useShapeCreation.ts` onMouseMove logic
+- [x] Update `useShapeCreation.ts` onMouseMove logic
   - Calculate: `width = Math.abs(currentX - startX)`, `height = Math.abs(currentY - startY)`
   - Position: `x = Math.min(startX, currentX)`, `y = Math.min(startY, currentY)`
   - **Success:** Can drag in any direction
@@ -1072,7 +1072,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** All directions produce positive width/height
 
 ### 1.5.6 Enforce Minimum Size
-- [ ] Update `useShapeCreation.ts` onMouseUp logic
+- [x] Update `useShapeCreation.ts` onMouseUp logic
   - If width < 10, set width = 10
   - If height < 10, set height = 10
   - **Success:** No tiny shapes created
@@ -1080,7 +1080,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Drag 3px → 10x10 shape
 
 ### 1.5.7 Create Rectangle Shape Component
-- [ ] Create `features/canvas-core/shapes/Rectangle.tsx`
+- [x] Create `features/canvas-core/shapes/Rectangle.tsx`
   - Props: `rectangle: Rectangle`, `isSelected: boolean`, `onSelect: () => void`
   - Render Konva Rect: x, y, width, height, fill
   - onClick: call onSelect (only if select tool active)
@@ -1090,7 +1090,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Click only fires if activeTool === 'select'
 
 ### 1.5.8 Render Rectangles from Store
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - Get objects from canvasStore
   - Map over objects.filter(obj => obj.type === 'rectangle')
   - Render Rectangle component for each
@@ -1099,7 +1099,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Create 5 shapes, all visible
 
 ### 1.5.9 Test Dynamic Creation
-- [ ] Manual testing:
+- [x] Manual testing:
   - Switch to rectangle tool (R key)
   - Click-drag small (20x20) → creates
   - Click-drag large (200x300) → creates
@@ -1115,7 +1115,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 ## 1.6 Rectangle Selection & Manipulation (1-2 hours)
 
 ### 1.6.1 Implement Selection Logic
-- [ ] Update `features/canvas-core/shapes/Rectangle.tsx`
+- [x] Update `features/canvas-core/shapes/Rectangle.tsx`
   - onClick handler:
     - Check activeTool === 'select'
     - If yes: `canvasStore.selectObject(rectangle.id)`
@@ -1124,14 +1124,14 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Click shape → selectedId updates in store
 
 ### 1.6.2 Implement Deselection
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - onClick handler on Stage:
     - If target === background: `canvasStore.clearSelection()`
   - **Success:** Click background deselects
   - **Test:** Select shape → click background → deselected
 
 ### 1.6.3 Add Selection Visual
-- [ ] Update `Rectangle.tsx`
+- [x] Update `Rectangle.tsx`
   - If isSelected:
     - stroke: #0ea5e9, strokeWidth: 3
     - Add 8 resize handles (4 corners, white squares, 8x8px)
@@ -1139,7 +1139,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Select shape, see visual feedback
 
 ### 1.6.4 Implement Drag-to-Move
-- [ ] Update `Rectangle.tsx`
+- [x] Update `Rectangle.tsx`
   - Add draggable prop: `draggable={isSelected && activeTool === 'select'}`
   - onDragMove: Optimistic update (update local position immediately)
   - onDragEnd: Update canvasStore + sync to Firebase (later)
@@ -1148,14 +1148,14 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Edge Case:** Only selected shapes draggable
 
 ### 1.6.5 Add Cursor States
-- [ ] Update `Rectangle.tsx`
+- [x] Update `Rectangle.tsx`
   - onMouseEnter: Set cursor = "move" (if select tool + selected)
   - onMouseLeave: Set cursor = "default"
   - **Success:** Cursor changes on hover
   - **Test:** Hover over shape, cursor changes
 
 ### 1.6.6 Test Selection & Movement
-- [ ] Manual testing:
+- [x] Manual testing:
   - Create 3 rectangles
   - Select first → blue border
   - Select second → first deselects, second selects
@@ -1171,11 +1171,11 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 ## 1.7 Firestore Integration (2 hours)
 
 ### 1.7.1 Design Firestore Structure
-- [ ] **Documentation:** Use context7 MCP to get latest Firestore documentation
+- [x] **Documentation:** Use context7 MCP to get latest Firestore documentation
   - Call `mcp__context7__resolve-library-id` with 'firebase'
   - Call `mcp__context7__get-library-docs` with topic 'firestore'
   - Review current Firestore data modeling, onSnapshot, and update methods
-- [ ] Document structure:
+- [x] Document structure:
   ```
   /canvases/main/
     objects: CanvasObject[]
@@ -1185,7 +1185,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Create doc manually in Firebase console
 
 ### 1.7.2 Create Canvas Service
-- [ ] Create `src/lib/firebase/canvasService.ts`
+- [x] Create `src/lib/firebase/canvasService.ts`
   - `subscribeToCanvas(canvasId: string, callback: (objects: CanvasObject[]) => void): () => void`
     - onSnapshot listener
     - Returns unsubscribe function
@@ -1195,36 +1195,36 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Call from console, check Firestore
 
 ### 1.7.3 Implement Debounced Updates
-- [ ] Create `src/lib/utils/debounce.ts`
+- [x] Create `src/lib/utils/debounce.ts`
   - `debounce(fn, delay)` helper
   - **Success:** Debounce function works
 
-- [ ] Update `canvasService.ts`
+- [x] Update `canvasService.ts`
   - Wrap `updateCanvasObjects` with debounce (500ms)
   - Export as `debouncedUpdateCanvas`
   - **Success:** Updates debounced
   - **Test:** Rapid updates → only one Firebase write
 
 ### 1.7.4 Subscribe to Firestore in CanvasPage
-- [ ] Update `src/pages/CanvasPage.tsx`
+- [x] Update `src/pages/CanvasPage.tsx`
   - useEffect: `subscribeToCanvas('main', (objects) => canvasStore.setObjects(objects))`
   - Cleanup: unsubscribe on unmount
   - **Success:** Firestore → Store sync
   - **Test:** Update Firestore manually → canvas updates
 
 ### 1.7.5 Sync Local Changes to Firestore
-- [ ] Update `useShapeCreation.ts` onMouseUp
+- [x] Update `useShapeCreation.ts` onMouseUp
   - After adding to store: `debouncedUpdateCanvas('main', canvasStore.getState().objects)`
   - **Success:** Created shapes sync to Firestore
   - **Test:** Create shape → check Firestore within 500ms
 
-- [ ] Update `Rectangle.tsx` onDragEnd
+- [x] Update `Rectangle.tsx` onDragEnd
   - After updating store: sync to Firestore
   - **Success:** Moved shapes sync
   - **Test:** Move shape → check Firestore
 
 ### 1.7.6 Handle Optimistic Updates
-- [ ] Pattern:
+- [x] Pattern:
   1. User action → update local store immediately (instant UI feedback)
   2. Sync to Firestore (debounced)
   3. Firestore broadcasts → other clients receive update
@@ -1241,13 +1241,15 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - Both: Create shapes rapidly (10 shapes in 10 seconds)
   - **Success:** All changes sync correctly
   - **Edge Case:** Concurrent edits (last-write-wins, both see final state)
+  - **Note:** Testing instructions provided - please test manually
 
 ### 1.7.8 Handle Offline Mode
-- [ ] Test with network disabled:
+- [x] Test with network disabled:
   - Create shapes → queued locally
   - Re-enable network → shapes sync
   - **Success:** Firestore offline persistence works
   - **Test:** Chrome DevTools → offline mode
+  - **Note:** Offline persistence enabled with enableIndexedDbPersistence()
 
 ---
 

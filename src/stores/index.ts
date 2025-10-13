@@ -5,6 +5,5 @@
  */
 
 // Export stores here as they are created
-// Example: export { useCanvasStore } from './canvasStore'
-// Example: export { useToolStore } from './toolStore'
-// Example: export { useAuthStore } from './authStore'
+export { useCanvasStore } from './canvasStore';
+export { useToolStore } from './toolStore';

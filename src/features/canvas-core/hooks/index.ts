@@ -4,6 +4,5 @@
  * Export all canvas-related hooks.
  */
 
-// Export canvas hooks here as they are created
-// Example: export { useCanvas } from './useCanvas'
-// Example: export { useShapeCreation } from './useShapeCreation'
+// Export canvas hooks
+export * from './useShapeCreation';
