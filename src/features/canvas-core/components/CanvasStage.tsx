@@ -247,9 +247,8 @@ export function CanvasStage() {
   /**
    * Handle cursor position updates
    * Sends throttled cursor position updates to Firebase
-   * @param {Konva.KonvaEventObject<MouseEvent>} e - Mouse event
    */
-  function handleCursorMove(e: Konva.KonvaEventObject<MouseEvent>) {
+  function handleCursorMove() {
     const stage = stageRef.current;
     if (!stage || !currentUser) return;
 
@@ -260,7 +259,8 @@ export function CanvasStage() {
     const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
 
     // Update cursor position in Realtime DB (throttled to 50ms)
-    const username = currentUser.displayName || currentUser.email || 'Anonymous';
+    // Type assertion for displayName which exists at runtime but may not be in type definition
+    const username = (currentUser as any).displayName || currentUser.email || 'Anonymous';
     const color = getUserColor(currentUser.uid);
 
     throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
@@ -292,7 +292,7 @@ export function CanvasStage() {
       onMouseDown={handleMouseDown}
       onMouseMove={(e) => {
         handleMouseMove(e);
-        handleCursorMove(e);
+        handleCursorMove();
       }}
       onMouseUp={handleMouseUp}
       style={{
