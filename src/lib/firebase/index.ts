@@ -63,3 +63,12 @@ export {
   type CursorData,
   type CursorWithUser,
 } from './cursorService'
+
+// Export Presence Service
+export {
+  setOnline,
+  setOffline,
+  subscribeToPresence,
+  type PresenceData,
+  type PresenceWithUser,
+} from './presenceService'
