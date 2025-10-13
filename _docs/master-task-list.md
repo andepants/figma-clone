@@ -289,23 +289,24 @@ src/
 
 ## 0.5 Create Firebase Project
 
-- [ ] **0.5.1** Go to Firebase Console (console.firebase.google.com)
+- [x] **0.5.1** Go to Firebase Console (console.firebase.google.com)
   - **Success:** Console loads, logged in
   - **Test:** See projects page or create project button
 
-- [ ] **0.5.2** Create new project named "collabcanvas"
+- [x] **0.5.2** Create new project named "collabcanvas"
   - Click "Add project"
   - Enter name: collabcanvas
   - **Success:** Project created
   - **Test:** Project appears in console
   - **Edge Case:** Name might need to be unique, try collabcanvas-[yourname]
+  - **Note:** Project created as "figma-clone-d33e3"
 
-- [ ] **0.5.3** Disable Google Analytics (optional for MVP)
+- [x] **0.5.3** Disable Google Analytics (optional for MVP)
   - Toggle off during project creation
   - **Success:** Project creates faster without Analytics
   - **Test:** Project ready to use
 
-- [ ] **0.5.4** Enable Firebase Realtime Database
+- [x] **0.5.4** Enable Firebase Realtime Database
   - Go to Build → Realtime Database
   - Click "Create Database"
   - Choose location (us-central1 recommended)
@@ -314,7 +315,7 @@ src/
   - **Test:** See database URL in console
   - **Edge Case:** Note the URL format (ends with .firebaseio.com)
 
-- [ ] **0.5.5** Enable Cloud Firestore
+- [x] **0.5.5** Enable Cloud Firestore
   - Go to Build → Firestore Database
   - Click "Create database"
   - Start in **test mode** for now
@@ -323,7 +324,7 @@ src/
   - **Test:** See Firestore collections tab
   - **Edge Case:** Test mode allows all reads/writes temporarily
 
-- [ ] **0.5.6** Enable Authentication with Email/Password
+- [x] **0.5.6** Enable Authentication with Email/Password
   - Go to Build → Authentication
   - Click "Get started"
   - Click "Email/Password" provider
@@ -333,7 +334,7 @@ src/
   - **Test:** See enabled in Sign-in methods
   - **Edge Case:** Don't enable Email link (passwordless) yet
 
-- [ ] **0.5.7** Register web app in Firebase
+- [x] **0.5.7** Register web app in Firebase
   - Go to Project Overview
   - Click web icon (</>)
   - Register app with nickname: "collabcanvas-web"
@@ -341,22 +342,24 @@ src/
   - **Success:** Web app registered, config object shown
   - **Test:** See Firebase config code
   - **Edge Case:** Copy config object somewhere safe
+  - **Note:** App registered as "figma-clone-web"
 
 ---
 
 ## 0.6 Install and Configure Firebase SDK
 
-- [ ] **0.6.1** Install Firebase SDK
+- [x] **0.6.1** Install Firebase SDK
   - Run: `npm install firebase`
   - **Success:** Firebase added to dependencies
   - **Test:** Check package.json
 
-- [ ] **0.6.2** Create `.env.local` file in root
+- [x] **0.6.2** Create `.env.local` file in root
   - **Success:** File created (will show in root directory)
   - **Test:** File exists
   - **Edge Case:** File starts with dot (hidden on some systems)
+  - **Note:** Using `.env` file instead of `.env.local`
 
-- [ ] **0.6.3** Add Firebase config to `.env.local`
+- [x] **0.6.3** Add Firebase config to `.env.local`
   - Add all variables with VITE_ prefix:
     ```
     VITE_FIREBASE_API_KEY=your_key
@@ -371,14 +374,14 @@ src/
   - **Test:** File has all VITE_ prefixed variables
   - **Edge Case:** No quotes needed around values
 
-- [ ] **0.6.4** Add `.env.local` to `.gitignore`
+- [x] **0.6.4** Add `.env.local` to `.gitignore`
   - Open .gitignore
   - Add line: `.env.local`
   - **Success:** File listed in gitignore
   - **Test:** Git won't track this file
   - **Edge Case:** Should already be there, but verify
 
-- [ ] **0.6.5** Create `src/lib/firebase/config.ts`
+- [x] **0.6.5** Create `src/lib/firebase/config.ts`
   - Add file with header comment
   - Import Firebase modules
   - Initialize app with env variables
@@ -387,37 +390,37 @@ src/
   - **Test:** No TypeScript errors
   - **Edge Case:** Use import.meta.env not process.env
 
-- [ ] **0.6.6** Create `src/lib/firebase/auth.ts`
+- [x] **0.6.6** Create `src/lib/firebase/auth.ts`
   - Import auth from config
   - Export auth for use in app
   - **Success:** Auth module ready
   - **Test:** Can import from this file
 
-- [ ] **0.6.7** Create `src/lib/firebase/firestore.ts`
+- [x] **0.6.7** Create `src/lib/firebase/firestore.ts`
   - Import firestore from config
   - Export firestore for use in app
   - **Success:** Firestore module ready
   - **Test:** Can import from this file
 
-- [ ] **0.6.8** Create `src/lib/firebase/realtimedb.ts`
+- [x] **0.6.8** Create `src/lib/firebase/realtimedb.ts`
   - Import realtimeDb from config
   - Export realtimeDb for use in app
   - **Success:** Realtime DB module ready
   - **Test:** Can import from this file
 
-- [ ] **0.6.9** Create `src/lib/firebase/index.ts` barrel export
+- [x] **0.6.9** Create `src/lib/firebase/index.ts` barrel export
   - Export all from config, auth, firestore, realtimedb
   - **Success:** Single import point for Firebase
   - **Test:** Can import all Firebase exports from @/lib/firebase
 
-- [ ] **0.6.10** Test Firebase connection
+- [x] **0.6.10** Test Firebase connection
   - Import { app } from '@/lib/firebase' in App.tsx
   - Add: `console.log('Firebase:', app.name)`
   - **Success:** Console shows "Firebase: [DEFAULT]"
   - **Test:** Check browser console
   - **Edge Case:** If error, check env variables are loaded (restart dev server)
 
-- [ ] **0.6.11** Remove Firebase test code from App.tsx
+- [x] **0.6.11** Remove Firebase test code from App.tsx
   - Delete console.log and import
   - **Success:** Clean App.tsx
   - **Test:** No Firebase-related code in App.tsx yet
@@ -426,26 +429,26 @@ src/
 
 ## 0.7 Set Up Basic Routing
 
-- [ ] **0.7.1** Install React Router
+- [x] **0.7.1** Install React Router
   - Run: `npm install react-router-dom`
   - **Success:** Package installed
   - **Test:** Check package.json dependencies
 
-- [ ] **0.7.2** Create `src/pages/LandingPage.tsx`
+- [x] **0.7.2** Create `src/pages/LandingPage.tsx`
   - Add file with header comment
   - Create simple component returning "Landing Page"
   - Export default
   - **Success:** File created with component
   - **Test:** No TypeScript errors
 
-- [ ] **0.7.3** Create `src/pages/CanvasPage.tsx`
+- [x] **0.7.3** Create `src/pages/CanvasPage.tsx`
   - Add file with header comment
   - Create simple component returning "Canvas Page"
   - Export default
   - **Success:** File created with component
   - **Test:** No TypeScript errors
 
-- [ ] **0.7.4** Update `src/App.tsx` with BrowserRouter
+- [x] **0.7.4** Update `src/App.tsx` with BrowserRouter
   - Import BrowserRouter, Routes, Route from react-router-dom
   - Import LandingPage and CanvasPage
   - Wrap app in BrowserRouter
@@ -453,18 +456,18 @@ src/
   - **Success:** Routing configured
   - **Test:** No TypeScript errors
 
-- [ ] **0.7.5** Test navigation to landing page
+- [x] **0.7.5** Test navigation to landing page
   - Visit http://localhost:5173/
   - **Success:** See "Landing Page" text
   - **Test:** Browser shows correct content
   - **Edge Case:** If blank, check routes are inside BrowserRouter
 
-- [ ] **0.7.6** Test navigation to canvas page
+- [x] **0.7.6** Test navigation to canvas page
   - Visit http://localhost:5173/canvas
   - **Success:** See "Canvas Page" text
   - **Test:** Browser shows correct content
 
-- [ ] **0.7.7** Add Link component test
+- [x] **0.7.7** Add Link component test
   - Add Link to LandingPage: `<Link to="/canvas">Go to Canvas</Link>`
   - **Success:** Link appears and is clickable
   - **Test:** Click link navigates to /canvas
@@ -474,27 +477,28 @@ src/
 
 ## 0.8 Install Core Dependencies
 
-- [ ] **0.8.1** Install Konva and React-Konva
+- [x] **0.8.1** Install Konva and React-Konva
   - Run: `npm install konva react-konva`
   - **Success:** Both packages installed
   - **Test:** Check package.json has both
 
-- [ ] **0.8.2** Install Konva types
+- [x] **0.8.2** Install Konva types
   - Run: `npm install -D @types/konva`
   - **Success:** Types installed
   - **Test:** Check package.json devDependencies
+  - **Note:** Konva includes its own TypeScript types, no separate @types package needed
 
-- [ ] **0.8.3** Install Zustand
+- [x] **0.8.3** Install Zustand
   - Run: `npm install zustand`
   - **Success:** Package installed
   - **Test:** Check package.json
 
-- [ ] **0.8.4** Install Lucide React (icons)
+- [x] **0.8.4** Install Lucide React (icons)
   - Run: `npm install lucide-react`
   - **Success:** Package installed
   - **Test:** Check package.json
 
-- [ ] **0.8.5** Initialize shadcn/ui
+- [x] **0.8.5** Initialize shadcn/ui
   - Run: `npx shadcn-ui@latest init`
   - Choose: TypeScript, default style
   - Use CSS variables: Yes
@@ -502,7 +506,7 @@ src/
   - **Test:** Check components/ui folder created
   - **Edge Case:** Will ask several questions, use defaults
 
-- [ ] **0.8.6** Verify all dependencies installed
+- [x] **0.8.6** Verify all dependencies installed
   - Run: `npm list --depth=0`
   - **Success:** All packages listed without errors
   - **Test:** Check output for all installed packages
@@ -512,77 +516,86 @@ src/
 
 ## 0.9 Set Up Firebase Hosting
 
-- [ ] **0.9.1** Install Firebase CLI globally
+- [x] **0.9.1** Install Firebase CLI globally
   - Run: `npm install -g firebase-tools`
   - **Success:** CLI installed
   - **Test:** Run `firebase --version` shows version number
   - **Edge Case:** May need sudo on Mac/Linux
+  - **Note:** Firebase CLI 14.19.1 verified
 
-- [ ] **0.9.2** Login to Firebase CLI
+- [x] **0.9.2** Login to Firebase CLI
   - Run: `firebase login`
   - **Success:** Browser opens, login successful
   - **Test:** CLI shows "Success! Logged in as [email]"
   - **Edge Case:** If already logged in, will show current user
+  - **Note:** Logged in as andrewsheim@gmail.com
 
-- [ ] **0.9.3** Initialize Firebase in project
+- [x] **0.9.3** Initialize Firebase in project
   - Run: `firebase init`
   - **Success:** Firebase initialization starts
   - **Test:** See Firebase logo in terminal
+  - **Note:** Already initialized
 
-- [ ] **0.9.4** Select Hosting feature
+- [x] **0.9.4** Select Hosting feature
   - Use arrow keys and spacebar to select "Hosting"
   - Press Enter
   - **Success:** Hosting selected
   - **Test:** See checkmark next to Hosting
+  - **Note:** Hosting already configured
 
-- [ ] **0.9.5** Select existing project
+- [x] **0.9.5** Select existing project
   - Choose "Use an existing project"
   - Select your collabcanvas project
   - **Success:** Project selected
   - **Test:** See project name confirmed
+  - **Note:** Project figma-clone-d33e3 configured
 
-- [ ] **0.9.6** Configure hosting settings
+- [x] **0.9.6** Configure hosting settings
   - Public directory: `dist` (not build, not public)
   - Single-page app: **Yes**
   - Set up automatic builds with GitHub: **No** (for now)
   - **Success:** Configuration complete
   - **Test:** See firebase.json created
 
-- [ ] **0.9.7** Verify `firebase.json` configuration
+- [x] **0.9.7** Verify `firebase.json` configuration
   - Check public is "dist"
   - Check rewrites array exists for SPA
   - **Success:** Config looks correct
   - **Test:** File matches expected format
 
-- [ ] **0.9.8** Add deploy script to package.json
+- [x] **0.9.8** Add deploy script to package.json
   - Add to scripts: `"deploy": "npm run build && firebase deploy --only hosting"`
   - **Success:** Script added
   - **Test:** Check package.json scripts section
 
-- [ ] **0.9.9** Test production build
+- [x] **0.9.9** Test production build
   - Run: `npm run build`
   - **Success:** Build completes, dist/ folder created
   - **Test:** Check dist/ folder has index.html and assets/
   - **Edge Case:** Fix any TypeScript errors before build succeeds
+  - **Note:** Build successful, created dist/index.html and assets
 
-- [ ] **0.9.10** Test local preview of build
+- [x] **0.9.10** Test local preview of build
   - Run: `npm run preview`
   - Visit preview URL
   - **Success:** Production build works locally
   - **Test:** See app in browser from dist/
   - **Edge Case:** Might be different port than dev server
+  - **Note:** Preview running at http://localhost:4173/
 
-- [ ] **0.9.11** Deploy to Firebase Hosting
+- [x] **0.9.11** Deploy to Firebase Hosting
   - Run: `firebase deploy --only hosting`
   - **Success:** Deploy completes
   - **Test:** See "Deploy complete!" message
   - **Edge Case:** First deploy might take longer
+  - **Note:** Deployed 3 files successfully
 
-- [ ] **0.9.12** Test deployed application
+- [x] **0.9.12** Test deployed application
   - Visit the Firebase hosting URL (shown in deploy output)
   - **Success:** App loads from deployed URL
   - **Test:** Navigation works, see both pages
   - **Edge Case:** May take a minute to propagate
+  - **Note:** Live at https://figma-clone-d33e3.web.app
 
 ---
 
