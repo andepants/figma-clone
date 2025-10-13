@@ -138,53 +138,98 @@ src/
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
-- Firebase project (with Firestore, Realtime Database, and Authentication enabled)
+- **Node.js 18+** and npm
+- **Firebase account** with a project created
+- **Git** for version control
 
 ### Installation
 
-1. Clone the repository
+1. **Clone the repository**
 ```bash
 git clone <repository-url>
 cd figma-clone
 ```
 
-2. Install dependencies
+2. **Install dependencies**
 ```bash
 npm install
 ```
 
-3. Configure environment variables
+3. **Configure Firebase**
+
+   a. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+
+   b. Enable the following services:
+   - **Authentication** → Email/Password provider
+   - **Firestore Database** → Start in test mode
+   - **Realtime Database** → Start in test mode
+
+   c. Register a web app in Project Settings
+
+   d. Copy your Firebase configuration
+
+4. **Set up environment variables**
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
-Edit `.env.local` with your Firebase configuration:
-```bash
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_REALTIME_DB_URL=your_db_url
+Edit `.env` with your Firebase configuration values:
+```env
+VITE_FIREBASE_API_KEY="your_api_key_here"
+VITE_FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
+VITE_FIREBASE_PROJECT_ID="your-project-id"
+VITE_FIREBASE_DATABASE_URL="https://your-project-default-rtdb.firebaseio.com"
+VITE_FIREBASE_STORAGE_BUCKET="your-project.firebasestorage.app"
+VITE_FIREBASE_MESSAGING_SENDER_ID="your_sender_id"
+VITE_FIREBASE_APP_ID="your_app_id"
 ```
 
-4. Start development server
+**⚠️ Important:** Never commit `.env` to version control. The `.env.example` file provides the template.
+
+5. **Start the development server**
 ```bash
 npm run dev
 ```
 
-### Build for Production
+The app will be available at `http://localhost:5173` (or another port if 5173 is in use).
 
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with hot reload |
+| `npm run build` | Build production bundle to `dist/` |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | Run ESLint for code quality |
+| `npm run deploy` | Build and deploy to Firebase Hosting |
+
+### Firebase Hosting Setup
+
+1. **Install Firebase CLI** (if not already installed)
 ```bash
-npm run build
-npm run preview
+npm install -g firebase-tools
 ```
 
-### Deploy to Firebase
-
+2. **Login to Firebase**
 ```bash
-firebase deploy --only hosting
+firebase login
 ```
+
+3. **Initialize Firebase Hosting** (if not already done)
+```bash
+firebase init hosting
+```
+- Select your existing project
+- Set public directory to `dist`
+- Configure as single-page app: Yes
+- Set up automatic builds: No
+
+4. **Deploy to Firebase Hosting**
+```bash
+npm run deploy
+```
+
+Your app will be live at `https://your-project-id.web.app`
 
 ## User Flow
 
