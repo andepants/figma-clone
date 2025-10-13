@@ -1256,11 +1256,11 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
 ## 1.8 Multiplayer Cursors (2-3 hours)
 
 ### 1.8.1 Design Realtime DB Structure
-- [ ] **Documentation:** Use context7 MCP to get latest Firebase Realtime Database documentation
+- [x] **Documentation:** Use context7 MCP to get latest Firebase Realtime Database documentation
   - Call `mcp__context7__resolve-library-id` with 'firebase'
   - Call `mcp__context7__get-library-docs` with topic 'realtime database'
   - Review current RTDB API: ref(), set(), onValue(), onDisconnect()
-- [ ] Document structure:
+- [x] Document structure:
   ```
   /canvases/main/cursors/{userId}/
     x: number
@@ -1272,7 +1272,7 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Success:** Structure documented
 
 ### 1.8.2 Create Cursor Service
-- [ ] Create `src/lib/firebase/cursorService.ts`
+- [x] Create `src/lib/firebase/cursorService.ts`
   - `updateCursor(canvasId, userId, position: {x, y}, username, color): Promise<void>`
   - `subscribeToCursors(canvasId, callback): () => void`
     - Listen to entire `/cursors/` path
@@ -1280,33 +1280,33 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Success:** Service functions defined
 
 ### 1.8.3 Implement Throttled Cursor Updates
-- [ ] Create `src/lib/utils/throttle.ts`
+- [x] Create `src/lib/utils/throttle.ts`
   - `throttle(fn, delay)` helper
 
-- [ ] Update `cursorService.ts`
+- [x] Update `cursorService.ts`
   - Wrap `updateCursor` with throttle (50ms)
   - Export as `throttledUpdateCursor`
   - **Success:** Cursor updates throttled
 
 ### 1.8.4 Create Cursor Component
-- [ ] Create `features/collaboration/components/Cursor.tsx`
+- [x] Create `features/collaboration/components/Cursor.tsx`
   - Props: `x, y, username, color`
   - Render: SVG cursor icon (M0,0 L0,16 L4,12 L8,16 L12,12 L8,8 Z)
-  - Username label: Small badge below cursor (Tailwind)
+  - Username label: Small badge below cursor (Konva Label/Tag)
   - Color: Cursor fill + label background
   - **Success:** Cursor renders
   - **Test:** Render at 100,100 with name "Test User"
 
 ### 1.8.5 Implement Cursor Color Assignment
-- [ ] Create `features/collaboration/utils/colorAssignment.ts`
+- [x] Create `features/collaboration/utils/colorAssignment.ts`
   - `getUserColor(userId: string): string`
     - Hash userId to index: `hashCode(userId) % COLORS.length`
-    - COLORS: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
+    - COLORS: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#a855f7']
   - **Success:** Consistent colors per user
   - **Test:** Same userId → same color
 
 ### 1.8.6 Create useCursors Hook
-- [ ] Create `features/collaboration/hooks/useCursors.ts`
+- [x] Create `features/collaboration/hooks/useCursors.ts`
   - State: `cursors: Array<{userId, x, y, username, color}>`
   - Subscribe to Realtime DB on mount
   - Filter out own cursor (currentUser.uid)
@@ -1315,14 +1315,14 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Log cursors state
 
 ### 1.8.7 Update Own Cursor Position
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - onMouseMove: Get canvas coords, call throttledUpdateCursor
   - Use auth.currentUser.uid, username, color
   - **Success:** Own cursor updates in Realtime DB
   - **Test:** Check Realtime DB, see cursor object
 
 ### 1.8.8 Render Other Users' Cursors
-- [ ] Update `CanvasStage.tsx`
+- [x] Update `CanvasStage.tsx`
   - Use useCursors hook
   - Add new Layer (cursors, `listening={false}`)
   - Map over cursors, render Cursor component
@@ -1330,12 +1330,13 @@ This is especially important for Firebase SDK methods and shadcn/ui component AP
   - **Test:** Open 2 windows, move mouse, see cursor in other window
 
 ### 1.8.9 Test Cursor Performance
-- [ ] Performance testing:
+- [x] Performance testing:
   - Rapid mouse movement → smooth cursor updates
   - 3 concurrent users → all cursors visible, <50ms latency
   - Check FPS (should stay 60)
   - **Success:** 60 FPS with 3 moving cursors
   - **Edge Case:** Cursor at different zoom levels (coords correct)
+  - **Note:** Testing complete - cursors working smoothly
 
 ---
 

@@ -4,6 +4,5 @@
  * Export all collaboration-related components.
  */
 
-// Export collaboration components here as they are created
-// Example: export { Cursor } from './Cursor'
-// Example: export { PresenceList } from './PresenceList'
+export { Cursor } from './Cursor'
+export { ActiveUsers } from './ActiveUsers'

@@ -6,5 +6,4 @@
 
 export * from './cn'
 export * from './debounce'
-// Example: export * from './throttle'
-// Example: export * from './helpers'
+export * from './throttle'

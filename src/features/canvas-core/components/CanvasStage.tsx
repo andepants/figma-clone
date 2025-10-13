@@ -12,6 +12,12 @@ import { useShapeCreation } from '../hooks';
 import { Rectangle } from '../shapes';
 import { useToolStore, useCanvasStore } from '@/stores';
 import type { Rectangle as RectangleType } from '@/types';
+import { useCursors } from '@/features/collaboration/hooks';
+import { Cursor } from '@/features/collaboration/components';
+import { getUserColor } from '@/features/collaboration/utils';
+import { throttledUpdateCursor } from '@/lib/firebase';
+import { useAuth } from '@/features/auth/hooks';
+import { screenToCanvasCoords } from '../utils';
 
 /**
  * Canvas stage dimensions interface
@@ -50,6 +56,10 @@ export function CanvasStage() {
   // Shape creation handlers
   const { previewShape, handleMouseDown, handleMouseMove, handleMouseUp } =
     useShapeCreation();
+
+  // Auth and cursor collaboration
+  const { currentUser } = useAuth();
+  const cursors = useCursors('main');
 
   // Canvas dimensions (full window size)
   const [dimensions, setDimensions] = useState<Dimensions>({
@@ -234,6 +244,28 @@ export function CanvasStage() {
     }
   }
 
+  /**
+   * Handle cursor position updates
+   * Sends throttled cursor position updates to Firebase
+   * @param {Konva.KonvaEventObject<MouseEvent>} e - Mouse event
+   */
+  function handleCursorMove(e: Konva.KonvaEventObject<MouseEvent>) {
+    const stage = stageRef.current;
+    if (!stage || !currentUser) return;
+
+    // Get canvas coordinates (accounting for pan and zoom)
+    const pointerPosition = stage.getPointerPosition();
+    if (!pointerPosition) return;
+
+    const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
+
+    // Update cursor position in Realtime DB (throttled to 50ms)
+    const username = currentUser.displayName || currentUser.email || 'Anonymous';
+    const color = getUserColor(currentUser.uid);
+
+    throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
+  }
+
   // Stage is draggable when spacebar is pressed
   const isDraggable = isSpacePressed;
 
@@ -258,7 +290,10 @@ export function CanvasStage() {
       onDragEnd={handleDragEnd}
       onClick={handleStageClick}
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
+      onMouseMove={(e) => {
+        handleMouseMove(e);
+        handleCursorMove(e);
+      }}
       onMouseUp={handleMouseUp}
       style={{
         cursor: cursorStyle,
@@ -303,6 +338,19 @@ export function CanvasStage() {
             listening={false}
           />
         )}
+      </Layer>
+
+      {/* Cursors Layer - Render other users' cursors */}
+      <Layer listening={false}>
+        {cursors.map((cursor) => (
+          <Cursor
+            key={cursor.userId}
+            x={cursor.x}
+            y={cursor.y}
+            username={cursor.username}
+            color={cursor.color}
+          />
+        ))}
       </Layer>
     </Stage>
   );
