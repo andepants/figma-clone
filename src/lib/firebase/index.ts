@@ -54,3 +54,12 @@ export {
   updateCanvasObjects,
   debouncedUpdateCanvas,
 } from './canvasService'
+
+// Export Cursor Service
+export {
+  updateCursor,
+  subscribeToCursors,
+  throttledUpdateCursor,
+  type CursorData,
+  type CursorWithUser,
+} from './cursorService'

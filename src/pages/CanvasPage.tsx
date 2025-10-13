@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
+import { ActiveUsers } from '@/features/collaboration/components';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore } from '@/stores';
 import { subscribeToCanvas } from '@/lib/firebase';
@@ -52,6 +53,7 @@ function CanvasPage() {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <Toolbar />
+        <ActiveUsers />
         <CanvasStage />
       </div>
     );
