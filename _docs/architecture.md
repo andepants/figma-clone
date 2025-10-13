@@ -8,11 +8,13 @@
 
 ## Architecture Principles
 
-**Style:** Vertical Slice Architecture (feature-based)
+**Style:** Vertical Slice Architecture (feature-based) from Phase 0
 **File Size:** Max 500 lines per file
 **Dependencies:** Features → Stores → Services (no circular dependencies)
 **Exports:** Barrel exports via index.ts
 **Imports:** Absolute with @ alias
+
+**Note:** This project implements Vertical Slice Architecture from the beginning (Phase 0), not as a later refactor. Each feature is self-contained from day one.
 
 ---
 
@@ -50,36 +52,80 @@ graph TB
 
 ## Component Architecture
 
+**Implementation:** This structure is created in Phase 0 and maintained throughout all phases.
+
 ### Feature Modules (Vertical Slices)
 
+Each feature is a self-contained vertical slice with its own components, hooks, and utilities.
+
 ```
-features/
-├── canvas-core/        # Canvas rendering & shapes
-│   ├── components/
-│   ├── shapes/
-│   ├── hooks/
-│   └── utils/
-├── collaboration/      # Real-time multiplayer
-│   ├── components/
-│   └── hooks/
-├── toolbar/           # Tools & controls
-├── auth/             # Authentication
+src/features/
+├── canvas-core/        # Canvas rendering & shapes (Phase 1+)
+│   ├── components/     # CanvasStage, CanvasLayer, etc.
+│   ├── shapes/         # Rectangle, Circle, Text components
+│   ├── hooks/          # useCanvas, useShapes, etc.
+│   └── utils/          # Canvas calculations, transformations
+│   └── index.ts        # Barrel export
+├── collaboration/      # Real-time multiplayer (Phase 1+)
+│   ├── components/     # Cursor, PresenceList, etc.
+│   ├── hooks/          # usePresence, useCursors, etc.
+│   └── utils/          # Cursor calculations
+│   └── index.ts        # Barrel export
+├── toolbar/           # Tools & controls (Phase 1+)
+│   ├── components/     # Toolbar, ToolButton, etc.
+│   ├── hooks/          # useSelectedTool, etc.
+│   └── index.ts        # Barrel export
+├── auth/             # Authentication (Phase 1)
+│   ├── components/     # AuthModal, LoginForm, SignupForm
+│   ├── hooks/          # useAuth, useUser
+│   └── utils/          # Auth helpers
+│   └── index.ts        # Barrel export
 └── ai-agent/         # AI commands (Phase 3)
+    ├── components/     # AIPanel, AIChat, etc.
+    ├── hooks/          # useAI, useCommands
+    └── utils/          # AI parsing
+    └── index.ts        # Barrel export
 ```
 
-### Shared Components
+**Key Principles:**
+- Each feature owns its domain logic
+- No cross-feature imports (use stores/services instead)
+- Feature-specific components live in the feature
+- Shared/generic components go in `components/`
+
+### Shared Components (Common Use Only)
+
+Shared components are generic, reusable across ALL features.
 
 ```
-components/
-├── ui/              # shadcn/ui primitives
-├── common/          # Reusable components
-└── layout/          # Page layouts
+src/components/
+├── ui/              # shadcn/ui primitives (Button, Input, Dialog, etc.)
+├── common/          # Truly generic components (Loading, Error, Empty state)
+└── layout/          # Page layouts (AppLayout, CanvasLayout, etc.)
 
-stores/              # Zustand stores
-lib/                 # Services & utilities
-types/               # TypeScript types
-constants/           # App constants
+src/stores/              # Zustand stores (shared state)
+├── canvasStore.ts
+├── authStore.ts
+├── uiStore.ts
+└── aiStore.ts (Phase 3)
+
+src/lib/                 # Services & utilities (infrastructure)
+├── firebase/            # Firebase config and services
+│   ├── config.ts
+│   ├── auth.ts
+│   ├── firestore.ts
+│   └── realtimedb.ts
+├── canvas/              # Canvas utilities
+│   └── calculations.ts
+└── utils/               # General utilities
+    └── helpers.ts
+
+src/types/               # Shared TypeScript types
+src/constants/           # App constants
+src/pages/              # Top-level route components
 ```
+
+**Decision Rule:** "If only one feature needs it, it lives in that feature. If multiple features need it, it's shared."
 
 ---
 
@@ -245,6 +291,7 @@ graph LR
 | **AD-008** | 500ms Object Debounce | Cost reduction | Small sync delay |
 | **AD-009** | Max 3-5 Layers | Performance | Careful organization |
 | **AD-010** | OpenAI Function Calling | Natural language → commands | API costs, latency |
+| **AD-011** | Vertical Slices from Phase 0 | Clean architecture from start, no refactor debt | Slightly more upfront planning |
 
 ### Alternatives Considered
 
@@ -255,6 +302,8 @@ graph LR
 | Raw Canvas | Konva better DX | Bundle size critical |
 | Operational Transform | Too complex for MVP | True collab editing needed |
 | WebSocket Server | Firebase handles sync | Firebase costs exceed custom |
+| Traditional component structure | Less scalable, unclear boundaries | Never - vertical slices from start |
+| Evolutionary refactor | Creates technical debt | Never - right structure from Phase 0 |
 
 ---
 
