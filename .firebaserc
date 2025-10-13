@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "figma-clone-d33e3"
+  },
   "targets": {},
   "etags": {}
 }

@@ -22,26 +22,26 @@
 
 ## 0.1 Initialize Vite Project
 
-- [ ] **0.1.1** Run `npm create vite@latest collabcanvas -- --template react-ts`
+- [x] **0.1.1** Run `npm create vite@latest collabcanvas -- --template react-ts`
   - **Success:** Command completes without errors, folder created
   - **Test:** Check that `collabcanvas/` folder exists with files
   - **Edge Case:** If folder exists, delete or rename first
 
-- [ ] **0.1.2** Navigate into project: `cd collabcanvas`
+- [x] **0.1.2** Navigate into project: `cd collabcanvas`
   - **Success:** Terminal shows `collabcanvas` directory
   - **Test:** Run `pwd` or `cd` to confirm location
 
-- [ ] **0.1.3** Install dependencies: `npm install`
+- [x] **0.1.3** Install dependencies: `npm install`
   - **Success:** All packages install, no error messages
   - **Test:** Check `node_modules/` folder exists
   - **Edge Case:** If errors, try deleting `package-lock.json` and retry
 
-- [ ] **0.1.4** Start dev server: `npm run dev`
+- [x] **0.1.4** Start dev server: `npm run dev`
   - **Success:** Server starts, shows "Local: http://localhost:5173"
   - **Test:** Visit URL in browser, see Vite default page
   - **Edge Case:** If port 5173 in use, Vite will use different port
 
-- [ ] **0.1.5** Remove Vite boilerplate files
+- [x] **0.1.5** Remove Vite boilerplate files
   - Delete: `src/App.css`, `src/assets/react.svg`, `public/vite.svg`
   - Clear default content from `src/App.tsx`
   - **Success:** Clean slate, no default Vite styling
@@ -52,23 +52,23 @@
 
 ## 0.2 Configure Tailwind CSS
 
-- [ ] **0.2.1** Install Tailwind and dependencies
+- [x] **0.2.1** Install Tailwind and dependencies
   - Run: `npm install -D tailwindcss postcss autoprefixer`
   - **Success:** Packages added to package.json devDependencies
   - **Test:** Check package.json lists all three packages
 
-- [ ] **0.2.2** Initialize Tailwind config
+- [x] **0.2.2** Initialize Tailwind config
   - Run: `npx tailwindcss init -p`
   - **Success:** Creates `tailwind.config.js` and `postcss.config.js`
   - **Test:** Both files exist in root directory
   - **Edge Case:** If files exist, they'll be overwritten
 
-- [ ] **0.2.3** Configure Tailwind content paths in `tailwind.config.js`
+- [x] **0.2.3** Configure Tailwind content paths in `tailwind.config.js`
   - Add: `content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"]`
   - **Success:** Config watches all source files
   - **Test:** File matches content array format
 
-- [ ] **0.2.4** Add theme from `theme-rules.md` to Tailwind config
+- [x] **0.2.4** Add theme from `theme-rules.md` to Tailwind config
   - Copy color palette (primary, neutral, success, error, warning)
   - Add Inter font family
   - Add custom shadows and spacing
@@ -76,7 +76,7 @@
   - **Test:** Config has extended theme object
   - **Edge Case:** Make sure to use `extend` not replace default
 
-- [ ] **0.2.5** Create `src/styles/globals.css`
+- [x] **0.2.5** Create `src/styles/globals.css`
   - Add Tailwind directives:
     ```css
     @tailwind base;
@@ -86,12 +86,12 @@
   - **Success:** File created with directives
   - **Test:** File exists with correct content
 
-- [ ] **0.2.6** Import globals.css in `src/main.tsx`
+- [x] **0.2.6** Import globals.css in `src/main.tsx`
   - Add: `import './styles/globals.css'` at top
   - **Success:** Import statement added before App import
   - **Test:** Check main.tsx file
 
-- [ ] **0.2.7** Test Tailwind is working
+- [x] **0.2.7** Test Tailwind is working
   - Add `className="bg-primary-500 text-white p-4"` to any element
   - **Success:** Element shows blue background, white text, padding
   - **Test:** See styling in browser
@@ -99,77 +99,180 @@
 
 ---
 
-## 0.3 Set Up Project Folder Structure
+## 0.3 Set Up Project Folder Structure (Vertical Slice Architecture)
 
-- [ ] **0.3.1** Create `src/components/` directory and subdirectories
-  - Create: `canvas/`, `collaboration/`, `toolbar/`, `auth/`, `layout/`, `ui/`, `common/`
-  - **Success:** All 7 subdirectories exist in components/
-  - **Test:** Check folder structure matches
+**Important:** This project uses Vertical Slice Architecture from day one. Each feature is self-contained with its own components, hooks, and utils. Only truly shared code goes in `components/`, `lib/`, etc.
 
-- [ ] **0.3.2** Create `src/hooks/` directory
-  - **Success:** hooks/ folder exists
-  - **Test:** Navigate to folder
+- [x] **0.3.1** Create `src/features/` directory
+  - **Success:** features/ folder exists
+  - **Test:** Navigate to src/features/
+  - **Why:** This is the core of vertical slice architecture - features, not component types
 
-- [ ] **0.3.3** Create `src/stores/` directory
+- [x] **0.3.2** Create `src/features/auth/` feature slice
+  - Create: `auth/components/`, `auth/hooks/`, `auth/utils/`
+  - **Success:** All subdirectories exist
+  - **Test:** Navigate into each folder
+  - **Why:** Auth is feature-complete with UI, logic, and utilities
+
+- [x] **0.3.3** Create `src/features/canvas-core/` feature slice
+  - Create: `canvas-core/components/`, `canvas-core/shapes/`, `canvas-core/hooks/`, `canvas-core/utils/`
+  - **Success:** All subdirectories exist
+  - **Test:** Navigate into each folder
+  - **Why:** Canvas rendering is a self-contained feature
+
+- [x] **0.3.4** Create `src/features/collaboration/` feature slice
+  - Create: `collaboration/components/`, `collaboration/hooks/`, `collaboration/utils/`
+  - **Success:** All subdirectories exist
+  - **Test:** Navigate into each folder
+  - **Why:** Multiplayer features (cursors, presence) are isolated
+
+- [x] **0.3.5** Create `src/features/toolbar/` feature slice
+  - Create: `toolbar/components/`, `toolbar/hooks/`
+  - **Success:** All subdirectories exist
+  - **Test:** Navigate into each folder
+  - **Why:** Toolbar and tools are their own domain
+
+- [x] **0.3.6** Create `src/features/ai-agent/` feature slice (Phase 3 placeholder)
+  - Create: `ai-agent/components/`, `ai-agent/hooks/`, `ai-agent/utils/`
+  - **Success:** All subdirectories exist
+  - **Test:** Navigate into each folder
+  - **Why:** Placeholder for Phase 3, empty for now
+
+- [x] **0.3.7** Create barrel exports for each feature
+  - Create `index.ts` in: `features/auth/`, `features/canvas-core/`, `features/collaboration/`, `features/toolbar/`, `features/ai-agent/`
+  - Content: `// Barrel export for [feature-name] feature`
+  - **Success:** 5 index.ts files in feature roots
+  - **Test:** Each feature has index.ts
+  - **Edge Case:** Files are empty for now, will export components later
+
+- [x] **0.3.8** Create subdirectory barrel exports
+  - Create `index.ts` in each components/, hooks/, utils/ subdirectory
+  - Content: `// Export [components/hooks/utils] from this directory`
+  - **Success:** All subdirectories have index.ts
+  - **Test:** Count index.ts files (should be 15+)
+  - **Why:** Enables clean imports like `import { AuthModal } from '@/features/auth/components'`
+
+- [x] **0.3.9** Create `src/components/` (SHARED ONLY)
+  - Create: `components/ui/`, `components/common/`, `components/layout/`
+  - **Success:** 3 subdirectories exist
+  - **Test:** Navigate into each folder
+  - **Why:** Shared, generic components used across multiple features
+  - **Edge Case:** If only one feature needs it, put it in that feature instead
+
+- [x] **0.3.10** Create `src/stores/` directory
   - **Success:** stores/ folder exists
-  - **Test:** Navigate to folder
+  - **Test:** Navigate to stores/
+  - **Why:** Zustand stores are shared state, not feature-specific
 
-- [ ] **0.3.4** Create `src/lib/` directory and subdirectories
-  - Create: `firebase/`, `canvas/`, `utils/`
-  - **Success:** All subdirectories exist in lib/
-  - **Test:** Check folder structure
+- [x] **0.3.11** Create `src/lib/` directory and subdirectories
+  - Create: `lib/firebase/`, `lib/canvas/`, `lib/utils/`
+  - **Success:** All subdirectories exist
+  - **Test:** Navigate into each folder
+  - **Why:** Infrastructure services (Firebase, utilities) are shared
 
-- [ ] **0.3.5** Create `src/types/` directory
+- [x] **0.3.12** Create `src/types/` directory
   - **Success:** types/ folder exists
-  - **Test:** Navigate to folder
+  - **Test:** Navigate to types/
+  - **Why:** Shared TypeScript types used across features
 
-- [ ] **0.3.6** Create `src/constants/` directory
+- [x] **0.3.13** Create `src/constants/` directory
   - **Success:** constants/ folder exists
-  - **Test:** Navigate to folder
+  - **Test:** Navigate to constants/
+  - **Why:** App-wide constants (API URLs, config values)
 
-- [ ] **0.3.7** Create `src/pages/` directory
+- [x] **0.3.14** Create `src/pages/` directory
   - **Success:** pages/ folder exists
-  - **Test:** Navigate to folder
+  - **Test:** Navigate to pages/
+  - **Why:** Top-level route components (LandingPage, CanvasPage)
 
-- [ ] **0.3.8** Create `index.ts` barrel exports in each component subdirectory
-  - Create in: `components/canvas/`, `components/collaboration/`, etc.
-  - Content: `// Export components from this directory`
-  - **Success:** Each subdirectory has index.ts
-  - **Test:** Count 7 index.ts files in components subdirs
-  - **Edge Case:** Empty files are fine for now
+- [x] **0.3.15** Create `src/styles/` directory
+  - **Success:** styles/ folder exists
+  - **Test:** Navigate to styles/
+  - **Why:** Global styles, Tailwind imports
 
-- [ ] **0.3.9** Create barrel exports for hooks, stores, types, constants
-  - Create: `src/hooks/index.ts`, `src/stores/index.ts`, etc.
-  - **Success:** 4 top-level barrel files created
+- [x] **0.3.16** Create barrel exports for shared directories
+  - Create `index.ts` in: `components/ui/`, `components/common/`, `components/layout/`, `stores/`, `lib/firebase/`, `lib/canvas/`, `lib/utils/`, `types/`, `constants/`
+  - Content: `// Export from this directory`
+  - **Success:** 9 index.ts files created
   - **Test:** All exist and are empty for now
+
+- [x] **0.3.17** Verify final folder structure
+  - Run: `tree src/ -L 3` or use file explorer
+  - **Success:** Structure matches architecture.md
+  - **Test:** Compare with expected structure below
+  - **Edge Case:** tree command might not be installed, use `ls -R src/` instead
+
+**Expected Structure:**
+```
+src/
+├── features/
+│   ├── auth/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── utils/
+│   │   └── index.ts
+│   ├── canvas-core/
+│   │   ├── components/
+│   │   ├── shapes/
+│   │   ├── hooks/
+│   │   ├── utils/
+│   │   └── index.ts
+│   ├── collaboration/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── utils/
+│   │   └── index.ts
+│   ├── toolbar/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── index.ts
+│   └── ai-agent/
+│       ├── components/
+│       ├── hooks/
+│       ├── utils/
+│       └── index.ts
+├── components/        # Shared only
+│   ├── ui/
+│   ├── common/
+│   └── layout/
+├── stores/
+├── lib/
+│   ├── firebase/
+│   ├── canvas/
+│   └── utils/
+├── types/
+├── constants/
+├── pages/
+└── styles/
+```
 
 ---
 
 ## 0.4 Configure TypeScript Path Aliases
 
-- [ ] **0.4.1** Update `tsconfig.json` with baseUrl
+- [x] **0.4.1** Update `tsconfig.json` with baseUrl
   - Add: `"baseUrl": "."` in compilerOptions
   - **Success:** BaseUrl set to root
   - **Test:** Check tsconfig.json
 
-- [ ] **0.4.2** Add paths configuration to `tsconfig.json`
+- [x] **0.4.2** Add paths configuration to `tsconfig.json`
   - Add paths object with `@/*: ["src/*"]`
   - **Success:** Alias configured
   - **Test:** Check compilerOptions.paths exists
   - **Edge Case:** Make sure it's inside compilerOptions
 
-- [ ] **0.4.3** Install path package for Vite
+- [x] **0.4.3** Install path package for Vite
   - Run: `npm install -D @types/node`
   - **Success:** Package installed
   - **Test:** Check package.json
 
-- [ ] **0.4.4** Update `vite.config.ts` with resolve alias
+- [x] **0.4.4** Update `vite.config.ts` with resolve alias
   - Add path import: `import path from 'path'`
   - Add resolve.alias: `{ '@': path.resolve(__dirname, './src') }`
   - **Success:** Alias configured in Vite
   - **Test:** Check vite.config.ts has resolve object
 
-- [ ] **0.4.5** Test path alias works
+- [x] **0.4.5** Test path alias works
   - Create test file `src/lib/test.ts` with: `export const test = 'working'`
   - Import in App.tsx: `import { test } from '@/lib/test'`
   - Console log test variable
@@ -177,7 +280,7 @@
   - **Test:** Check browser console
   - **Edge Case:** Restart dev server if not working
 
-- [ ] **0.4.6** Remove test files
+- [x] **0.4.6** Remove test files
   - Delete `src/lib/test.ts` and remove import from App.tsx
   - **Success:** Clean state restored
   - **Test:** No test code remains
@@ -520,20 +623,55 @@
 
 Before proceeding to Phase 1, verify ALL of these:
 
+**Project Setup:**
 - [ ] Project runs locally with `npm run dev`
 - [ ] TypeScript compiles with no errors
-- [ ] Tailwind CSS classes work (test with bg-primary-500)
-- [ ] All folder structure from project-rules.md exists
-- [ ] Path aliases work (@/ imports)
-- [ ] Firebase services all enabled (Auth, Firestore, Realtime DB)
-- [ ] Firebase SDK connected (console log shows app name)
-- [ ] React Router works (can navigate between pages)
-- [ ] All dependencies installed (Konva, Zustand, etc.)
-- [ ] Build command works: `npm run build`
+- [ ] Tailwind CSS classes work (test with `bg-primary-500 text-white`)
+- [ ] Tailwind theme matches `theme-rules.md` (colors, fonts, shadows)
+
+**Folder Structure (Vertical Slice Architecture):**
+- [ ] `src/features/` directory exists with 5 feature slices (auth, canvas-core, collaboration, toolbar, ai-agent)
+- [ ] Each feature has subdirectories (components/, hooks/, utils/ where applicable)
+- [ ] `src/components/` exists for SHARED components only (ui/, common/, layout/)
+- [ ] `src/stores/`, `src/lib/`, `src/types/`, `src/constants/`, `src/pages/`, `src/styles/` all exist
+- [ ] Barrel exports (`index.ts`) created in all appropriate directories
+- [ ] Structure matches architecture.md exactly
+
+**Path Aliases:**
+- [ ] Path aliases configured (@/* imports work)
+- [ ] Can import from `@/features/auth/components`
+- [ ] Can import from `@/lib/firebase`
+- [ ] Can import from `@/stores`
+
+**Firebase:**
+- [ ] Firebase services enabled in console (Auth, Firestore, Realtime DB)
+- [ ] Firebase SDK installed and configured
+- [ ] `.env.local` created with all Firebase config variables
+- [ ] Firebase connection test passes (console log shows app name)
+- [ ] `.env.example` created (no real values)
+
+**Routing:**
+- [ ] React Router installed and configured
+- [ ] Can navigate between `/` (landing) and `/canvas` (canvas)
+- [ ] Both routes render correctly
+
+**Dependencies:**
+- [ ] All core dependencies installed (Firebase, Konva, React Konva, Zustand, Lucide, shadcn/ui)
+- [ ] `npm list --depth=0` shows no missing dependencies
+- [ ] shadcn/ui initialized (components/ui/ exists)
+
+**Build & Deploy:**
+- [ ] Build command works: `npm run build` (creates `dist/` folder)
+- [ ] Preview works: `npm run preview`
+- [ ] Firebase Hosting configured (firebase.json exists)
 - [ ] App deployed to Firebase Hosting
 - [ ] Deployed app accessible via public URL
-- [ ] .env.example created
+
+**Documentation:**
 - [ ] README.md has setup instructions
+- [ ] README.md project structure matches new vertical slice architecture
+- [ ] Git repository initialized and initial commit made
+- [ ] `.env.local` is in `.gitignore` (never committed)
 
 **If ANY checkbox above is unchecked, fix it before Phase 1.**
 
@@ -561,15 +699,15 @@ Before proceeding to Phase 1, verify ALL of these:
   - **Success:** Types defined
   - **Test:** No TypeScript errors
 
-- [ ] **1.1.4** Create `components/auth/AuthModal.tsx`
+- [ ] **1.1.4** Create `features/auth/components/AuthModal.tsx`
   - Import Dialog from shadcn
   - Create component with isOpen and onClose props
   - Add state for mode (login vs signup)
   - Add toggle button between modes
   - **Success:** Modal structure created
-  - **Test:** Component compiles, can be imported
+  - **Test:** Component compiles, can be imported from `@/features/auth/components`
 
-- [ ] **1.1.5** Create `components/auth/LoginForm.tsx`
+- [ ] **1.1.5** Create `features/auth/components/LoginForm.tsx`
   - Create form with email and password inputs
   - Add login button
   - Add state for form values
@@ -577,7 +715,7 @@ Before proceeding to Phase 1, verify ALL of these:
   - **Test:** Form renders with all fields
   - **Edge Case:** Don't implement actual login yet
 
-- [ ] **1.1.6** Create `components/auth/SignupForm.tsx`
+- [ ] **1.1.6** Create `features/auth/components/SignupForm.tsx`
   - Create form with email, password, and username inputs
   - Add signup button
   - Add state for form values
@@ -637,11 +775,11 @@ Before proceeding to Phase 1, verify ALL of these:
   - **Test:** Call function with existing user
   - **Edge Case:** Handle wrong password error
 
-- [ ] **1.2.4** Create `hooks/useAuth.ts`
+- [ ] **1.2.4** Create `features/auth/hooks/useAuth.ts`
   - Create hook with currentUser and loading state
   - Add onAuthStateChanged listener
   - **Success:** Hook tracks auth state
-  - **Test:** Hook can be called in component
+  - **Test:** Hook can be called in component, import from `@/features/auth/hooks`
 
 - [ ] **1.2.5** Implement auth state listener
   - Use onAuthStateChanged to track user
@@ -693,11 +831,11 @@ Before proceeding to Phase 1, verify ALL of these:
 
 ## 1.3 Protected Canvas Route
 
-- [ ] **1.3.1** Create `components/auth/ProtectedRoute.tsx`
+- [ ] **1.3.1** Create `features/auth/components/ProtectedRoute.tsx`
   - Create component that wraps children
-  - Use useAuth hook
+  - Use useAuth hook from `@/features/auth/hooks`
   - **Success:** Component created
-  - **Test:** Can import component
+  - **Test:** Can import component from `@/features/auth/components`
 
 - [ ] **1.3.2** Add loading state handling
   - Show loading spinner while checking auth
@@ -736,11 +874,11 @@ Before proceeding to Phase 1, verify ALL of these:
 
 ## 1.4 Basic Konva Canvas Setup
 
-- [ ] **1.4.1** Create `components/canvas/CanvasStage.tsx`
+- [ ] **1.4.1** Create `features/canvas-core/components/CanvasStage.tsx`
   - Import Stage and Layer from react-konva
   - Create component with stage and empty layer
   - **Success:** Component created
-  - **Test:** No TypeScript errors
+  - **Test:** No TypeScript errors, import from `@/features/canvas-core/components`
 
 - [ ] **1.4.2** Set stage dimensions to window size
   - Use useState for width and height
