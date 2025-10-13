@@ -30,6 +30,6 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_COLLABCANVAS }}'
-          projectId: collabcanvas
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_FIGMA_CLONE_D33E3 }}'
+          projectId: figma-clone-d33e3
           expires: 7d
