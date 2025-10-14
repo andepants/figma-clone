@@ -68,7 +68,7 @@ export const Rectangle = memo(function Rectangle({
   const { currentUser } = useAuth();
 
   // Resize hook
-  const { isResizing, activeHandle, anchor, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
 
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
@@ -336,8 +336,6 @@ export const Rectangle = memo(function Rectangle({
         object={rectangle}
         isSelected={isSelected && activeTool === 'move'}
         isResizing={isResizing}
-        activeHandle={activeHandle}
-        anchor={anchor}
         onResizeStart={(handleType) =>
           handleResizeStart(rectangle.id, handleType, {
             x: rectangle.x,

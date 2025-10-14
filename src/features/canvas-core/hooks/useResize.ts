@@ -367,18 +367,12 @@ export function useResize(): UseResizeReturn {
             y: object.y,
             radius: object.radius,
           };
-        } else if (object.type === 'text') {
+        } else {
           // Text: x, y, width (height is derived from fontSize)
           finalUpdates = {
             x: object.x,
             y: object.y,
             width: object.width || 200, // Use stored width or default
-          };
-        } else {
-          // Fallback for other types - send bounding box
-          finalUpdates = {
-            x: object.x,
-            y: object.y,
           };
         }
 

@@ -70,37 +70,9 @@ function normalizeHex(hex: string): string {
   return hex.toUpperCase();
 }
 
-/**
- * Convert hex to RGB
- */
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const normalized = normalizeHex(hex);
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
-  return result
-    ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
-    : null;
-}
-
-/**
- * Determine if a color is light or dark (for text contrast)
- */
-function isLightColor(hex: string): boolean {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return false;
-
-  // Calculate relative luminance
-  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-  return luminance > 0.5;
-}
-
 export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
   ({ value, onChange, disabled, presets = defaultPresets, className }, ref) => {
     const [hexInput, setHexInput] = React.useState(value);
-    const [isPickerOpen, setIsPickerOpen] = React.useState(false);
     const colorInputRef = React.useRef<HTMLInputElement>(null);
 
     // Sync hex input when value changes externally

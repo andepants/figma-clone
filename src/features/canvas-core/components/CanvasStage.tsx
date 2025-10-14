@@ -63,7 +63,7 @@ export function CanvasStage() {
   const mouseDownPos = useRef<Position | null>(null);
 
   // Reference to the Konva stage
-  const stageRef = useRef<Konva.Stage>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
 
   // Touch gesture handlers
   const { handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchGestures(

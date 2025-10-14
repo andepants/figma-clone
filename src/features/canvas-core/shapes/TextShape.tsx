@@ -71,7 +71,7 @@ export const TextShape = memo(function TextShape({
   const { currentUser } = useAuth();
 
   // Resize hook
-  const { isResizing, activeHandle, anchor, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
 
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
@@ -301,7 +301,7 @@ export const TextShape = memo(function TextShape({
     // Konva expects format like "italic bold" or "normal" or "bold"
     const parts: string[] = [];
     if (style === 'italic') parts.push('italic');
-    if (weight >= 700 || weight === 'bold') parts.push('bold');
+    if ((typeof weight === 'number' && weight >= 700) || weight === 'bold') parts.push('bold');
 
     return parts.length > 0 ? parts.join(' ') : 'normal';
   };
@@ -372,8 +372,6 @@ export const TextShape = memo(function TextShape({
         object={text}
         isSelected={isSelected && activeTool === 'move'}
         isResizing={isResizing}
-        activeHandle={activeHandle}
-        anchor={anchor}
         onResizeStart={(handleType) =>
           handleResizeStart(text.id, handleType, {
             x: text.x,

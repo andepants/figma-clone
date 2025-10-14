@@ -17,17 +17,23 @@ CollabCanvas is a proof-of-concept for collaborative design tools, demonstrating
 
 ### Real-Time Collaboration
 - **Multiplayer Cursors**: See other users' cursors with username labels in real-time (50ms sync)
-- **Live Presence**: Track who's online with automatic disconnect detection
+- **Live Presence**: Track who's online with automatic disconnect detection and presence dropdown
 - **Selection Indicators**: Visual overlays show which objects other users are selecting
 - **Drag Indicators**: See real-time feedback when users move objects
+- **Resize Indicators**: See live resize operations from other users with dimension overlays
+- **Drag Locking**: Prevent conflicts when multiple users try to edit the same object
 - **User Colors**: Each user gets a unique, deterministic color for easy identification
-- **Active Users Panel**: Sidebar showing all online collaborators
+- **Active Users Panel**: Properties panel showing all online collaborators with avatars
 
 ### Canvas Features
-- **Shape Creation**: Rectangle support with extensible shape system
-- **Shape Manipulation**: Click and drag to move shapes with smooth interactions
-- **Pan & Zoom**: Smooth canvas navigation with mouse controls
-- **60 FPS Rendering**: High-performance canvas using Konva.js
+- **Multiple Shape Types**: Rectangle, Circle, and Text shapes with full editing support
+- **Shape Manipulation**: Click, drag, resize, rotate, and flip shapes with smooth interactions
+- **Resize Handles**: Corner handles for precise resizing with aspect ratio locking
+- **Properties Panel**: Real-time editing of position, size, rotation, appearance, and typography
+- **Advanced Shape Controls**: Corner radius, opacity, fill color, and text styling
+- **Pan & Zoom**: Smooth canvas navigation with mouse wheel zoom and spacebar panning
+- **Touch Gestures**: Pinch-to-zoom support for mobile devices
+- **60 FPS Rendering**: High-performance canvas using Konva.js with optimized layers
 - **State Persistence**: All changes automatically saved to Firebase Realtime Database
 - **Optimistic Updates**: Instant local feedback before server sync
 
@@ -117,16 +123,21 @@ src/
 │   │   ├── hooks/        # useAuth
 │   │   └── utils/        # Auth helpers
 │   ├── canvas-core/      # Canvas rendering feature
-│   │   ├── components/   # CanvasStage, CanvasLayer
-│   │   ├── shapes/       # Rectangle (extensible for Circle, Text, etc.)
-│   │   ├── hooks/        # useShapeCreation, useCanvas
-│   │   └── utils/        # Coordinate transformations
+│   │   ├── components/   # CanvasStage, ResizeHandles, ResizeHandle
+│   │   ├── shapes/       # Rectangle, Circle, TextShape with drag/resize
+│   │   ├── hooks/        # useShapeCreation, useResize, useTouchGestures, useSpacebarPan
+│   │   └── utils/        # Coordinate transformations, screen-to-canvas conversion
 │   ├── collaboration/    # Real-time multiplayer feature
-│   │   ├── components/   # Cursor, ActiveUsers, SelectionOverlay, DragIndicator
-│   │   ├── hooks/        # usePresence, useCursors, useRemoteSelections, useDragStates
+│   │   ├── components/   # Cursor, AvatarStack, UserAvatar, SelectionOverlay, RemoteResizeOverlay
+│   │   ├── hooks/        # usePresence, useCursors, useRemoteSelections, useDragStates, useRemoteResizes
 │   │   └── utils/        # Color assignment (deterministic user colors)
+│   ├── properties-panel/ # Shape properties editing feature
+│   │   ├── components/   # PropertiesPanel, PositionSection, LayoutSection, RotationSection,
+│   │   │                 # AppearanceSection, TypographySection, FillSection
+│   │   ├── hooks/        # useSelectedShape, usePropertyUpdate, useShapeDimensions
+│   │   └── utils/        # Section visibility, validation helpers
 │   ├── toolbar/          # Tools and controls feature
-│   │   ├── components/   # Toolbar, ToolButton
+│   │   ├── components/   # Toolbar, ToolButton, ZoomControls
 │   │   └── hooks/        # useToolShortcuts
 │   └── ai-agent/         # AI commands (Phase 3 - future)
 │       ├── components/   # AIPanel, AIChat
@@ -367,11 +378,15 @@ Vite bakes environment variables into the build at build-time, not runtime. GitH
 4. See other online users immediately
 
 ### Canvas Interactions
-- **Pan**: Click and drag background
-- **Zoom**: Mouse wheel (future feature)
-- **Create Rectangle**: Click rectangle tool button, then click canvas
-- **Move Shape**: Click and drag any shape
-- **See Collaborators**: View cursors and selections of all online users in real-time
+- **Pan**: Click and drag background, or hold spacebar and drag
+- **Zoom**: Mouse wheel (Cmd/Ctrl + scroll) or pinch gesture on touch devices
+- **Create Shapes**: Click shape tool button (Rectangle, Circle, Text), then drag on canvas
+- **Move Shape**: Select move tool, then click and drag any shape
+- **Resize Shape**: Click shape to select, then drag corner handles to resize
+- **Edit Properties**: Select a shape to view and edit properties in the right panel
+- **Rotate Shape**: Use rotation slider in properties panel for precise control
+- **Flip Shape**: Use flip buttons in properties panel for horizontal/vertical flipping
+- **See Collaborators**: View cursors, selections, and resize operations of all online users in real-time
 - **Real-Time Sync**: See other users' changes within 100ms
 
 ## Design Principles
@@ -486,13 +501,23 @@ These rules ensure:
 - [x] Selection and drag indicators
 - [x] CI/CD pipeline
 
-### Phase 2: Enhanced Collaboration 🚧 In Progress
-- [ ] Circle and text shape support
-- [ ] Shape selection and editing
-- [ ] Multi-select with bounding box
-- [ ] Undo/redo with operational transforms
-- [ ] Zoom and pan controls
-- [ ] Keyboard shortcuts for all tools
+### Phase 2: Shape Manipulation & Properties ✅ Complete
+- [x] Circle and text shape support
+- [x] Shape selection and editing with visual feedback
+- [x] Resize handles with anchor-based resizing
+- [x] Aspect ratio locking for rectangles and circles
+- [x] Rotation controls with degree precision
+- [x] Horizontal and vertical flipping
+- [x] Properties panel with real-time editing
+- [x] Position controls (X, Y coordinates)
+- [x] Layout controls (Width, Height, Radius)
+- [x] Appearance controls (Opacity, Corner Radius)
+- [x] Typography controls (Font Size, Family, Weight, Style, Alignment)
+- [x] Fill color picker with preset palette
+- [x] Zoom and pan controls (mouse wheel + spacebar)
+- [x] Touch gesture support (pinch-to-zoom)
+- [x] Remote resize indicators for collaboration
+- [x] Drag conflict resolution with locking
 
 ### Phase 3: Advanced Features 📋 Planned
 - [ ] AI-powered shape generation

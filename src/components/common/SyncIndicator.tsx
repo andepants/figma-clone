@@ -6,7 +6,7 @@
  */
 
 import * as React from 'react';
-import { Check, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { Check, CloudOff, Loader2 } from 'lucide-react';
 
 /**
  * Sync status states

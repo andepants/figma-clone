@@ -34,15 +34,18 @@ export function RotationSection() {
   const scaleY = shape.scaleY ?? 1;
 
   function handleRotationChange(degrees: number) {
+    if (!shape) return;
     const normalized = normalizeRotation(degrees);
     updateShapeProperty(shape.id, { rotation: normalized });
   }
 
   function handleFlipHorizontal() {
+    if (!shape) return;
     updateShapeProperty(shape.id, { scaleX: -scaleX });
   }
 
   function handleFlipVertical() {
+    if (!shape) return;
     updateShapeProperty(shape.id, { scaleY: -scaleY });
   }
 

@@ -6,9 +6,9 @@
  */
 
 import { memo } from 'react';
-import { Group, Line, Label, Tag, Text as KonvaText } from 'react-konva';
+import { Group, Label, Tag, Text as KonvaText } from 'react-konva';
 import { ResizeHandle } from './ResizeHandle';
-import type { CanvasObject, ResizeHandle as ResizeHandleType, ResizeAnchor, Rectangle, Circle, Text } from '@/types';
+import type { CanvasObject, ResizeHandle as ResizeHandleType, Rectangle, Circle, Text } from '@/types';
 import { getHandlePosition } from '@/lib/utils';
 
 /**
@@ -21,10 +21,6 @@ interface ResizeHandlesProps {
   isSelected: boolean;
   /** Whether currently resizing (for showing preview lines) */
   isResizing?: boolean;
-  /** Active handle being dragged (for showing preview lines) */
-  activeHandle?: ResizeHandleType | null;
-  /** Anchor point (opposite corner) for preview lines */
-  anchor?: ResizeAnchor | null;
   /** Callback when resize starts on a specific handle */
   onResizeStart: (handle: ResizeHandleType) => void;
   /** Callback during resize with handle and pointer position */
@@ -95,14 +91,6 @@ function arePropsEqual(prevProps: ResizeHandlesProps, nextProps: ResizeHandlesPr
   // Quick checks first
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.isResizing !== nextProps.isResizing) return false;
-  if (prevProps.activeHandle !== nextProps.activeHandle) return false;
-
-  // Check anchor point (only matters during resize)
-  if (prevProps.isResizing && nextProps.isResizing) {
-    if (prevProps.anchor?.x !== nextProps.anchor?.x || prevProps.anchor?.y !== nextProps.anchor?.y) {
-      return false;
-    }
-  }
 
   // Compare object bounds (most important for handle positioning)
   const prevBounds = getBounds(prevProps.object);
@@ -146,8 +134,6 @@ export const ResizeHandles = memo(function ResizeHandles({
   object,
   isSelected,
   isResizing = false,
-  activeHandle = null,
-  anchor = null,
   onResizeStart,
   onResizeMove,
   onResizeEnd,

@@ -8,7 +8,6 @@
 import { useEffect, useState } from 'react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
-import { ActiveUsers } from '@/features/collaboration/components';
 import { MenuButton } from '@/features/navigation/components';
 import { PropertiesPanel } from '@/features/properties-panel';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
@@ -178,14 +177,13 @@ function CanvasPage() {
         <div className="absolute top-4 left-4 z-10">
           <MenuButton />
         </div>
-        <ActiveUsers />
-        {/* Sync Indicator - shows online/offline and sync status, positioned below ActiveUsers */}
-        <SyncIndicator status={syncStatus} className="!top-[290px]" />
+        {/* Sync Indicator - shows online/offline and sync status */}
+        <SyncIndicator status={syncStatus} className="!top-4" />
         {/* Canvas Stage - adjusted for properties panel (300px right margin) */}
         <div className="absolute top-16 left-0 right-[300px] bottom-0">
           <CanvasStage />
         </div>
-        {/* Properties Panel - fixed right sidebar */}
+        {/* Properties Panel - fixed right sidebar with integrated presence */}
         <PropertiesPanel />
         {/* Keyboard Shortcuts Modal */}
         <ShortcutsModal

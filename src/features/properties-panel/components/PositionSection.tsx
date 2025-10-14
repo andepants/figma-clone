@@ -28,10 +28,12 @@ export function PositionSection() {
   if (!shape) return null;
 
   function handleXChange(x: number) {
+    if (!shape) return;
     updateShapeProperty(shape.id, { x });
   }
 
   function handleYChange(y: number) {
+    if (!shape) return;
     updateShapeProperty(shape.id, { y });
   }
 

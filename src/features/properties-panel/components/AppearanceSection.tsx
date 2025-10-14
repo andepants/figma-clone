@@ -37,12 +37,14 @@ export function AppearanceSection() {
       : 0;
 
   function handleOpacityChange(value: number) {
+    if (!shape) return;
     const opacityDecimal = value / 100;
     const clamped = validateOpacity(opacityDecimal);
     updateShapeProperty(shape.id, { opacity: clamped });
   }
 
   function handleCornerRadiusChange(radius: number) {
+    if (!shape) return;
     const validated = validateCornerRadius(radius);
     updateShapeProperty(shape.id, { cornerRadius: validated });
   }

@@ -5,7 +5,7 @@
  * in a type-safe and normalized way.
  */
 
-import type { CanvasObject, Rectangle, Circle, Text } from '@/types/canvas.types';
+import type { CanvasObject } from '@/types/canvas.types';
 import {
   hasDimensions,
   hasRadius,
@@ -187,9 +187,14 @@ export function getAspectRatio(shape: CanvasObject): number | null {
     return 1; // Circles always 1:1
   }
 
-  if (hasDimensions(shape)) {
+  if (shape.type === 'rectangle') {
     if (shape.height === 0) return null;
     return shape.width / shape.height;
+  }
+
+  // Text shapes don't have a meaningful aspect ratio
+  if (shape.type === 'text') {
+    return null;
   }
 
   return null;

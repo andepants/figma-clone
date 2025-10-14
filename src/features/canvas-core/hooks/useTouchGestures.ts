@@ -35,13 +35,13 @@ export interface TouchGestureHandlers {
 /**
  * useTouchGestures hook
  * Manages pinch-to-zoom gesture state and handlers
- * @param {React.RefObject<Konva.Stage>} stageRef - Reference to Konva stage
+ * @param {React.RefObject<Konva.Stage | null>} stageRef - Reference to Konva stage
  * @param {(scale: number) => void} setZoom - Function to update zoom level
  * @param {(x: number, y: number) => void} setPan - Function to update pan position
  * @returns {TouchGestureHandlers} Touch gesture event handlers
  */
 export function useTouchGestures(
-  stageRef: React.RefObject<Konva.Stage>,
+  stageRef: React.RefObject<Konva.Stage | null>,
   setZoom: (scale: number) => void,
   setPan: (x: number, y: number) => void
 ): TouchGestureHandlers {

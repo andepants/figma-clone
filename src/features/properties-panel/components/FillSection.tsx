@@ -47,6 +47,7 @@ export function FillSection() {
   const fill = shape.fill;
 
   function handleFillChange(color: string) {
+    if (!shape) return;
     updateShapeProperty(shape.id, { fill: color });
 
     // Add to color history (max 10 recent colors)

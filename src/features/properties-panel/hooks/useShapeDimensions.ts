@@ -89,12 +89,12 @@ export function useShapeDimensions(shape: CanvasObject | null): ShapeDimensionsR
 
   // Get lock state
   const hasLock = hasDimensions(shape)
-    ? (shape.lockAspectRatio ?? false)
+    ? (shape.type === 'rectangle' ? (shape.lockAspectRatio ?? false) : false)
     : hasRadius(shape); // Circles always locked
 
   // Dimension update handlers
   function updateWidth(newWidth: number) {
-    if (!hasDimensions(shape)) return;
+    if (!shape || !hasDimensions(shape)) return;
 
     const validated = validateDimensionUpdate(shape, 'width', newWidth);
     if (validated === null) return;
@@ -110,7 +110,7 @@ export function useShapeDimensions(shape: CanvasObject | null): ShapeDimensionsR
   }
 
   function updateHeight(newHeight: number) {
-    if (!hasDimensions(shape)) return;
+    if (!shape || !hasDimensions(shape)) return;
 
     const validated = validateDimensionUpdate(shape, 'height', newHeight);
     if (validated === null) return;
@@ -126,7 +126,7 @@ export function useShapeDimensions(shape: CanvasObject | null): ShapeDimensionsR
   }
 
   function updateRadius(newRadius: number) {
-    if (!hasRadius(shape)) return;
+    if (!shape || !hasRadius(shape)) return;
 
     const validated = validateDimensionUpdate(shape, 'radius', newRadius);
     if (validated === null) return;
@@ -135,7 +135,7 @@ export function useShapeDimensions(shape: CanvasObject | null): ShapeDimensionsR
   }
 
   function toggleAspectRatioLock() {
-    if (!hasDimensions(shape)) return; // Circles always locked
+    if (!shape || !hasDimensions(shape)) return; // Circles always locked
     updateShapeProperty(shape.id, { lockAspectRatio: !hasLock });
   }
 
