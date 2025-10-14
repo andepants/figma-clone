@@ -8,3 +8,6 @@
 // Example: export * from './button'
 // Example: export * from './dialog'
 // Example: export * from './input'
+
+export * from './dropdown-menu';
+export * from './figma-logo';

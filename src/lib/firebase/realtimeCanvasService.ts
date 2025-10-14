@@ -221,7 +221,9 @@ export async function removeCanvasObject(
 /**
  * Clear all objects from a canvas
  *
- * Removes all objects in a single operation. Used by the "Clear Canvas" button.
+ * Clears all objects in a single operation by setting the objects node to null.
+ * Using set(null) instead of remove() ensures the subscription properly triggers.
+ * Used by the "Clear Canvas" button.
  *
  * @param {string} canvasId - The canvas document ID
  * @returns {Promise<void>}
@@ -236,7 +238,8 @@ export async function removeCanvasObject(
 export async function clearAllCanvasObjects(canvasId: string): Promise<void> {
   try {
     const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
-    await remove(objectsRef);
+    // Use set(null) instead of remove() to reliably trigger subscriptions
+    await set(objectsRef, null);
   } catch (error) {
     console.error('Failed to clear canvas objects:', error);
     throw error;
