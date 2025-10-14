@@ -73,8 +73,8 @@ export function useRemoteSelections(canvasId: string): RemoteSelection[] {
     const unsubscribe = subscribeToSelections(canvasId, (selectionMap: SelectionStateMap) => {
       // Convert map to array and enrich with user details (supports multi-select)
       const selections: RemoteSelection[] = Object.entries(selectionMap)
-        .filter(([userId, _]) => userId !== currentUser?.uid) // Filter out own selection
-        .filter(([_, state]) => state.objectIds.length > 0) // Filter out empty selections
+        .filter(([userId]) => userId !== currentUser?.uid) // Filter out own selection
+        .filter(([, state]) => state.objectIds.length > 0) // Filter out empty selections
         .map(([userId, state]) => {
           // Find user in presence data
           const userPresence = presenceData.find((p) => p.userId === userId);

@@ -156,7 +156,7 @@ export function useResize(): UseResizeReturn {
           username,
           color
         );
-      } catch (error) {
+      } catch {
         // Reset state on error (both refs and React state)
         isResizingRef.current = false;
         activeHandleRef.current = null;
@@ -191,7 +191,7 @@ export function useResize(): UseResizeReturn {
       }
 
       // Calculate new bounds based on current pointer position
-      let newBounds = calculateResizedBounds(
+      const newBounds = calculateResizedBounds(
         activeHandleRef.current,
         currentAnchor,
         pointer
@@ -383,7 +383,7 @@ export function useResize(): UseResizeReturn {
           // Clear resize state AFTER object update completes
           // This prevents flash-back: when resize state clears, object is already at correct position
           await endResizing('main', objectId);
-        } catch (error) {
+        } catch {
           // Silently fail
         }
       }

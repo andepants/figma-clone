@@ -71,11 +71,12 @@ export interface RectangleProperties {
 /**
  * Circle-specific properties
  * @interface CircleProperties
+ *
+ * Future: arc angles, segments, etc.
+ * Circles always maintain aspect ratio, no lock needed
  */
-export interface CircleProperties {
-  // Future: arc angles, segments, etc.
-  // Circles always maintain aspect ratio, no lock needed
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface CircleProperties {}
 
 /**
  * Text-specific properties

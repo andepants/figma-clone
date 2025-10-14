@@ -54,25 +54,21 @@ export async function setOnline(
   userId: string,
   username: string
 ): Promise<void> {
-  try {
-    const presenceRef = ref(realtimeDb, `canvases/${canvasId}/presence/${userId}`)
+  const presenceRef = ref(realtimeDb, `canvases/${canvasId}/presence/${userId}`)
 
-    // Set up automatic offline on disconnect (handles crashes, network loss, etc.)
-    await onDisconnect(presenceRef).set({
-      username,
-      online: false,
-      lastSeen: serverTimestamp(),
-    } as PresenceData)
+  // Set up automatic offline on disconnect (handles crashes, network loss, etc.)
+  await onDisconnect(presenceRef).set({
+    username,
+    online: false,
+    lastSeen: serverTimestamp(),
+  } as PresenceData)
 
-    // Set user as online now
-    await set(presenceRef, {
-      username,
-      online: true,
-      lastSeen: serverTimestamp(),
-    } as PresenceData)
-  } catch (error) {
-    throw error
-  }
+  // Set user as online now
+  await set(presenceRef, {
+    username,
+    online: true,
+    lastSeen: serverTimestamp(),
+  } as PresenceData)
 }
 
 /**
@@ -99,7 +95,7 @@ export async function setOffline(
       online: false,
       lastSeen: serverTimestamp(),
     } as PresenceData)
-  } catch (error) {
+  } catch {
     // Don't throw - offline updates shouldn't break the app
   }
 }
@@ -149,7 +145,7 @@ export function subscribeToPresence(
 
       callback(presence)
     },
-    (error) => {
+    () => {
       callback([])
     }
   )

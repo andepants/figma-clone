@@ -69,7 +69,7 @@ export function useGroupDrag() {
     throttle(async (updates: Record<string, { x: number; y: number }>) => {
       try {
         await batchUpdateCanvasObjects('main', updates);
-      } catch (error) {
+      } catch {
         // Silently fail - drag updates shouldn't break the app
       }
     }, 100)
@@ -234,7 +234,7 @@ export function useGroupDrag() {
         // PERFORMANCE FIX: Unmark objects AFTER Firebase write completes
         // This ensures persisted state is current before allowing remote updates
         unmarkManipulated(selectedIds);
-      } catch (error) {
+      } catch {
         // Silently fail - cleanup errors shouldn't break the app
         // Still unmark objects even on error
         unmarkManipulated(selectedIds);

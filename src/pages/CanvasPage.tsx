@@ -327,7 +327,7 @@ function CanvasPage() {
       return () => {
         unsubscribe();
       };
-    } catch (error) {
+    } catch {
       // Mark loading as complete even on error
       setIsLoading(false);
     }

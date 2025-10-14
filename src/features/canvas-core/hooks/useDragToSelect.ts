@@ -112,7 +112,7 @@ export function useDragToSelect(stageRef: React.RefObject<Konva.Stage | null>) {
    * Updates selection rectangle
    */
   const handleStageMouseMove = useCallback(
-    (_e: Konva.KonvaEventObject<MouseEvent>) => {
+    () => {
       if (!dragSelectState.isActive) return;
 
       const stage = stageRef.current;
@@ -136,7 +136,7 @@ export function useDragToSelect(stageRef: React.RefObject<Konva.Stage | null>) {
    * Performs collision detection and selects overlapping objects
    */
   const handleStageMouseUp = useCallback(
-    (_e: Konva.KonvaEventObject<MouseEvent>) => {
+    () => {
       if (!dragSelectState.isActive) return;
       if (!dragSelectState.startPoint || !dragSelectState.currentPoint) return;
 

@@ -19,7 +19,8 @@
  * const throttledUpdate = throttle((x, y) => updateCursor(x, y), 50)
  * // Called every 50ms max, even if invoked more frequently
  */
-export function throttle<T extends (...args: unknown[]) => unknown>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function throttle<T extends (...args: any[]) => any>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {

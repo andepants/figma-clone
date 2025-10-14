@@ -62,7 +62,7 @@ export async function updateSelection(
 
     // Set selection
     await set(selectionRef, selectionState);
-  } catch (error) {
+  } catch {
     // Don't throw - selection updates shouldn't break the app
   }
 }
@@ -93,7 +93,7 @@ export async function clearSelection(
 
     // Remove the selection
     await remove(selectionRef);
-  } catch (error) {
+  } catch {
     // Don't throw - cleanup errors shouldn't break the app
   }
 }
@@ -142,7 +142,7 @@ export function subscribeToSelections(
 
       callback(selections);
     },
-    (error) => {
+    () => {
       callback({});
     }
   );
@@ -175,6 +175,7 @@ export async function setOnlineWithSelectionCleanup(
 
     // Set up automatic selection cleanup on disconnect
     await onDisconnect(selectionRef).remove();
-  } catch (error) {
+  } catch {
+    // Silently fail - cleanup errors shouldn't break the app
   }
 }

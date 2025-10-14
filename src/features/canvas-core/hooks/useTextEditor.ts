@@ -65,7 +65,7 @@ export function useTextEditor({
   // Store original text for cancel
   const originalTextRef = useRef<string>('');
   // Store heartbeat interval
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Only create textarea when editing is active

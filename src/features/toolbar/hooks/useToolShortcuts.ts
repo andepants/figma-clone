@@ -91,7 +91,8 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
 
             // Sync to Realtime Database
             addCanvasObject('main', duplicate)
-              .catch((error) => {
+              .catch(() => {
+                // Silently fail - RTDB subscription will restore correct state
               });
           }
 
@@ -278,7 +279,8 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
             // Sync to Realtime Database
             for (const id of selectedIds) {
               removeCanvasObject('main', id)
-                .catch((error) => {
+                .catch(() => {
+                  // Silently fail - RTDB subscription will restore correct state
                 });
             }
           }

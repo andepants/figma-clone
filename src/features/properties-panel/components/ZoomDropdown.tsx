@@ -274,7 +274,8 @@ export function ZoomDropdown() {
         {/* Zoom to Fit */}
         <DropdownMenuItem
           onSelect={() => {
-            zoomToFit();
+            // Pass actual viewport dimensions to zoom to fit
+            zoomToFit(window.innerWidth, window.innerHeight);
             setIsOpen(false);
           }}
           className="text-xs"

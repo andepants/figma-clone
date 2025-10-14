@@ -20,5 +20,6 @@ import { updateSEO, type SEOConfig } from '@/lib/utils/seo';
 export function useSEO(config: SEOConfig): void {
   useEffect(() => {
     updateSEO(config);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.title, config.description, config.url, config.image, config.keywords]);
 }

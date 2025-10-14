@@ -6,7 +6,7 @@
  * Note: Text positioning uses (x, y) as TOP-LEFT point (same as Rectangle).
  */
 
-import { useState, useEffect, useRef, memo, Fragment } from 'react';
+import { useState, useEffect, useRef, memo, Fragment, useCallback } from 'react';
 import { Text as KonvaText, Label, Tag, Text as KonvaTextLabel } from 'react-konva';
 import type Konva from 'konva';
 import type { Text as TextType } from '@/types';
@@ -112,7 +112,7 @@ export const TextShape = memo(function TextShape({
    * If text is empty or unchanged from placeholder, deletes the text object
    * Switches tool back to move after editing completes
    */
-  async function handleTextSave(newText: string) {
+  const handleTextSave = useCallback(async (newText: string) => {
     // Trim whitespace (removes spaces, tabs, newlines from beginning and end)
     const trimmedText = newText.trim();
 
@@ -139,21 +139,21 @@ export const TextShape = memo(function TextShape({
 
     // Switch back to move tool after editing completes (Figma-style behavior)
     setActiveTool('move');
-  }
+  }, [removeObject, text.id, updateObject, setEditingText, setActiveTool]);
 
   /**
    * Handle text edit cancel
    * Closes editor without saving changes
    * Switches tool back to move after editing completes
    */
-  async function handleTextCancel() {
+  const handleTextCancel = useCallback(async () => {
     // End editing without saving
     setEditingText(null);
     await endEditing('main', text.id);
 
     // Switch back to move tool after editing completes (Figma-style behavior)
     setActiveTool('move');
-  }
+  }, [text.id, setEditingText, setActiveTool]);
 
   /**
    * Update stage ref when component mounts or text node changes
@@ -162,7 +162,7 @@ export const TextShape = memo(function TextShape({
     if (shapeRef.current) {
       stageRef.current = shapeRef.current.getStage();
     }
-  }, [shapeRef.current]);
+  }, []);
 
   /**
    * Text editor hook - manages textarea overlay
@@ -195,7 +195,7 @@ export const TextShape = memo(function TextShape({
         handleTextCancel();
       }
     }
-  }, [activeTool, isEditing]);
+  }, [activeTool, isEditing, handleTextSave, handleTextCancel]);
 
   /**
    * Animate selection changes
@@ -249,7 +249,7 @@ export const TextShape = memo(function TextShape({
    * Handle double-click on text
    * Enters edit mode if move tool is active and text is not locked
    */
-  async function handleDoubleClick(e: Konva.KonvaEventObject<MouseEvent>) {
+  async function handleDoubleClick() {
     // Only allow editing in move tool mode
     if (activeTool !== 'move') {
       return;
@@ -579,7 +579,7 @@ export const TextShape = memo(function TextShape({
             height: textHeight,
           })
         }
-        onResizeMove={(_handleType, x, y) => handleResizeMove(text.id, x, y)}
+        onResizeMove={(_, x, y) => handleResizeMove(text.id, x, y)}
         onResizeEnd={() => handleResizeEnd(text.id)}
       />
 

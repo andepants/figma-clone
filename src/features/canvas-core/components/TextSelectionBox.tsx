@@ -70,7 +70,7 @@ export function TextSelectionBox({
         actualTextWidth = measuredWidth;
       }
     }
-  } catch (error) {
+  } catch {
     // Silently fall back to estimation
   }
 

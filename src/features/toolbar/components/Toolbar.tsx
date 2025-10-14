@@ -93,7 +93,7 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
       // Sync to Realtime Database
       try {
         await addCanvasObject('main', duplicate);
-      } catch (error) {
+      } catch {
         // Note: RTDB subscription will restore correct state if sync fails
       }
     }
@@ -117,7 +117,7 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
     for (const id of selectedIds) {
       try {
         await removeCanvasObject('main', id);
-      } catch (error) {
+      } catch {
         // Note: RTDB subscription will restore correct state if sync fails
       }
     }
@@ -137,7 +137,7 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
       // Sync to Realtime Database (atomic clear operation)
       try {
         await clearAllCanvasObjects('main');
-      } catch (error) {
+      } catch {
         // Note: Could add rollback logic here if needed
       }
     }

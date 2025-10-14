@@ -116,7 +116,7 @@ export async function startEditing(
     await set(editStateRef, editState);
 
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -149,7 +149,7 @@ export async function updateEditHeartbeat(
     await update(editStateRef, {
       lastUpdate: Date.now(),
     });
-  } catch (error) {
+  } catch {
     // Don't throw - heartbeat updates shouldn't break the app
   }
 }
@@ -184,7 +184,7 @@ export async function updateLiveText(
       liveText,
       lastUpdate: Date.now(), // Update heartbeat too
     });
-  } catch (error) {
+  } catch {
     // Don't throw - live updates shouldn't break the app
   }
 }
@@ -225,7 +225,7 @@ export async function endEditing(
 
     // Remove the edit state
     await remove(editStateRef);
-  } catch (error) {
+  } catch {
     // Don't throw - cleanup errors shouldn't break the app
   }
 }
@@ -281,7 +281,7 @@ export async function checkEditLock(
 
     // Locked by another user
     return editState;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -336,14 +336,15 @@ export function subscribeToEditStates(
         } else {
           // State is stale, remove it
           const staleRef = ref(realtimeDb, `canvases/${canvasId}/edit-states/${textId}`);
-          remove(staleRef).catch((err) => {
+          remove(staleRef).catch(() => {
+            // Silently fail
           });
         }
       });
 
       callback(activeEditStates);
     },
-    (error) => {
+    () => {
       callback({});
     }
   );
@@ -393,7 +394,7 @@ export async function cleanupStaleEditStates(canvasId: string): Promise<number> 
 
     await Promise.all(removalPromises);
     return removedCount;
-  } catch (error) {
+  } catch {
     return 0;
   }
 }

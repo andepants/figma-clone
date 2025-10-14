@@ -56,7 +56,8 @@ export function MenuButton() {
     try {
       await logout();
       navigate('/');
-    } catch (error) {
+    } catch {
+      // Silently fail - error handled by auth system
     }
   }
 

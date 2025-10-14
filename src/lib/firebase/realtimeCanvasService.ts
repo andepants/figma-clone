@@ -67,7 +67,7 @@ export function subscribeToCanvasObjects(
 
       callback(objectsArray);
     },
-    (error) => {
+    () => {
       // Still call callback with empty array on error
       callback([]);
     }
@@ -106,28 +106,24 @@ export async function addCanvasObject(
   canvasId: string,
   object: CanvasObject
 ): Promise<void> {
-  try {
-    // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
-    await retryAsync(async () => {
-      const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
+  // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
+  await retryAsync(async () => {
+    const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
 
-      if (object.id) {
-        // Use provided ID
-        const objectRef = ref(realtimeDb, `canvases/${canvasId}/objects/${object.id}`);
-        await set(objectRef, object);
-      } else {
-        // Generate unique ID using push()
-        const newObjectRef = push(objectsRef);
-        const objectWithId = {
-          ...object,
-          id: newObjectRef.key!, // Firebase generates unique key
-        };
-        await set(newObjectRef, objectWithId);
-      }
-    }, 3, 1000);
-  } catch (error) {
-    throw error;
-  }
+    if (object.id) {
+      // Use provided ID
+      const objectRef = ref(realtimeDb, `canvases/${canvasId}/objects/${object.id}`);
+      await set(objectRef, object);
+    } else {
+      // Generate unique ID using push()
+      const newObjectRef = push(objectsRef);
+      const objectWithId = {
+        ...object,
+        id: newObjectRef.key!, // Firebase generates unique key
+      };
+      await set(newObjectRef, objectWithId);
+    }
+  }, 3, 1000);
 }
 
 /**
@@ -168,7 +164,7 @@ export async function updateCanvasObject(
     };
 
     await update(objectRef, updatesWithTimestamp);
-  } catch (error) {
+  } catch {
     // Don't throw - updates shouldn't break the app
   }
 }
@@ -209,15 +205,11 @@ export async function removeCanvasObject(
   canvasId: string,
   objectId: string
 ): Promise<void> {
-  try {
-    // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
-    await retryAsync(async () => {
-      const objectRef = ref(realtimeDb, `canvases/${canvasId}/objects/${objectId}`);
-      await remove(objectRef);
-    }, 3, 1000);
-  } catch (error) {
-    throw error;
-  }
+  // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
+  await retryAsync(async () => {
+    const objectRef = ref(realtimeDb, `canvases/${canvasId}/objects/${objectId}`);
+    await remove(objectRef);
+  }, 3, 1000);
 }
 
 /**
@@ -238,16 +230,12 @@ export async function removeCanvasObject(
  * ```
  */
 export async function clearAllCanvasObjects(canvasId: string): Promise<void> {
-  try {
-    // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
-    await retryAsync(async () => {
-      const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
-      // Use set(null) instead of remove() to reliably trigger subscriptions
-      await set(objectsRef, null);
-    }, 3, 1000);
-  } catch (error) {
-    throw error;
-  }
+  // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
+  await retryAsync(async () => {
+    const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
+    // Use set(null) instead of remove() to reliably trigger subscriptions
+    await set(objectsRef, null);
+  }, 3, 1000);
 }
 
 /**
@@ -286,12 +274,12 @@ export async function batchUpdateCanvasObjects(
     const dbRef = ref(realtimeDb);
 
     // Build multi-path update object
-    const multiPathUpdates: Record<string, any> = {};
+    const multiPathUpdates: Record<string, string | number | boolean | number[] | null> = {};
     const timestamp = Date.now();
 
     for (const [objectId, objectUpdates] of Object.entries(updates)) {
       for (const [key, value] of Object.entries(objectUpdates)) {
-        multiPathUpdates[`canvases/${canvasId}/objects/${objectId}/${key}`] = value;
+        multiPathUpdates[`canvases/${canvasId}/objects/${objectId}/${key}`] = value as string | number | boolean | number[] | null;
       }
       // Always update timestamp
       multiPathUpdates[`canvases/${canvasId}/objects/${objectId}/updatedAt`] = timestamp;
@@ -299,7 +287,7 @@ export async function batchUpdateCanvasObjects(
 
     // Single atomic update
     await update(dbRef, multiPathUpdates);
-  } catch (error) {
+  } catch {
     // Don't throw - updates shouldn't break the app
   }
 }
@@ -339,7 +327,7 @@ export async function getAllCanvasObjects(
       }));
 
     return objectsArray;
-  } catch (error) {
+  } catch {
     return [];
   }
 }

@@ -64,7 +64,7 @@ export async function updateCursor(
 
     // Update cursor position
     await set(cursorRef, cursorData)
-  } catch (error) {
+  } catch {
     // Don't throw - cursor updates shouldn't break the app
   }
 }
@@ -97,7 +97,7 @@ export async function removeCursor(
 
     // Remove the cursor
     await remove(cursorRef)
-  } catch (error) {
+  } catch {
     // Don't throw - cleanup errors shouldn't break the app
   }
 }
@@ -135,7 +135,7 @@ export function subscribeToCursors(
 
       callback(cursors)
     },
-    (error) => {
+    () => {
       // Error callback - handles permission denied, network issues, etc.
       // Call callback with empty array so app doesn't break
       callback([])
@@ -200,7 +200,7 @@ export async function cleanupStaleCursors(canvasId: string): Promise<number> {
 
     await Promise.all(removalPromises)
     return removedCount
-  } catch (error) {
+  } catch {
     return 0
   }
 }

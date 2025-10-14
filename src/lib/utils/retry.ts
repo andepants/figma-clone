@@ -35,13 +35,13 @@ export async function retryAsync<T>(
   maxRetries: number = 3,
   baseDelay: number = 1000
 ): Promise<T> {
-  let lastError: Error
+  let lastError: Error = new Error('No attempts made')
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await fn()
     } catch (error) {
-      lastError = error
+      lastError = error instanceof Error ? error : new Error(String(error))
 
       // Check if error is retriable
       if (!isRetriableError(error)) {
@@ -155,7 +155,7 @@ export async function retryWithOptions<T>(
     try {
       return await fn()
     } catch (error) {
-      lastError = error
+      lastError = error instanceof Error ? error : new Error(String(error))
 
       // Check if error should be retried
       if (!shouldRetry(error)) {

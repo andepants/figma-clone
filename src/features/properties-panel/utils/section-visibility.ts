@@ -133,6 +133,6 @@ export function isSectionVisible(
 export function getVisibleSectionNames(shape: CanvasObject | null): string[] {
   const visibility = getSectionVisibility(shape);
   return Object.entries(visibility)
-    .filter(([_, isVisible]) => isVisible)
-    .map(([name, _]) => name);
+    .filter(([, isVisible]) => isVisible)
+    .map(([name]) => name);
 }

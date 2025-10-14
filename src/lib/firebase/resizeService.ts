@@ -84,34 +84,30 @@ export async function startResizing(
   username: string,
   color: string
 ): Promise<void> {
-  try {
-    const resizeStateRef = ref(realtimeDb, `canvases/${canvasId}/resize-states/${objectId}`);
+  const resizeStateRef = ref(realtimeDb, `canvases/${canvasId}/resize-states/${objectId}`);
 
-    // Calculate anchor point (fixed opposite corner)
-    const anchor = getAnchorPoint(handle, bounds);
+  // Calculate anchor point (fixed opposite corner)
+  const anchor = getAnchorPoint(handle, bounds);
 
-    // Create resize state
-    const resizeState: ResizeState = {
-      objectId,
-      userId,
-      username,
-      color,
-      handle,
-      startBounds: bounds,
-      currentBounds: bounds, // Initially same as start
-      anchor,
-      timestamp: Date.now(),
-    };
+  // Create resize state
+  const resizeState: ResizeState = {
+    objectId,
+    userId,
+    username,
+    color,
+    handle,
+    startBounds: bounds,
+    currentBounds: bounds, // Initially same as start
+    anchor,
+    timestamp: Date.now(),
+  };
 
-    // Set up automatic cleanup on disconnect
-    // This ensures resize states are removed if user crashes or loses connection
-    await onDisconnect(resizeStateRef).remove();
+  // Set up automatic cleanup on disconnect
+  // This ensures resize states are removed if user crashes or loses connection
+  await onDisconnect(resizeStateRef).remove();
 
-    // Set resize state in RTDB
-    await set(resizeStateRef, resizeState);
-  } catch (error) {
-    throw error;
-  }
+  // Set resize state in RTDB
+  await set(resizeStateRef, resizeState);
 }
 
 /**
@@ -148,7 +144,7 @@ export async function updateResizePosition(
       currentBounds,
       timestamp: Date.now(),
     });
-  } catch (error) {
+  } catch {
     // Don't throw - resize updates shouldn't break the app
   }
 }
@@ -205,7 +201,7 @@ export async function endResizing(
 
     // Remove the resize state
     await remove(resizeStateRef);
-  } catch (error) {
+  } catch {
     // Don't throw - cleanup errors shouldn't break the app
   }
 }
@@ -254,7 +250,7 @@ export function subscribeToResizeStates(
       const resizeStates: ResizeStateMap = data as ResizeStateMap;
       callback(resizeStates);
     },
-    (error) => {
+    () => {
       // On error, return empty map
       callback({});
     }

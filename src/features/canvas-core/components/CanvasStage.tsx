@@ -308,11 +308,11 @@ export function CanvasStage() {
       onMouseMove={(e) => {
         handleMouseMove(e);
         handleCursorMove();
-        handleDragSelectMouseMove(e);
+        handleDragSelectMouseMove();
       }}
       onMouseUp={(e) => {
         handleMouseUp(e);
-        handleDragSelectMouseUp(e);
+        handleDragSelectMouseUp();
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}

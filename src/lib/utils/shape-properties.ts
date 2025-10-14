@@ -59,7 +59,7 @@ export function getDimensionLabels(shape: CanvasObject): {
  * Get shape-specific properties for display in properties panel
  * Returns an object with all relevant properties for the shape type
  */
-export function getShapeSpecificProperties(shape: CanvasObject): Record<string, any> {
+export function getShapeSpecificProperties(shape: CanvasObject): Record<string, string | number | boolean | number[] | undefined> {
   switch (shape.type) {
     case 'rectangle':
       return {

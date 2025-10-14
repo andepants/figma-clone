@@ -5,7 +5,7 @@
  */
 
 import { create } from 'zustand';
-import type { CanvasObject, Rectangle, Circle, TextShape } from '@/types';
+import type { CanvasObject, Rectangle, Circle, Text } from '@/types';
 
 /**
  * Compare two canvas object arrays for shallow equality
@@ -78,8 +78,8 @@ function areObjectArraysEqual(arr1: CanvasObject[], arr2: CanvasObject[]): boole
         return false;
       }
     } else if (obj1.type === 'text' && obj2.type === 'text') {
-      const text1 = obj1 as TextShape;
-      const text2 = obj2 as TextShape;
+      const text1 = obj1 as Text;
+      const text2 = obj2 as Text;
       if (
         text1.text !== text2.text ||
         text1.width !== text2.width ||
@@ -235,8 +235,10 @@ interface CanvasActions {
 
   /**
    * Zoom to fit all objects in viewport
+   * @param {number} viewportWidth - Optional viewport width (defaults to 1200)
+   * @param {number} viewportHeight - Optional viewport height (defaults to 800)
    */
-  zoomToFit: () => void;
+  zoomToFit: (viewportWidth?: number, viewportHeight?: number) => void;
 
   /**
    * Set pan position
@@ -396,7 +398,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       zoom: Math.max(0.1, Math.min(5.0, percentage / 100)),
     })),
 
-  zoomToFit: () =>
+  zoomToFit: (viewportWidth = 1200, viewportHeight = 800) =>
     set((state) => {
       // If no objects, reset to 100%
       if (state.objects.length === 0) {
@@ -428,22 +430,40 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         }
       });
 
-      // Add padding (20% of viewport)
-      const padding = 0.2;
+      // Calculate content dimensions
       const width = maxX - minX;
       const height = maxY - minY;
 
-      // Calculate zoom to fit (assuming standard viewport ~1200x800)
-      const viewportWidth = 1200;
-      const viewportHeight = 800;
+      // Guard against zero or invalid dimensions
+      if (width <= 0 || height <= 0 || !isFinite(width) || !isFinite(height)) {
+        return { zoom: 1.0, panX: 0, panY: 0 };
+      }
+
+      // Add padding (20% of viewport)
+      const padding = 0.2;
+
+      // Calculate zoom to fit
       const scaleX = (viewportWidth * (1 - padding)) / width;
       const scaleY = (viewportHeight * (1 - padding)) / height;
       const newZoom = Math.max(0.1, Math.min(5.0, Math.min(scaleX, scaleY)));
 
+      // Guard against NaN zoom
+      if (!isFinite(newZoom)) {
+        return { zoom: 1.0, panX: 0, panY: 0 };
+      }
+
+      // Calculate center position for the content
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      // Center the content in viewport
+      const newPanX = viewportWidth / 2 - centerX * newZoom;
+      const newPanY = viewportHeight / 2 - centerY * newZoom;
+
       return {
         zoom: newZoom,
-        panX: 0,
-        panY: 0,
+        panX: newPanX,
+        panY: newPanY,
       };
     }),
 

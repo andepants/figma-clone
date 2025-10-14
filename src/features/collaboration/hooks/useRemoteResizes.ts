@@ -61,8 +61,8 @@ export function useRemoteResizes(canvasId: string): ResizeStateWithObject[] {
     const unsubscribe = subscribeToResizeStates(canvasId, (resizeStateMap: ResizeStateMap) => {
       // Convert map to array and filter out own resize states
       const resizeStateArray: ResizeStateWithObject[] = Object.entries(resizeStateMap)
-        .filter(([_, state]) => state.userId !== currentUser?.uid) // Filter out own resizes
-        .filter(([_, state]) => {
+        .filter(([, state]) => state.userId !== currentUser?.uid) // Filter out own resizes
+        .filter(([, state]) => {
           // Validate that resize state has all required fields
           const isValid =
             state.objectId !== undefined &&
@@ -73,9 +73,6 @@ export function useRemoteResizes(canvasId: string): ResizeStateWithObject[] {
             state.startBounds !== undefined &&
             state.currentBounds !== undefined &&
             state.anchor !== undefined;
-
-          if (!isValid) {
-          }
 
           return isValid;
         })

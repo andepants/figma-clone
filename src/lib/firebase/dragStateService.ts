@@ -87,7 +87,7 @@ export async function startDragging(
     await set(dragStateRef, dragState);
 
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -124,7 +124,7 @@ export async function updateDragPosition(
       y: position.y,
       lastUpdate: Date.now(),
     });
-  } catch (error) {
+  } catch {
     // Don't throw - drag updates shouldn't break the app
   }
 }
@@ -172,7 +172,7 @@ export async function endDragging(
 
     // Remove the drag state
     await remove(dragStateRef);
-  } catch (error) {
+  } catch {
     // Don't throw - cleanup errors shouldn't break the app
   }
 }
@@ -228,7 +228,7 @@ export async function checkDragLock(
 
     // Locked by another user
     return dragState;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -291,7 +291,7 @@ export function subscribeToDragStates(
 
       callback(activeDragStates);
     },
-    (error) => {
+    () => {
       callback({});
     }
   );
@@ -341,7 +341,7 @@ export async function cleanupStaleDragStates(canvasId: string): Promise<number> 
 
     await Promise.all(removalPromises);
     return removedCount;
-  } catch (error) {
+  } catch {
     return 0;
   }
 }
@@ -451,7 +451,7 @@ export async function startGroupDragging(
     );
 
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -497,7 +497,7 @@ export async function updateGroupDragPositions(
         });
       })
     );
-  } catch (error) {
+  } catch {
     // Don't throw - drag updates shouldn't break the app
   }
 }
@@ -553,7 +553,7 @@ export async function endGroupDragging(
         await remove(dragStateRef);
       })
     );
-  } catch (error) {
+  } catch {
     // Don't throw - cleanup errors shouldn't break the app
   }
 }

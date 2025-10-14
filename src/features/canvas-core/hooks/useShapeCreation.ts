@@ -242,7 +242,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
               setEditingText(null);
               // Optionally show a toast notification here
             }
-          } catch (error) {
+          } catch {
             // Failed to acquire edit lock - close editor
             setEditingText(null);
           }
@@ -256,7 +256,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
       setStartPoint(canvasPos);
       setIsCreating(true);
     },
-    [activeTool, clearSelection, currentUser, addObject, setActiveTool]
+    [activeTool, clearSelection, currentUser, addObject, setActiveTool, setEditingText]
   );
 
   /**
@@ -390,7 +390,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
     // RTDB updates are fast - no need for debouncing
     try {
       await addCanvasObject('main', newShape);
-    } catch (error) {
+    } catch {
       // Rollback optimistic update on error
       const { removeObject } = useCanvasStore.getState();
       removeObject(newShape.id);
