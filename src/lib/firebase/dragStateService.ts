@@ -11,7 +11,7 @@
  * - Stale state detection and cleanup
  */
 
-import { ref, set, get, remove, update, onValue, serverTimestamp, onDisconnect } from 'firebase/database';
+import { ref, set, get, remove, update, onValue, onDisconnect } from 'firebase/database';
 import { realtimeDb } from './config';
 import { throttle } from '@/lib/utils';
 import type { DragState, DragStateMap } from '@/types';
