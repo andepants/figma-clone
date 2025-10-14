@@ -12,10 +12,16 @@ import type { CanvasObject } from '@/types';
  * @interface CanvasState
  * @property {CanvasObject[]} objects - All canvas objects
  * @property {string | null} selectedId - ID of currently selected object
+ * @property {number} zoom - Current zoom level (0.1 to 5.0, default 1.0)
+ * @property {number} panX - Pan X position
+ * @property {number} panY - Pan Y position
  */
 interface CanvasState {
   objects: CanvasObject[];
   selectedId: string | null;
+  zoom: number;
+  panX: number;
+  panY: number;
 }
 
 /**
@@ -63,6 +69,24 @@ interface CanvasActions {
    * Clear all objects from the canvas
    */
   clearObjects: () => void;
+
+  /**
+   * Set zoom level
+   * @param {number} zoom - Zoom level (0.1 to 5.0)
+   */
+  setZoom: (zoom: number) => void;
+
+  /**
+   * Set pan position
+   * @param {number} x - Pan X position
+   * @param {number} y - Pan Y position
+   */
+  setPan: (x: number, y: number) => void;
+
+  /**
+   * Reset view to default (zoom 100%, centered)
+   */
+  resetView: () => void;
 }
 
 /**
@@ -79,6 +103,9 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   // Initial state
   objects: [],
   selectedId: null,
+  zoom: 1.0,
+  panX: 0,
+  panY: 0,
 
   // Actions
   addObject: (object) =>
@@ -126,5 +153,23 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     set(() => ({
       objects: [],
       selectedId: null,
+    })),
+
+  setZoom: (zoom) =>
+    set(() => ({
+      zoom: Math.max(0.1, Math.min(5.0, zoom)),
+    })),
+
+  setPan: (x, y) =>
+    set(() => ({
+      panX: x,
+      panY: y,
+    })),
+
+  resetView: () =>
+    set(() => ({
+      zoom: 1.0,
+      panX: 0,
+      panY: 0,
     })),
 }));

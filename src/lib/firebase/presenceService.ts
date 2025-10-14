@@ -70,8 +70,6 @@ export async function setOnline(
       online: true,
       lastSeen: serverTimestamp(),
     } as PresenceData)
-
-    console.log(`Presence: User ${username} set online with auto-disconnect cleanup`)
   } catch (error) {
     console.error('Failed to set user online:', error)
     throw error
@@ -102,8 +100,6 @@ export async function setOffline(
       online: false,
       lastSeen: serverTimestamp(),
     } as PresenceData)
-
-    console.log(`Presence: User ${username} set offline`)
   } catch (error) {
     console.error('Failed to set user offline:', error)
     // Don't throw - offline updates shouldn't break the app

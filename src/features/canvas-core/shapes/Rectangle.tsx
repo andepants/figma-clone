@@ -4,7 +4,7 @@
  * Renders a rectangle shape on the canvas with selection and drag capabilities.
  */
 
-import { useState, memo } from 'react';
+import { useState, useEffect, useRef, memo, Fragment } from 'react';
 import { Rect } from 'react-konva';
 import type Konva from 'konva';
 import type { Rectangle as RectangleType } from '@/types';
@@ -21,6 +21,8 @@ import { useAuth } from '@/features/auth/hooks';
 import { getUserColor } from '@/features/collaboration/utils';
 import { screenToCanvasCoords } from '../utils';
 import { toast } from 'sonner';
+import { ResizeHandles } from '../components';
+import { useResize } from '../hooks';
 
 /**
  * Rectangle component props
@@ -40,7 +42,7 @@ interface RectangleProps {
  * Rectangle shape component
  *
  * Renders a Konva rectangle with selection, drag, and interaction support.
- * Only allows selection and dragging when the select tool is active.
+ * Only allows selection and dragging when the move tool is active.
  * Optimized with React.memo to prevent unnecessary re-renders.
  *
  * @param {RectangleProps} props - Component props
@@ -65,8 +67,15 @@ export const Rectangle = memo(function Rectangle({
   const { updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
 
+  // Resize hook
+  const { isResizing, activeHandle, anchor, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
+
+  // Refs for animation
+  const shapeRef = useRef<Konva.Rect>(null);
+  const animationRef = useRef<Konva.Tween | null>(null);
 
   // Determine if this object is being dragged by a remote user
   const isRemoteDragging = !!remoteDragState;
@@ -76,11 +85,44 @@ export const Rectangle = memo(function Rectangle({
   const displayY = remoteDragState?.y ?? rectangle.y;
 
   /**
+   * Animate selection changes
+   * Smoothly transitions stroke properties when selection state changes
+   */
+  useEffect(() => {
+    const node = shapeRef.current;
+    if (!node) return;
+
+    // Cancel any previous animation to prevent buildup
+    if (animationRef.current) {
+      animationRef.current.destroy();
+      animationRef.current = null;
+    }
+
+    // Animate selection change
+    if (isSelected) {
+      // Animate to selected state (subtle scale pulse for Figma-style feedback)
+      node.to({
+        scaleX: (rectangle.scaleX ?? 1) * 1.01,
+        scaleY: (rectangle.scaleY ?? 1) * 1.01,
+        duration: 0.1,
+        onFinish: () => {
+          // Return to normal scale
+          node.to({
+            scaleX: rectangle.scaleX ?? 1,
+            scaleY: rectangle.scaleY ?? 1,
+            duration: 0.1,
+          });
+        },
+      });
+    }
+  }, [isSelected, rectangle.scaleX, rectangle.scaleY]);
+
+  /**
    * Handle click on rectangle
-   * Only triggers selection when select tool is active
+   * Only triggers selection when move tool is active
    */
   function handleClick() {
-    if (activeTool === 'select') {
+    if (activeTool === 'move') {
       onSelect();
     }
   }
@@ -189,7 +231,7 @@ export const Rectangle = memo(function Rectangle({
     if (!stage) return;
 
     // Set hover state for visual feedback
-    if (activeTool === 'select') {
+    if (activeTool === 'move') {
       setIsHovered(true);
       stage.container().style.cursor = 'move';
     }
@@ -207,21 +249,21 @@ export const Rectangle = memo(function Rectangle({
     setIsHovered(false);
 
     // Reset cursor based on active tool
-    stage.container().style.cursor = activeTool === 'select' ? 'pointer' : 'crosshair';
+    stage.container().style.cursor = activeTool === 'move' ? 'pointer' : 'crosshair';
   }
 
   // Determine stroke styling based on state
   const getStroke = () => {
     if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
-    if (isHovered && activeTool === 'select') return '#94a3b8'; // Hovered: subtle gray
+    if (isHovered && activeTool === 'move') return '#94a3b8'; // Hovered: subtle gray
     return undefined; // Default: no stroke
   };
 
   const getStrokeWidth = () => {
     if (isRemoteDragging) return 2; // Remote drag: medium border
     if (isSelected) return 3; // Selected: thick border
-    if (isHovered && activeTool === 'select') return 2; // Hovered: thin border
+    if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
     return undefined; // Default: no border
   };
 
@@ -230,27 +272,83 @@ export const Rectangle = memo(function Rectangle({
     return 1; // Default: fully opaque
   };
 
+  const getShadow = () => {
+    // Add subtle glow when selected for better visual feedback
+    if (isSelected) {
+      return {
+        shadowColor: '#0ea5e9',
+        shadowBlur: 5,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0.5,
+        shadowEnabled: true,
+      };
+    }
+    // Use shape's own shadow properties
+    return {
+      shadowColor: rectangle.shadowColor,
+      shadowBlur: rectangle.shadowBlur ?? 0,
+      shadowOffsetX: rectangle.shadowOffsetX ?? 0,
+      shadowOffsetY: rectangle.shadowOffsetY ?? 0,
+      shadowOpacity: rectangle.shadowOpacity ?? 1,
+      shadowEnabled: rectangle.shadowEnabled ?? false,
+    };
+  };
+
   return (
-    <Rect
-      x={displayX}
-      y={displayY}
-      width={rectangle.width}
-      height={rectangle.height}
-      fill={rectangle.fill}
-      opacity={getOpacity()}
-      // Dynamic stroke based on state
-      stroke={getStroke()}
-      strokeWidth={getStrokeWidth()}
-      dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
-      // Interaction
-      onClick={handleClick}
-      onTap={handleClick} // Mobile support
-      draggable={(isSelected || isHovered) && activeTool === 'select' && !isRemoteDragging} // Disable drag if remotely dragging
-      onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
-      onDragEnd={handleDragEnd}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    />
+    <Fragment>
+      <Rect
+        ref={shapeRef}
+        x={displayX}
+        y={displayY}
+        width={rectangle.width}
+        height={rectangle.height}
+        fill={rectangle.fill}
+        // Transform properties
+        rotation={rectangle.rotation ?? 0}
+        opacity={(rectangle.opacity ?? 1) * getOpacity()} // Combine shape opacity with state opacity
+        scaleX={rectangle.scaleX ?? 1}
+        scaleY={rectangle.scaleY ?? 1}
+        skewX={rectangle.skewX ?? 0}
+        skewY={rectangle.skewY ?? 0}
+        // Shape-specific properties
+        cornerRadius={rectangle.cornerRadius ?? 0}
+        // Stroke properties (with state-based overrides for selection/hover)
+        stroke={getStroke() ?? rectangle.stroke}
+        strokeWidth={getStrokeWidth() ?? rectangle.strokeWidth ?? 0}
+        strokeEnabled={rectangle.strokeEnabled ?? true}
+        dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
+        // Shadow properties (with selection glow override)
+        {...getShadow()}
+        // Interaction
+        onClick={handleClick}
+        onTap={handleClick} // Mobile support
+        draggable={(isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging} // Disable drag if remotely dragging
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
+
+      {/* Resize Handles - only visible when selected */}
+      <ResizeHandles
+        object={rectangle}
+        isSelected={isSelected && activeTool === 'move'}
+        isResizing={isResizing}
+        activeHandle={activeHandle}
+        anchor={anchor}
+        onResizeStart={(handleType) =>
+          handleResizeStart(rectangle.id, handleType, {
+            x: rectangle.x,
+            y: rectangle.y,
+            width: rectangle.width,
+            height: rectangle.height,
+          })
+        }
+        onResizeMove={(_handleType, x, y) => handleResizeMove(rectangle.id, x, y)}
+        onResizeEnd={() => handleResizeEnd(rectangle.id)}
+      />
+    </Fragment>
   );
 });

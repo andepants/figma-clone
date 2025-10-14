@@ -6,3 +6,5 @@
 
 // Export canvas components here as they are created
 export { CanvasStage } from './CanvasStage';
+export { ResizeHandle } from './ResizeHandle';
+export { ResizeHandles } from './ResizeHandles';

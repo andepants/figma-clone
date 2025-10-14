@@ -15,3 +15,8 @@ export {
   useRemoteSelections,
   useObjectSelections,
 } from './useRemoteSelections'
+export {
+  useRemoteResizes,
+  useObjectResizeState,
+  type ResizeStateWithObject,
+} from './useRemoteResizes'

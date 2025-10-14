@@ -6,3 +6,4 @@
 
 // Export canvas utilities
 export * from './coordinates';
+export * from './objectHelpers';

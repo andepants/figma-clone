@@ -5,27 +5,65 @@
  * Contains the collaborative canvas and toolbar with real-time Firestore sync.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { ActiveUsers } from '@/features/collaboration/components';
 import { MenuButton } from '@/features/navigation/components';
+import { PropertiesPanel } from '@/features/properties-panel';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore } from '@/stores';
 import { subscribeToCanvasObjects, setOnline, cleanupStaleDragStates, cleanupStaleCursors } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
 
 function CanvasPage() {
-  console.log('CanvasPage rendering...');
+  // Keyboard shortcuts modal state
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
-  // Enable keyboard shortcuts for tools
-  useToolShortcuts();
+  // Enable keyboard shortcuts for tools with callback to open shortcuts modal
+  useToolShortcuts(() => setIsShortcutsOpen(true));
 
   // Get canvas store setObjects method
   const { setObjects } = useCanvasStore();
 
   // Get current user for presence
   const { currentUser } = useAuth();
+
+  // Track initial loading state
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Track sync status for sync indicator
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+
+  /**
+   * Monitor online/offline status
+   * Shows "offline" when no network connection
+   */
+  useEffect(() => {
+    const handleOnline = () => {
+      setSyncStatus('synced');
+    };
+
+    const handleOffline = () => {
+      setSyncStatus('offline');
+    };
+
+    // Set initial status
+    if (!navigator.onLine) {
+      setSyncStatus('offline');
+    }
+
+    // Listen for online/offline events
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   /**
    * Set user as online with automatic disconnect handling
@@ -38,37 +76,22 @@ function CanvasPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    console.log('Setting user online with presence tracking...');
-
     const username = currentUser.username || currentUser.email || 'Anonymous';
 
     // Set user online (includes automatic onDisconnect cleanup)
     setOnline('main', currentUser.uid, username)
-      .then(() => {
-        console.log('Presence: User marked online');
-      })
       .catch((error) => {
         console.error('Failed to set user online:', error);
       });
 
     // Clean up any stale drag states from previous sessions
     cleanupStaleDragStates('main')
-      .then((count) => {
-        if (count > 0) {
-          console.log(`Cleaned up ${count} stale drag states`);
-        }
-      })
       .catch((error) => {
         console.error('Failed to cleanup stale drag states:', error);
       });
 
     // Clean up any stale cursors from previous sessions
     cleanupStaleCursors('main')
-      .then((count) => {
-        if (count > 0) {
-          console.log(`Cleaned up ${count} stale cursors`);
-        }
-      })
       .catch((error) => {
         console.error('Failed to cleanup stale cursors:', error);
       });
@@ -84,38 +107,91 @@ function CanvasPage() {
    * and flash-back bugs during collaborative editing.
    */
   useEffect(() => {
-    console.log('Setting up Realtime Database subscription...');
+    let isFirstLoad = true;
 
     try {
       // Subscribe to 'main' canvas objects in RTDB
       const unsubscribe = subscribeToCanvasObjects('main', (objects) => {
-        console.log('Received from RTDB:', objects.length, 'objects');
         // Update local store with RTDB data
         // No need for complex merge logic - RTDB is now the single source of truth
         setObjects(objects);
+
+        // Mark loading as complete after first data received
+        if (isFirstLoad) {
+          setIsLoading(false);
+          isFirstLoad = false;
+        } else {
+          // Show brief "synced" indicator when data updates
+          // (only if we're online - don't show during offline mode)
+          if (navigator.onLine) {
+            setSyncStatus('synced');
+          }
+        }
       });
 
       // Cleanup: unsubscribe on unmount
       return () => {
-        console.log('Cleaning up Realtime Database subscription');
         unsubscribe();
       };
     } catch (error) {
       console.error('Error setting up Realtime Database subscription:', error);
+      // Mark loading as complete even on error
+      setIsLoading(false);
     }
     // Empty dependency array - only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Show loading indicator during initial load
+  if (isLoading) {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden bg-neutral-50">
+        {/* Loading skeleton for toolbar */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+          <Skeleton className="h-12 w-80 rounded-lg" />
+        </div>
+
+        {/* Loading indicator in center */}
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-4">
+            <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+            <Skeleton className="h-4 w-32 mx-auto" />
+          </div>
+        </div>
+
+        {/* Loading skeleton for properties panel */}
+        <div className="absolute top-0 right-0 w-[300px] h-full bg-white border-l border-neutral-200">
+          <div className="p-4 space-y-4">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   try {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
-        <Toolbar />
+        <Toolbar onShowShortcuts={() => setIsShortcutsOpen(true)} />
         <div className="absolute top-4 left-4 z-10">
           <MenuButton />
         </div>
         <ActiveUsers />
-        <CanvasStage />
+        {/* Sync Indicator - shows online/offline and sync status, positioned below ActiveUsers */}
+        <SyncIndicator status={syncStatus} className="!top-[290px]" />
+        {/* Canvas Stage - adjusted for properties panel (300px right margin) */}
+        <div className="absolute top-16 left-0 right-[300px] bottom-0">
+          <CanvasStage />
+        </div>
+        {/* Properties Panel - fixed right sidebar */}
+        <PropertiesPanel />
+        {/* Keyboard Shortcuts Modal */}
+        <ShortcutsModal
+          isOpen={isShortcutsOpen}
+          onClose={() => setIsShortcutsOpen(false)}
+        />
       </div>
     );
   } catch (error) {

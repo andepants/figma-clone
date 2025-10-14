@@ -8,3 +8,4 @@
 export * from './auth.types';
 export * from './canvas.types';
 export * from './tool.types';
+export * from './resize.types';

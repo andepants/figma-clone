@@ -13,7 +13,7 @@
 
 import { ref, set, update, remove, onValue, push, get } from 'firebase/database';
 import { realtimeDb } from './config';
-import { throttle } from '@/lib/utils';
+import { throttle, retryAsync } from '@/lib/utils';
 import type { CanvasObject } from '@/types';
 
 /**
@@ -108,23 +108,26 @@ export async function addCanvasObject(
   object: CanvasObject
 ): Promise<void> {
   try {
-    const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
+    // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
+    await retryAsync(async () => {
+      const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
 
-    if (object.id) {
-      // Use provided ID
-      const objectRef = ref(realtimeDb, `canvases/${canvasId}/objects/${object.id}`);
-      await set(objectRef, object);
-    } else {
-      // Generate unique ID using push()
-      const newObjectRef = push(objectsRef);
-      const objectWithId = {
-        ...object,
-        id: newObjectRef.key!, // Firebase generates unique key
-      };
-      await set(newObjectRef, objectWithId);
-    }
+      if (object.id) {
+        // Use provided ID
+        const objectRef = ref(realtimeDb, `canvases/${canvasId}/objects/${object.id}`);
+        await set(objectRef, object);
+      } else {
+        // Generate unique ID using push()
+        const newObjectRef = push(objectsRef);
+        const objectWithId = {
+          ...object,
+          id: newObjectRef.key!, // Firebase generates unique key
+        };
+        await set(newObjectRef, objectWithId);
+      }
+    }, 3, 1000);
   } catch (error) {
-    console.error('Failed to add canvas object:', error);
+    console.error('Failed to add canvas object after retries:', error);
     throw error;
   }
 }
@@ -210,10 +213,13 @@ export async function removeCanvasObject(
   objectId: string
 ): Promise<void> {
   try {
-    const objectRef = ref(realtimeDb, `canvases/${canvasId}/objects/${objectId}`);
-    await remove(objectRef);
+    // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
+    await retryAsync(async () => {
+      const objectRef = ref(realtimeDb, `canvases/${canvasId}/objects/${objectId}`);
+      await remove(objectRef);
+    }, 3, 1000);
   } catch (error) {
-    console.error('Failed to remove canvas object:', error);
+    console.error('Failed to remove canvas object after retries:', error);
     throw error;
   }
 }
@@ -237,11 +243,14 @@ export async function removeCanvasObject(
  */
 export async function clearAllCanvasObjects(canvasId: string): Promise<void> {
   try {
-    const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
-    // Use set(null) instead of remove() to reliably trigger subscriptions
-    await set(objectsRef, null);
+    // Retry with exponential backoff (3 attempts: 1s, 2s, 3s delays)
+    await retryAsync(async () => {
+      const objectsRef = ref(realtimeDb, `canvases/${canvasId}/objects`);
+      // Use set(null) instead of remove() to reliably trigger subscriptions
+      await set(objectsRef, null);
+    }, 3, 1000);
   } catch (error) {
-    console.error('Failed to clear canvas objects:', error);
+    console.error('Failed to clear canvas objects after retries:', error);
     throw error;
   }
 }

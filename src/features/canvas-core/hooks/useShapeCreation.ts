@@ -5,13 +5,14 @@
  * Handles preview rendering, coordinate transforms, and finalizing shapes.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type Konva from 'konva';
 import { useCanvasStore, useToolStore } from '@/stores';
 import { useAuth } from '@/features/auth/hooks';
 import { addCanvasObject } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../utils/coordinates';
-import type { CanvasObject, Rectangle } from '@/types';
+import type { CanvasObject, Rectangle, Circle, Text } from '@/types';
+import { TEXT_DEFAULTS } from '@/constants';
 
 /**
  * Point in 2D space
@@ -45,13 +46,38 @@ const MIN_SIZE = 10;
 /**
  * Default fill color for new rectangles
  */
-const DEFAULT_FILL = '#3b82f6'; // blue-500
+const DEFAULT_RECTANGLE_FILL = '#3b82f6'; // blue-500
+
+/**
+ * Default fill color for new circles
+ */
+const DEFAULT_CIRCLE_FILL = '#ef4444'; // red-500
+
+/**
+ * Default text color for new text shapes
+ */
+const DEFAULT_TEXT_FILL = '#171717'; // neutral-900
+
+/**
+ * Default font size for new text shapes
+ */
+const DEFAULT_FONT_SIZE = 24;
+
+/**
+ * Default font family for new text shapes
+ */
+const DEFAULT_FONT_FAMILY = 'Inter';
+
+/**
+ * Default text content for new text shapes
+ */
+const DEFAULT_TEXT_CONTENT = 'Double-click to edit';
 
 /**
  * Hook for managing shape creation with click-drag-release
  *
  * Provides handlers for mouse events and preview state.
- * Only creates shapes when rectangle tool is active.
+ * Creates shapes when rectangle or circle tool is active.
  *
  * @returns {UseShapeCreationReturn} Shape creation state and handlers
  *
@@ -64,12 +90,12 @@ const DEFAULT_FILL = '#3b82f6'; // blue-500
  *   onMouseMove={handleMouseMove}
  *   onMouseUp={handleMouseUp}
  * >
- *   {previewShape && <Rect {...previewShape} />}
+ *   {previewShape && renderShape(previewShape)}
  * </Stage>
  * ```
  */
 export function useShapeCreation(): UseShapeCreationReturn {
-  const { activeTool } = useToolStore();
+  const { activeTool, setActiveTool } = useToolStore();
   const { addObject, clearSelection } = useCanvasStore();
   const { currentUser } = useAuth();
 
@@ -81,13 +107,50 @@ export function useShapeCreation(): UseShapeCreationReturn {
   const stageRef = useRef<Konva.Stage | null>(null);
 
   /**
+   * Reset shape creation state when switching tools
+   * Prevents orphaned preview shapes when user switches tools mid-creation
+   */
+  useEffect(() => {
+    if (activeTool !== 'rectangle' && activeTool !== 'circle' && activeTool !== 'text' && isCreating) {
+      // Clear preview and creation state when switching away from shape tools
+      setIsCreating(false);
+      setStartPoint(null);
+      setPreviewShape(null);
+    }
+  }, [activeTool, isCreating]);
+
+  /**
+   * Handle Escape key to cancel shape creation
+   * Allows user to cancel mid-creation without completing the shape
+   */
+  useEffect(() => {
+    function handleEscapeKey(event: KeyboardEvent) {
+      if (event.key === 'Escape' && isCreating) {
+        // Cancel shape creation on Escape
+        setIsCreating(false);
+        setStartPoint(null);
+        setPreviewShape(null);
+        event.preventDefault();
+      }
+    }
+
+    window.addEventListener('keydown', handleEscapeKey);
+    return () => {
+      window.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isCreating]);
+
+  /**
    * Handle mouse down - start shape creation
-   * Only activates when rectangle tool is selected
+   * Only activates when rectangle, circle, or text tool is selected
+   *
+   * For text tool: Creates text immediately on click (no drag)
+   * For shapes: Starts drag-to-create flow
    */
   const handleMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      // Only create shapes when rectangle tool is active
-      if (activeTool !== 'rectangle') return;
+      // Only create shapes when rectangle, circle, or text tool is active
+      if (activeTool !== 'rectangle' && activeTool !== 'circle' && activeTool !== 'text') return;
 
       const stage = e.target.getStage();
       if (!stage) return;
@@ -104,16 +167,67 @@ export function useShapeCreation(): UseShapeCreationReturn {
       // Clear any existing selection before starting shape creation
       clearSelection();
 
-      // Start creating
+      // For text tool: Create text immediately on click (no drag needed)
+      if (activeTool === 'text') {
+        // Create text shape immediately with all default typography properties
+        const newText: Text = {
+          id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'text',
+          x: canvasPos.x,
+          y: canvasPos.y,
+          text: DEFAULT_TEXT_CONTENT,
+          fontSize: DEFAULT_FONT_SIZE,
+          fontFamily: DEFAULT_FONT_FAMILY,
+          fill: DEFAULT_TEXT_FILL,
+          // Typography properties from TEXT_DEFAULTS
+          fontWeight: TEXT_DEFAULTS.fontWeight,
+          fontStyle: TEXT_DEFAULTS.fontStyle,
+          textAlign: TEXT_DEFAULTS.textAlign,
+          align: TEXT_DEFAULTS.textAlign, // For backward compatibility
+          verticalAlign: TEXT_DEFAULTS.verticalAlign,
+          letterSpacing: TEXT_DEFAULTS.letterSpacing,
+          lineHeight: TEXT_DEFAULTS.lineHeight,
+          textDecoration: TEXT_DEFAULTS.textDecoration,
+          paragraphSpacing: TEXT_DEFAULTS.paragraphSpacing,
+          textTransform: TEXT_DEFAULTS.textTransform,
+          // Base properties
+          opacity: TEXT_DEFAULTS.opacity,
+          rotation: TEXT_DEFAULTS.rotation,
+          createdBy: currentUser?.uid || 'unknown',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        // Add to canvas store (optimistic update)
+        addObject(newText);
+
+        // Auto-switch back to move tool (Figma-style behavior)
+        setActiveTool('move');
+
+        // Sync to Realtime Database
+        addCanvasObject('main', newText).catch((error) => {
+          console.error('Failed to add text to RTDB:', error);
+          // Rollback optimistic update on error
+          const { removeObject } = useCanvasStore.getState();
+          removeObject(newText.id);
+        });
+
+        // Don't start drag creation flow for text
+        return;
+      }
+
+      // For rectangles and circles: Start drag creation flow
       setStartPoint(canvasPos);
       setIsCreating(true);
     },
-    [activeTool, clearSelection]
+    [activeTool, clearSelection, currentUser, addObject, setActiveTool]
   );
 
   /**
    * Handle mouse move - update preview shape
    * Shows dynamic sizing as user drags
+   * For rectangles: shows width x height
+   * For circles: shows radius from center point
    */
   const handleMouseMove = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -130,31 +244,55 @@ export function useShapeCreation(): UseShapeCreationReturn {
       // Convert to canvas coordinates
       const currentPos = screenToCanvasCoords(stage, pointerPos);
 
-      // Calculate dimensions (handle negative values)
-      const width = Math.abs(currentPos.x - startPoint.x);
-      const height = Math.abs(currentPos.y - startPoint.y);
+      // Create preview shape based on active tool
+      let preview: CanvasObject;
 
-      // Calculate position (top-left corner)
-      const x = Math.min(startPoint.x, currentPos.x);
-      const y = Math.min(startPoint.y, currentPos.y);
+      if (activeTool === 'rectangle') {
+        // Calculate dimensions (handle negative values)
+        const width = Math.abs(currentPos.x - startPoint.x);
+        const height = Math.abs(currentPos.y - startPoint.y);
 
-      // Create preview shape
-      const preview: Rectangle = {
-        id: 'preview', // Temporary ID
-        type: 'rectangle',
-        x,
-        y,
-        width,
-        height,
-        fill: DEFAULT_FILL,
-        createdBy: currentUser?.uid || 'unknown',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
+        // Calculate position (top-left corner)
+        const x = Math.min(startPoint.x, currentPos.x);
+        const y = Math.min(startPoint.y, currentPos.y);
+
+        preview = {
+          id: 'preview', // Temporary ID
+          type: 'rectangle',
+          x,
+          y,
+          width,
+          height,
+          fill: DEFAULT_RECTANGLE_FILL,
+          createdBy: currentUser?.uid || 'unknown',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as Rectangle;
+      } else if (activeTool === 'circle') {
+        // Calculate radius as distance from start point to current point
+        const dx = currentPos.x - startPoint.x;
+        const dy = currentPos.y - startPoint.y;
+        const radius = Math.sqrt(dx * dx + dy * dy);
+
+        // Circle position is at the center (start point)
+        preview = {
+          id: 'preview', // Temporary ID
+          type: 'circle',
+          x: startPoint.x,
+          y: startPoint.y,
+          radius,
+          fill: DEFAULT_CIRCLE_FILL,
+          createdBy: currentUser?.uid || 'unknown',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as Circle;
+      } else {
+        return;
+      }
 
       setPreviewShape(preview);
     },
-    [isCreating, startPoint, currentUser]
+    [isCreating, startPoint, currentUser, activeTool]
   );
 
   /**
@@ -172,25 +310,48 @@ export function useShapeCreation(): UseShapeCreationReturn {
       return;
     }
 
-    // Enforce minimum size
-    const finalShape = previewShape as Rectangle;
-    const width = Math.max(finalShape.width, MIN_SIZE);
-    const height = Math.max(finalShape.height, MIN_SIZE);
+    // Create final shape with unique ID based on type
+    let newShape: CanvasObject;
 
-    // Create final shape with unique ID
-    const newShape: Rectangle = {
-      ...finalShape,
-      id: `rect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      width,
-      height,
-    };
+    if (previewShape.type === 'rectangle') {
+      // Enforce minimum size for rectangles
+      const rectPreview = previewShape as Rectangle;
+      const width = Math.max(rectPreview.width, MIN_SIZE);
+      const height = Math.max(rectPreview.height, MIN_SIZE);
+
+      newShape = {
+        ...rectPreview,
+        id: `rect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        width,
+        height,
+      };
+    } else if (previewShape.type === 'circle') {
+      // Enforce minimum radius for circles (5px = 10px diameter, matching MIN_SIZE)
+      const circlePreview = previewShape as Circle;
+      const radius = Math.max(circlePreview.radius, MIN_SIZE / 2);
+
+      newShape = {
+        ...circlePreview,
+        id: `circle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        radius,
+      };
+    } else {
+      // Unknown shape type, abort
+      setIsCreating(false);
+      setStartPoint(null);
+      setPreviewShape(null);
+      return;
+    }
 
     // Add to canvas store (optimistic update)
     addObject(newShape);
 
+    // Auto-switch back to move tool (Figma-style behavior)
+    // Happens immediately after creation, before async Firebase sync
+    setActiveTool('move');
+
     // Sync to Realtime Database (atomic add)
     // RTDB updates are fast - no need for debouncing
-    console.log('Syncing to RTDB:', newShape.id);
     try {
       await addCanvasObject('main', newShape);
     } catch (error) {
@@ -204,7 +365,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
     setIsCreating(false);
     setStartPoint(null);
     setPreviewShape(null);
-  }, [isCreating, previewShape, addObject]);
+  }, [isCreating, previewShape, addObject, setActiveTool]);
 
   return {
     previewShape,

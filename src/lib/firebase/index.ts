@@ -97,3 +97,21 @@ export {
   subscribeToSelections,
   setOnlineWithSelectionCleanup,
 } from './selectionService'
+
+// Export Resize Service
+export {
+  startResizing,
+  updateResizePosition,
+  throttledUpdateResizePosition,
+  endResizing,
+  subscribeToResizeStates,
+} from './resizeService'
+
+// Export Offline Queue
+export {
+  queueOperation,
+  executeOrQueue,
+  getQueueStatus,
+  clearQueue,
+  cleanup as cleanupOfflineQueue,
+} from './offlineQueue'

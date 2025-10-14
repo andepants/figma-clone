@@ -21,6 +21,12 @@
             ".write": "auth != null"
           }
         },
+        "resize-states": {
+          ".read": "auth != null",
+          "$objectId": {
+            ".write": "auth != null"
+          }
+        },
         "selections": {
           ".read": "auth != null",
           "$userId": {
