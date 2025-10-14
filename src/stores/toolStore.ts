@@ -45,8 +45,10 @@ type ToolStore = ToolState & ToolActions;
  */
 export const useToolStore = create<ToolStore>((set) => ({
   // State
-  activeTool: 'select',
+  activeTool: 'move',
 
   // Actions
-  setActiveTool: (tool) => set({ activeTool: tool }),
+  setActiveTool: (tool) => {
+    set({ activeTool: tool });
+  },
 }));

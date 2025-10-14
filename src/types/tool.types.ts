@@ -10,7 +10,7 @@ import type { LucideIcon } from 'lucide-react';
 /**
  * Available tool types in the application
  */
-export type ToolType = 'select' | 'rectangle' | 'circle' | 'text';
+export type ToolType = 'move' | 'rectangle' | 'circle' | 'text';
 
 /**
  * Tool definition with metadata

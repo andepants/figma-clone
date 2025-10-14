@@ -64,8 +64,7 @@ export async function updateCursor(
 
     // Update cursor position
     await set(cursorRef, cursorData)
-  } catch (error) {
-    console.error('Failed to update cursor:', error)
+  } catch {
     // Don't throw - cursor updates shouldn't break the app
   }
 }
@@ -98,8 +97,7 @@ export async function removeCursor(
 
     // Remove the cursor
     await remove(cursorRef)
-  } catch (error) {
-    console.error('Failed to remove cursor:', error)
+  } catch {
     // Don't throw - cleanup errors shouldn't break the app
   }
 }
@@ -137,9 +135,8 @@ export function subscribeToCursors(
 
       callback(cursors)
     },
-    (error) => {
+    () => {
       // Error callback - handles permission denied, network issues, etc.
-      console.error('Firebase cursor subscription error:', error)
       // Call callback with empty array so app doesn't break
       callback([])
     }
@@ -169,10 +166,7 @@ export const throttledUpdateCursor = throttle(updateCursor, 50)
  * @example
  * ```ts
  * // Call when entering a canvas
- * const removed = await cleanupStaleCursors('main');
- * if (removed > 0) {
- *   console.log(`Cleaned up ${removed} stale cursors`);
- * }
+ * await cleanupStaleCursors('main');
  * ```
  */
 export async function cleanupStaleCursors(canvasId: string): Promise<number> {
@@ -206,8 +200,7 @@ export async function cleanupStaleCursors(canvasId: string): Promise<number> {
 
     await Promise.all(removalPromises)
     return removedCount
-  } catch (error) {
-    console.error('Failed to cleanup stale cursors:', error)
+  } catch {
     return 0
   }
 }

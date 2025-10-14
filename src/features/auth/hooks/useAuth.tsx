@@ -131,6 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
  * @returns {AuthContextValue} Auth context value
  * @throws {Error} If used outside of AuthProvider
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextValue {
   const context = React.useContext(AuthContext);
   if (context === undefined) {

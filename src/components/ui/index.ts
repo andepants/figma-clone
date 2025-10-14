@@ -9,5 +9,11 @@
 // Example: export * from './dialog'
 // Example: export * from './input'
 
+export * from './button';
+export * from './color-picker';
 export * from './dropdown-menu';
 export * from './figma-logo';
+export * from './input';
+export * from './label';
+export * from './number-input';
+export * from './tooltip';

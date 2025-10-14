@@ -15,42 +15,45 @@ import { realtimeDb } from './config';
 import type { SelectionState, SelectionStateMap } from '@/types';
 
 /**
- * Update user's selection
+ * Update user's selection (supports multi-select)
  *
  * Sets or updates the user's current selection. Automatically cleans up
- * on disconnect. Pass null for objectId to clear selection.
+ * on disconnect. Pass empty array to clear selection.
  *
  * @param canvasId - Canvas identifier
  * @param userId - User making the selection
- * @param objectId - ID of selected object, or null to deselect
+ * @param objectIds - Array of selected object IDs (empty array to deselect)
  * @returns Promise<void>
  *
  * @example
  * ```ts
- * // Select an object
- * await updateSelection('main', 'user-1', 'obj-123');
+ * // Select multiple objects
+ * await updateSelection('main', 'user-1', ['obj-123', 'obj-456']);
  *
- * // Deselect
- * await updateSelection('main', 'user-1', null);
+ * // Select single object
+ * await updateSelection('main', 'user-1', ['obj-123']);
+ *
+ * // Deselect all
+ * await updateSelection('main', 'user-1', []);
  * ```
  */
 export async function updateSelection(
   canvasId: string,
   userId: string,
-  objectId: string | null
+  objectIds: string[]
 ): Promise<void> {
   try {
     const selectionRef = ref(realtimeDb, `canvases/${canvasId}/selections/${userId}`);
 
-    if (objectId === null) {
-      // Clear selection
+    if (objectIds.length === 0) {
+      // Clear selection (empty array means no selection)
       await remove(selectionRef);
       return;
     }
 
     // Set selection state
     const selectionState: SelectionState = {
-      objectId,
+      objectIds,
       timestamp: Date.now(),
     };
 
@@ -59,8 +62,7 @@ export async function updateSelection(
 
     // Set selection
     await set(selectionRef, selectionState);
-  } catch (error) {
-    console.error('Failed to update selection:', error);
+  } catch {
     // Don't throw - selection updates shouldn't break the app
   }
 }
@@ -91,8 +93,7 @@ export async function clearSelection(
 
     // Remove the selection
     await remove(selectionRef);
-  } catch (error) {
-    console.error('Failed to clear selection:', error);
+  } catch {
     // Don't throw - cleanup errors shouldn't break the app
   }
 }
@@ -110,10 +111,7 @@ export async function clearSelection(
  * @example
  * ```ts
  * const unsubscribe = subscribeToSelections('main', (selections) => {
- *   console.log('Active selections:', Object.keys(selections).length);
- *   Object.entries(selections).forEach(([userId, state]) => {
- *     console.log(`User ${userId} selected ${state.objectId}`);
- *   });
+ *   // Process active selections
  * });
  *
  * // Later, cleanup
@@ -144,8 +142,7 @@ export function subscribeToSelections(
 
       callback(selections);
     },
-    (error) => {
-      console.error('Firebase selections subscription error:', error);
+    () => {
       callback({});
     }
   );
@@ -178,7 +175,7 @@ export async function setOnlineWithSelectionCleanup(
 
     // Set up automatic selection cleanup on disconnect
     await onDisconnect(selectionRef).remove();
-  } catch (error) {
-    console.error('Failed to set up selection cleanup:', error);
+  } catch {
+    // Silently fail - cleanup errors shouldn't break the app
   }
 }

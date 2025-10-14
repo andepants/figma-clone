@@ -5,30 +5,21 @@
  * This is the core of the collaborative canvas application.
  */
 
-import { useEffect, useState, useRef } from 'react';
-import { Stage, Layer, Rect } from 'react-konva';
+import { useEffect, useRef } from 'react';
+import { Stage, Layer, Rect, Circle as KonvaCircle } from 'react-konva';
 import type Konva from 'konva';
-import { useShapeCreation } from '../hooks';
-import { Rectangle } from '../shapes';
-import { useToolStore, useCanvasStore } from '@/stores';
-import type { Rectangle as RectangleType } from '@/types';
-import { useCursors, useDragStates, useRemoteSelections } from '@/features/collaboration/hooks';
-import { Cursor, SelectionOverlay } from '@/features/collaboration/components';
+import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures, useGroupDrag, useDragToSelect } from '../hooks';
+import { Rectangle, Circle, TextShape } from '../shapes';
+import { GroupBoundingBox } from '../components';
+import { useToolStore, useCanvasStore, usePageStore } from '@/stores';
+import type { Rectangle as RectangleType, Circle as CircleType, Text as TextType } from '@/types';
+import { useCursors, useDragStates, useRemoteSelections, useRemoteResizes, useEditStates } from '@/features/collaboration/hooks';
+import { Cursor, SelectionOverlay, RemoteResizeOverlay } from '@/features/collaboration/components';
 import { getUserColor } from '@/features/collaboration/utils';
 import { throttledUpdateCursor, updateSelection } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
-import { screenToCanvasCoords } from '../utils';
-
-/**
- * Canvas stage dimensions interface
- * @interface Dimensions
- * @property {number} width - Canvas width in pixels
- * @property {number} height - Canvas height in pixels
- */
-interface Dimensions {
-  width: number;
-  height: number;
-}
+import { screenToCanvasCoords, getSelectionBounds } from '../utils';
+import { hexToRgba } from '@/lib/utils';
 
 /**
  * Canvas stage position interface
@@ -50,8 +41,11 @@ export function CanvasStage() {
   // Get active tool to control canvas behavior
   const { activeTool } = useToolStore();
 
-  // Get canvas objects and selection
-  const { objects, selectedId, selectObject, clearSelection } = useCanvasStore();
+  // Get canvas objects, selection, zoom and pan from store
+  const { objects, selectedIds, selectObjects, toggleSelection, clearSelection, zoom, panX, panY, setZoom, setPan } = useCanvasStore();
+
+  // Get page settings for background color
+  const { pageSettings } = usePageStore();
 
   // Shape creation handlers
   const { previewShape, handleMouseDown, handleMouseMove, handleMouseUp } =
@@ -62,89 +56,43 @@ export function CanvasStage() {
   const cursors = useCursors('main');
   const dragStates = useDragStates('main');
   const remoteSelections = useRemoteSelections('main');
+  const remoteResizes = useRemoteResizes('main');
+  const editStates = useEditStates('main');
 
-  // Canvas dimensions (full window size)
-  const [dimensions, setDimensions] = useState<Dimensions>({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
-
-  // Stage position for panning
-  const [stagePos, setStagePos] = useState<Position>({ x: 0, y: 0 });
-
-  // Stage scale for zooming
-  const [stageScale, setStageScale] = useState<number>(1);
+  // Canvas dimensions (full window size with debounced resize)
+  const dimensions = useWindowResize(100);
 
   // Spacebar panning state
-  const [isSpacePressed, setIsSpacePressed] = useState<boolean>(false);
-  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const { isSpacePressed, isPanning, setIsPanning } = useSpacebarPan();
+
+  // Track mouse position to distinguish clicks from drags
+  const mouseDownPos = useRef<Position | null>(null);
 
   // Reference to the Konva stage
-  const stageRef = useRef<Konva.Stage>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
 
-  /**
-   * Handle window resize with debounce
-   * Updates canvas dimensions to match window size
-   */
-  useEffect(() => {
-    let timeoutId: number;
+  // Touch gesture handlers
+  const { handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchGestures(
+    stageRef,
+    setZoom,
+    setPan
+  );
 
-    function handleResize() {
-      // Debounce resize for performance (100ms)
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        setDimensions({
-          width: window.innerWidth,
-          height: window.innerHeight,
-        });
-      }, 100);
-    }
+  // Group drag handlers for multi-select
+  const {
+    handleGroupDragStart,
+    handleGroupDragMove,
+    handleGroupDragEnd,
+    isGroupDragging,
+  } = useGroupDrag();
 
-    window.addEventListener('resize', handleResize);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(timeoutId);
-    };
-  }, []);
-
-  /**
-   * Handle spacebar press for panning mode
-   * Enables temporary pan mode when spacebar is held
-   */
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      // Check if spacebar is pressed and not already in pan mode
-      // Prevent if user is typing in an input field
-      if (
-        e.code === 'Space' &&
-        !isSpacePressed &&
-        e.target instanceof HTMLElement &&
-        e.target.tagName !== 'INPUT' &&
-        e.target.tagName !== 'TEXTAREA'
-      ) {
-        e.preventDefault();
-        setIsSpacePressed(true);
-      }
-    }
-
-    function handleKeyUp(e: KeyboardEvent) {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setIsSpacePressed(false);
-        setIsPanning(false);
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [isSpacePressed]);
+  // Drag-to-select handlers for marquee selection
+  const {
+    handleStageMouseDown: handleDragSelectMouseDown,
+    handleStageMouseMove: handleDragSelectMouseMove,
+    handleStageMouseUp: handleDragSelectMouseUp,
+    selectionRect,
+  } = useDragToSelect(stageRef);
 
   /**
    * Sync local selection to Realtime DB
@@ -153,9 +101,9 @@ export function CanvasStage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Update selection in Realtime DB
-    updateSelection('main', currentUser.uid, selectedId);
-  }, [selectedId, currentUser]);
+    // Update selection in Realtime DB (supports multi-select)
+    updateSelection('main', currentUser.uid, selectedIds);
+  }, [selectedIds, currentUser]);
 
   /**
    * Handle mouse wheel for panning and zooming
@@ -197,19 +145,19 @@ export function CanvasStage() {
         y: pointer.y - mousePointTo.y * clampedScale,
       };
 
-      setStageScale(clampedScale);
-      setStagePos(newPos);
+      setZoom(clampedScale);
+      setPan(newPos.x, newPos.y);
     } else {
       // PAN behavior (regular scroll or two-finger trackpad drag)
       // Pan sensitivity factor (adjust to taste)
       const panSpeed = 1;
 
       const newPos = {
-        x: stagePos.x - e.evt.deltaX * panSpeed,
-        y: stagePos.y - e.evt.deltaY * panSpeed,
+        x: panX - e.evt.deltaX * panSpeed,
+        y: panY - e.evt.deltaY * panSpeed,
       };
 
-      setStagePos(newPos);
+      setPan(newPos.x, newPos.y);
     }
   }
 
@@ -236,25 +184,70 @@ export function CanvasStage() {
    * @param {Konva.KonvaEventObject<DragEvent>} e - Drag event
    */
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {
-    setStagePos({
-      x: e.target.x(),
-      y: e.target.y(),
-    });
+    setPan(e.target.x(), e.target.y());
     // End panning state
     setIsPanning(false);
   }
 
   /**
+   * Handle stage mouse down
+   * Track position to distinguish clicks from drags
+   * Combines shape creation and drag-to-select
+   * @param {Konva.KonvaEventObject<MouseEvent>} e - Mouse event
+   */
+  function handleStageMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const pointerPos = stage.getPointerPosition();
+    if (pointerPos) {
+      mouseDownPos.current = { x: pointerPos.x, y: pointerPos.y };
+    }
+
+    // Shape creation if needed
+    handleMouseDown(e);
+
+    // Drag-to-select (only activates if clicking on empty canvas with move tool)
+    handleDragSelectMouseDown(e);
+  }
+
+  /**
    * Handle stage click
-   * Clears selection when clicking on background
+   * Clears selection when clicking on background (not dragging)
    * @param {Konva.KonvaEventObject<MouseEvent>} e - Mouse event
    */
   function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
+    const stage = stageRef.current;
+    if (!stage) return;
+
     // Check if clicked on stage itself (background)
     const clickedOnEmpty = e.target === e.target.getStage();
-    if (clickedOnEmpty && activeTool === 'select') {
+    if (!clickedOnEmpty) return;
+
+    // CRITICAL: Don't clear selection if we're editing text
+    // This prevents the edit session from being interrupted
+    const { editingTextId } = useCanvasStore.getState();
+    if (editingTextId) {
+      return;
+    }
+
+    // Get current pointer position
+    const currentPos = stage.getPointerPosition();
+    if (!currentPos || !mouseDownPos.current) return;
+
+    // Calculate distance moved since mousedown
+    const dx = currentPos.x - mouseDownPos.current.x;
+    const dy = currentPos.y - mouseDownPos.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Only deselect if it was a true click (moved less than 5px)
+    // This prevents deselection when panning the canvas
+    if (distance < 5) {
       clearSelection();
     }
+
+    // Clear the tracked position
+    mouseDownPos.current = null;
   }
 
   /**
@@ -283,10 +276,19 @@ export function CanvasStage() {
   const isDraggable = isSpacePressed;
 
   // Determine cursor style based on state
-  let cursorStyle = activeTool === 'select' ? 'pointer' : 'crosshair';
+  let cursorStyle = activeTool === 'move' ? 'pointer' : 'crosshair';
   if (isSpacePressed) {
     cursorStyle = isPanning ? 'grabbing' : 'grab';
   }
+
+  // Calculate background color with opacity from page settings
+  const backgroundColor = pageSettings.backgroundColor;
+  const opacity = pageSettings.opacity / 100;
+  const bgColorWithOpacity = hexToRgba(backgroundColor, opacity);
+
+  // Calculate bounding box for multi-select drag target
+  const isInMultiSelect = selectedIds.length > 1;
+  const selectionBounds = isInMultiSelect ? getSelectionBounds(objects, selectedIds) : null;
 
   return (
     <Stage
@@ -294,22 +296,30 @@ export function CanvasStage() {
       width={dimensions.width}
       height={dimensions.height}
       draggable={isDraggable}
-      x={stagePos.x}
-      y={stagePos.y}
-      scaleX={stageScale}
-      scaleY={stageScale}
+      x={panX}
+      y={panY}
+      scaleX={zoom}
+      scaleY={zoom}
       onWheel={handleWheel}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={handleStageClick}
-      onMouseDown={handleMouseDown}
+      onMouseDown={handleStageMouseDown}
       onMouseMove={(e) => {
         handleMouseMove(e);
         handleCursorMove();
+        handleDragSelectMouseMove();
       }}
-      onMouseUp={handleMouseUp}
+      onMouseUp={(e) => {
+        handleMouseUp(e);
+        handleDragSelectMouseUp();
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       style={{
         cursor: cursorStyle,
+        touchAction: 'none', // Prevent default touch behaviors like page zoom
       }}
     >
       {/* Background Layer - Infinite canvas feel */}
@@ -319,7 +329,7 @@ export function CanvasStage() {
           y={-10000}
           width={20000}
           height={20000}
-          fill="#f5f5f5"
+          fill={bgColorWithOpacity}
         />
       </Layer>
 
@@ -336,27 +346,107 @@ export function CanvasStage() {
               <Rectangle
                 key={obj.id}
                 rectangle={obj as RectangleType}
-                isSelected={selectedId === obj.id}
-                onSelect={() => selectObject(obj.id)}
+                isSelected={selectedIds.includes(obj.id)}
+                isInMultiSelect={selectedIds.length > 1 && selectedIds.includes(obj.id)}
+                onSelect={(e: Konva.KonvaEventObject<MouseEvent>) => {
+                  if (e.evt.shiftKey) {
+                    toggleSelection(obj.id);
+                  } else {
+                    selectObjects([obj.id]);
+                  }
+                }}
                 remoteDragState={remoteDragState}
               />
             );
           })}
 
-        {/* Render remote selection overlays */}
-        {remoteSelections.map((selection) => {
-          const object = objects.find((obj) => obj.id === selection.objectId);
-          if (!object) return null;
+        {/* Render persisted circles from store */}
+        {objects
+          .filter((obj) => obj.type === 'circle')
+          .map((obj) => {
+            // Find if this object is being dragged by another user
+            const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
 
-          return (
-            <SelectionOverlay
-              key={`selection-${selection.userId}-${selection.objectId}`}
-              object={object}
-              selection={selection}
-              showBadge={false} // Can enable on hover if needed
-            />
-          );
+            return (
+              <Circle
+                key={obj.id}
+                circle={obj as CircleType}
+                isSelected={selectedIds.includes(obj.id)}
+                isInMultiSelect={selectedIds.length > 1 && selectedIds.includes(obj.id)}
+                onSelect={(e: Konva.KonvaEventObject<MouseEvent>) => {
+                  if (e.evt.shiftKey) {
+                    toggleSelection(obj.id);
+                  } else {
+                    selectObjects([obj.id]);
+                  }
+                }}
+                remoteDragState={remoteDragState}
+              />
+            );
+          })}
+
+        {/* Render persisted text shapes from store */}
+        {objects
+          .filter((obj) => obj.type === 'text')
+          .map((obj) => {
+            // Find if this object is being dragged by another user
+            const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
+            // Find if this object is being edited by another user
+            const editState = editStates[obj.id];
+
+            return (
+              <TextShape
+                key={obj.id}
+                text={obj as TextType}
+                isSelected={selectedIds.includes(obj.id)}
+                isInMultiSelect={selectedIds.length > 1 && selectedIds.includes(obj.id)}
+                onSelect={(e: Konva.KonvaEventObject<MouseEvent>) => {
+                  if (e.evt.shiftKey) {
+                    toggleSelection(obj.id);
+                  } else {
+                    selectObjects([obj.id]);
+                  }
+                }}
+                remoteDragState={remoteDragState}
+                editState={editState}
+              />
+            );
+          })}
+
+        {/* Render remote selection overlays (supports multi-select) */}
+        {remoteSelections.flatMap((selection) => {
+          // For each user selection, render overlays for all their selected objects
+          return selection.objectIds.map((objectId) => {
+            const object = objects.find((obj) => obj.id === objectId);
+            if (!object) return null;
+
+            // Check if this object is being actively dragged by another user
+            const isBeingDragged = dragStates.some((state) => state.objectId === objectId);
+
+            // Skip overlay for rectangles/circles being dragged (object is already visible)
+            // Keep overlay for text shapes (dashed border is helpful even when dragging)
+            if (isBeingDragged && (object.type === 'rectangle' || object.type === 'circle')) {
+              return null;
+            }
+
+            return (
+              <SelectionOverlay
+                key={`selection-${selection.userId}-${objectId}`}
+                object={object}
+                selection={selection}
+                showBadge={false} // Can enable on hover if needed
+              />
+            );
+          });
         })}
+
+        {/* Render remote resize overlays - show other users' resize operations */}
+        {remoteResizes.map((resizeState) => (
+          <RemoteResizeOverlay
+            key={`resize-${resizeState.userId}-${resizeState.objectId}`}
+            resizeState={resizeState}
+          />
+        ))}
 
         {/* Preview shape (while creating) */}
         {previewShape && previewShape.type === 'rectangle' && (
@@ -372,6 +462,54 @@ export function CanvasStage() {
             listening={false}
           />
         )}
+
+        {/* Preview circle (while creating) */}
+        {previewShape && previewShape.type === 'circle' && (
+          <KonvaCircle
+            x={previewShape.x}
+            y={previewShape.y}
+            radius={previewShape.radius}
+            fill="transparent"
+            stroke="#ef4444"
+            strokeWidth={2}
+            dash={[5, 5]}
+            listening={false}
+          />
+        )}
+
+        {/* Drag-to-select rectangle (marquee selection) */}
+        {selectionRect && (
+          <Rect
+            x={selectionRect.x}
+            y={selectionRect.y}
+            width={selectionRect.width}
+            height={selectionRect.height}
+            fill="rgba(14, 165, 233, 0.1)"
+            stroke="#0ea5e9"
+            strokeWidth={1}
+            dash={[5, 5]}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        )}
+
+        {/* Invisible drag target for multi-select group dragging */}
+        {isInMultiSelect && selectionBounds && activeTool === 'move' && (
+          <Rect
+            x={selectionBounds.x}
+            y={selectionBounds.y}
+            width={selectionBounds.width}
+            height={selectionBounds.height}
+            fill="transparent"
+            draggable={true}
+            onDragStart={handleGroupDragStart}
+            onDragMove={handleGroupDragMove}
+            onDragEnd={handleGroupDragEnd}
+          />
+        )}
+
+        {/* Group bounding box (visible during group drag) */}
+        <GroupBoundingBox isGroupDragging={isGroupDragging} />
       </Layer>
 
       {/* Cursors Layer - Render other users' cursors */}

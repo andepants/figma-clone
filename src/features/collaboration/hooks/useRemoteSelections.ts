@@ -71,10 +71,10 @@ export function useRemoteSelections(canvasId: string): RemoteSelection[] {
     }
 
     const unsubscribe = subscribeToSelections(canvasId, (selectionMap: SelectionStateMap) => {
-      // Convert map to array and enrich with user details
+      // Convert map to array and enrich with user details (supports multi-select)
       const selections: RemoteSelection[] = Object.entries(selectionMap)
-        .filter(([userId, _]) => userId !== currentUser?.uid) // Filter out own selection
-        .filter(([_, state]) => state.objectId !== null) // Filter out empty selections
+        .filter(([userId]) => userId !== currentUser?.uid) // Filter out own selection
+        .filter(([, state]) => state.objectIds.length > 0) // Filter out empty selections
         .map(([userId, state]) => {
           // Find user in presence data
           const userPresence = presenceData.find((p) => p.userId === userId);
@@ -83,7 +83,7 @@ export function useRemoteSelections(canvasId: string): RemoteSelection[] {
 
           return {
             userId,
-            objectId: state.objectId as string, // We know it's not null from filter above
+            objectIds: state.objectIds, // Array of selected object IDs
             username,
             color,
           };
@@ -102,14 +102,14 @@ export function useRemoteSelections(canvasId: string): RemoteSelection[] {
 }
 
 /**
- * Hook to get all remote selections for a specific object
+ * Hook to get all remote selections for a specific object (supports multi-select)
  *
  * Returns all users who have selected the specified object.
  * Useful for showing multiple users' selections on the same object.
  *
  * @param canvasId - Canvas identifier
  * @param objectId - Object to check
- * @returns Array of remote selections for this object
+ * @returns Array of remote selections that include this object
  *
  * @example
  * ```tsx
@@ -138,5 +138,5 @@ export function useObjectSelections(
 ): RemoteSelection[] {
   const allSelections = useRemoteSelections(canvasId);
 
-  return allSelections.filter((selection) => selection.objectId === objectId);
+  return allSelections.filter((selection) => selection.objectIds.includes(objectId));
 }

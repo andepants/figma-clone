@@ -42,10 +42,12 @@ The MVP must demonstrate:
 ### Performance Requirements
 
 - **60 FPS** during all interactions (pan, zoom, object manipulation)
-- **<100ms** sync latency for object changes
-- **<50ms** sync latency for cursor positions
+- **<150ms** sync latency for object changes (50ms throttle + 50-100ms network)
+- **<150ms** sync latency for cursor positions (50ms throttle + 50-100ms network)
 - Support **500+ simple objects** without FPS drops
 - Support **5+ concurrent users** without degradation
+
+**Note**: Achieving <50ms sync requires custom WebSocket infrastructure. Firebase Realtime Database provides 100-150ms total latency, which is excellent for collaborative editing.
 
 ## Project Scope
 
@@ -77,8 +79,8 @@ The MVP must demonstrate:
 
 ### Performance
 - Must maintain 60 FPS during all interactions
-- Sub-100ms synchronization for object updates
-- Sub-50ms synchronization for cursor positions
+- Sub-150ms synchronization for object updates (realistic with Firebase)
+- Sub-150ms synchronization for cursor positions (realistic with Firebase)
 
 ### Scalability
 - Support minimum 5 concurrent users

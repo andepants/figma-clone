@@ -60,6 +60,14 @@ export async function signOutUser(): Promise<void> {
 }
 
 /**
+ * Firebase error shape
+ */
+interface FirebaseError {
+  code?: string;
+  message?: string;
+}
+
+/**
  * Maps Firebase auth error codes to user-friendly messages
  * @param error - Firebase auth error
  * @returns User-friendly error message
@@ -69,7 +77,7 @@ export function getAuthErrorMessage(error: unknown): string {
     return 'An unexpected error occurred'
   }
 
-  const firebaseError = error as { code?: string; message?: string }
+  const firebaseError = error as FirebaseError
 
   switch (firebaseError.code) {
     case 'auth/email-already-in-use':

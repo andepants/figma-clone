@@ -1,9 +1,15 @@
 /**
  * ActiveUsers Component
  *
- * Displays a list of currently active users on the canvas.
- * Uses Firebase Presence system with automatic disconnect detection.
- * Shows each user's assigned color and username, with the current user highlighted.
+ * DEPRECATED: This component is no longer used in the app.
+ * Presence is now integrated into PropertiesPanel as AvatarStack component.
+ *
+ * Previous functionality:
+ * - Displayed a list of currently active users on the canvas
+ * - Used Firebase Presence system with automatic disconnect detection
+ * - Showed each user's assigned color and username, with the current user highlighted
+ *
+ * @deprecated Use AvatarStack and PresenceDropdown in PropertiesPanel instead
  */
 
 import { useMemo } from 'react'
@@ -78,7 +84,7 @@ export function ActiveUsers() {
   }
 
   return (
-    <div className="absolute right-4 top-4 z-10 flex w-[260px] flex-col rounded-lg bg-white shadow-lg">
+    <div className="absolute right-4 top-4 z-10 flex w-[260px] flex-col rounded-lg bg-white shadow-lg animate-in slide-in-from-right-4 fade-in duration-300">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
         <h3 className="text-sm font-semibold text-neutral-900">Active Users</h3>

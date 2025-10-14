@@ -61,8 +61,8 @@ export function useDragStates(canvasId: string): DragStateWithObject[] {
     const unsubscribe = subscribeToDragStates(canvasId, (dragStateMap: DragStateMap) => {
       // Convert map to array and filter out own drag states
       const dragStateArray: DragStateWithObject[] = Object.entries(dragStateMap)
-        .filter(([_, state]) => state.userId !== currentUser?.uid) // Filter out own drags
-        .filter(([_, state]) => {
+        .filter(([, state]) => state.userId !== currentUser?.uid) // Filter out own drags
+        .filter(([, state]) => {
           // Validate that drag state has all required fields
           const isValid =
             state.x !== undefined &&
@@ -70,10 +70,6 @@ export function useDragStates(canvasId: string): DragStateWithObject[] {
             state.username !== undefined &&
             state.color !== undefined &&
             state.userId !== undefined;
-
-          if (!isValid) {
-            console.warn('Incomplete drag state detected, filtering out:', state);
-          }
 
           return isValid;
         })

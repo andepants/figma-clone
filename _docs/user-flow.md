@@ -77,8 +77,8 @@ CollabCanvas has a simple, linear user flow. All authenticated users access a si
 
 **Real-Time Behavior:**
 - All changes save automatically
-- All users see changes within <100ms
-- Cursor positions update within <50ms
+- All users see changes within <150ms
+- Cursor positions update within <150ms
 - When multiple users grab the same object, first user to touch it gets control
 
 **Session Persistence:**
@@ -174,14 +174,14 @@ CollabCanvas has **2 main pages:**
 3. Shape appears immediately for User A (optimistic update)
 4. Shape data sent to server
 5. Server broadcasts to all connected users
-6. Shape appears on User B's canvas within <100ms
+6. Shape appears on User B's canvas within <150ms
 
 ### User A Moves Object
 1. User A clicks and drags shape
 2. Shape moves in real-time for User A
-3. Position updates sent to server (throttled)
+3. Position updates sent to server (throttled to 50ms)
 4. Server broadcasts position updates
-5. User B sees shape moving on their canvas within <100ms
+5. User B sees shape moving on their canvas within <150ms
 
 ### Conflict Handling
 **Scenario:** User A and User B try to move the same object simultaneously
@@ -204,7 +204,7 @@ User Actions → Local Update (Optimistic) → Server Update → Broadcast → A
 
 **Auto-Save Triggers:**
 - Object created → Immediate save
-- Object moved → Throttled save (every 100ms during drag)
+- Object moved → Throttled save (50ms during drag)
 - Object selected → No save needed
 - User cursor moves → Real-time update (50ms throttle)
 
@@ -213,7 +213,7 @@ User Actions → Local Update (Optimistic) → Server Update → Broadcast → A
 ## Key User Expectations
 
 1. **Instant Feedback:** When I create or move something, I see it immediately
-2. **Real-Time Sync:** When others create or move things, I see it within 100ms
+2. **Real-Time Sync:** When others create or move things, I see it within 150ms
 3. **Always Saved:** I never have to manually save my work
 4. **Persistent State:** If I refresh or come back later, my work is still there
 5. **Clear Presence:** I can see who else is on the canvas with me

@@ -6,3 +6,5 @@
 
 // Export shape components
 export * from './Rectangle';
+export * from './Circle';
+export * from './TextShape';

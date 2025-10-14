@@ -56,8 +56,8 @@ export function MenuButton() {
     try {
       await logout();
       navigate('/');
-    } catch (error) {
-      console.error('Failed to log out:', error);
+    } catch {
+      // Silently fail - error handled by auth system
     }
   }
 

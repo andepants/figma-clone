@@ -54,28 +54,21 @@ export async function setOnline(
   userId: string,
   username: string
 ): Promise<void> {
-  try {
-    const presenceRef = ref(realtimeDb, `canvases/${canvasId}/presence/${userId}`)
+  const presenceRef = ref(realtimeDb, `canvases/${canvasId}/presence/${userId}`)
 
-    // Set up automatic offline on disconnect (handles crashes, network loss, etc.)
-    await onDisconnect(presenceRef).set({
-      username,
-      online: false,
-      lastSeen: serverTimestamp(),
-    } as PresenceData)
+  // Set up automatic offline on disconnect (handles crashes, network loss, etc.)
+  await onDisconnect(presenceRef).set({
+    username,
+    online: false,
+    lastSeen: serverTimestamp(),
+  } as PresenceData)
 
-    // Set user as online now
-    await set(presenceRef, {
-      username,
-      online: true,
-      lastSeen: serverTimestamp(),
-    } as PresenceData)
-
-    console.log(`Presence: User ${username} set online with auto-disconnect cleanup`)
-  } catch (error) {
-    console.error('Failed to set user online:', error)
-    throw error
-  }
+  // Set user as online now
+  await set(presenceRef, {
+    username,
+    online: true,
+    lastSeen: serverTimestamp(),
+  } as PresenceData)
 }
 
 /**
@@ -102,10 +95,7 @@ export async function setOffline(
       online: false,
       lastSeen: serverTimestamp(),
     } as PresenceData)
-
-    console.log(`Presence: User ${username} set offline`)
-  } catch (error) {
-    console.error('Failed to set user offline:', error)
+  } catch {
     // Don't throw - offline updates shouldn't break the app
   }
 }
@@ -121,7 +111,7 @@ export async function setOffline(
  * ```ts
  * useEffect(() => {
  *   const unsubscribe = subscribeToPresence('main', (users) => {
- *     console.log('Online users:', users.filter(u => u.online))
+ *     // Process online users
  *   })
  *   return unsubscribe
  * }, [])
@@ -155,8 +145,7 @@ export function subscribeToPresence(
 
       callback(presence)
     },
-    (error) => {
-      console.error('Firebase presence subscription error:', error)
+    () => {
       callback([])
     }
   )

@@ -52,12 +52,9 @@ export const realtimeDb: Database = getDatabase(app)
 
 // Enable offline persistence for Firestore
 // This allows the app to work offline and sync when reconnected
-enableIndexedDbPersistence(firestore).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    // Multiple tabs open, persistence can only be enabled in one tab at a time
-    console.warn('Offline persistence failed: Multiple tabs open')
-  } else if (err.code === 'unimplemented') {
-    // The current browser doesn't support offline persistence
-    console.warn('Offline persistence not supported by browser')
-  }
+enableIndexedDbPersistence(firestore).catch(() => {
+  // Silently fail - offline persistence is optional
+  // Common failure reasons:
+  // - Multiple tabs open (only one tab can have persistence)
+  // - Browser doesn't support IndexedDB
 })

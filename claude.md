@@ -32,14 +32,14 @@ The codebase is AI-first: modular, scalable, highly navigable, and easy to under
 
 - **Vertical Slices**: Features → Stores → Services (no circular dependencies)
 - **State**: Multiple focused Zustand stores (canvas, auth, ui, ai)
-- **Real-time**: Firebase Firestore (objects, 500ms debounce) + Realtime DB (cursors, 50ms throttle)
+- **Real-time**: Firebase Realtime DB for all data (objects, cursors, presence - 50ms throttle)
 - **Rendering**: Konva.js with 3-5 optimized layers, React.memo, throttle/debounce
 
 ## Design Principles
 
 - **Canvas-first**: Workspace dominates, minimal UI chrome
 - **Figma-inspired**: Minimalist, subtle shadows, soft borders, neutral colors
-- **Fast feedback**: Optimistic updates, <100ms sync, 60 FPS always
+- **Fast feedback**: Optimistic updates, <150ms sync, 60 FPS always
 - **Functional color**: 90% neutral grays, color for actions/states only
 - **Inter font**: Clean typography with clear hierarchy
 
@@ -48,12 +48,13 @@ The codebase is AI-first: modular, scalable, highly navigable, and easy to under
 - React 18+ (functional components, hooks only)
 - Konva.js for canvas rendering (3-5 layers max)
 - Tailwind CSS (utility-first, canvas bg: #f5f5f5, primary: #0ea5e9)
-- Firebase (Auth, Firestore, Realtime DB)
+- Firebase (Auth, Realtime DB for all real-time data)
 - Zustand (lightweight state management)
 
 ## Performance
 
 - Maintain 60 FPS canvas rendering
-- Throttle cursors (50ms), debounce objects (500ms)
+- Throttle all real-time updates (50ms for cursors and objects)
 - Use React.memo, useCallback, useMemo appropriately
 - Virtual rendering for 500+ objects
+- Target: <150ms total sync latency (50ms throttle + 50-100ms network)

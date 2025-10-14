@@ -31,12 +31,11 @@ graph TB
 
     subgraph Backend["Firebase"]
         Auth[Auth]
-        Firestore[Firestore<br/>Objects]
-        RealtimeDB[Realtime DB<br/>Cursors]
+        RealtimeDB[Realtime DB<br/>All Data]
     end
 
     UI --> App --> State --> Services
-    Services --> Auth & Firestore & RealtimeDB
+    Services --> Auth & RealtimeDB
 
     style Client fill:#e3f2fd
     style Backend fill:#fff3e0
@@ -169,26 +168,39 @@ sequenceDiagram
 
 ## Real-Time Synchronization
 
-### Service Split
+### All Realtime Database Architecture
+
+**Decision**: This project uses Firebase Realtime Database exclusively for all real-time data, including canvas objects. This differs from the typical Firestore + Realtime DB split.
 
 | Service | Data | Frequency | Pattern |
 |---------|------|-----------|---------|
-| **Firestore** | Canvas objects | 500ms debounce | Persistent |
+| **Realtime DB** | Canvas objects | 50ms throttle | Persistent |
 | **Realtime DB** | Cursors | 50ms throttle | Ephemeral |
 | **Realtime DB** | Presence | On connect/disconnect | Status |
+| **Realtime DB** | Selections | Real-time | Ephemeral |
+| **Realtime DB** | Drag states | Real-time | Ephemeral |
+| **Realtime DB** | Resize states | Real-time | Ephemeral |
+| **Realtime DB** | Text editing states | Real-time | Ephemeral |
 
-**Firestore Structure:**
-```
-/canvases/{id}/
-  ├── objects: array
-  └── metadata: object
-```
+**Why Not Firestore?** See `_docs/decisions/realtime-db-vs-firestore.md` for detailed analysis.
+
+**Key Benefits:**
+- Atomic per-object updates (no array replacement)
+- 2.5x lower latency than Firestore (600ms vs 1500ms RTT)
+- No race conditions in concurrent editing
+- Cost-effective for high-frequency writes
+- Simpler architecture (single database)
 
 **Realtime DB Structure:**
 ```
 /canvases/{id}/
+  ├── objects/{objectId}
   ├── cursors/{userId}
-  └── presence/{userId}
+  ├── presence/{userId}
+  ├── selections/{userId}
+  ├── dragStates/{userId}
+  ├── resizeStates/{userId}
+  └── editStates/{userId}
 ```
 
 ---
@@ -218,7 +230,7 @@ graph TB
 - React.memo for expensive components
 - Throttle cursors (50ms), debounce objects (500ms)
 
-**Targets:** 60 FPS, <100ms sync latency, 500+ objects
+**Targets:** 60 FPS, <150ms sync latency, 500+ objects
 
 ---
 
@@ -283,12 +295,12 @@ graph LR
 |----|----------|-----------|-----------|
 | **AD-001** | Vertical Slice Architecture | AI comprehension, feature isolation | Some code duplication |
 | **AD-002** | Multiple Zustand Stores | Performance, focused domains | Store coordination |
-| **AD-003** | Firestore + Realtime DB | Optimal for mixed-frequency data | Two services to manage |
+| **AD-003** | Realtime DB Only | Optimal for collaborative editing, atomic updates, lower latency | Limited to 200k connections per DB, requires client-side filtering |
 | **AD-004** | Konva.js | React integration, performance | Learning curve |
 | **AD-005** | Optimistic Updates | Instant UX | Rollback complexity |
 | **AD-006** | Last-Write-Wins | Simple, predictable | Overwrites possible |
-| **AD-007** | 50ms Cursor Throttle | Smooth + performant | Some latency |
-| **AD-008** | 500ms Object Debounce | Cost reduction | Small sync delay |
+| **AD-007** | 50ms Cursor Throttle | Smooth + performant | Total latency ~100-150ms (network adds 50-100ms) |
+| **AD-008** | 50ms Object Throttle | Fast sync + performant | Total latency ~100-150ms (network adds 50-100ms) |
 | **AD-009** | Max 3-5 Layers | Performance | Careful organization |
 | **AD-010** | OpenAI Function Calling | Natural language → commands | API costs, latency |
 | **AD-011** | Vertical Slices from Phase 0 | Clean architecture from start, no refactor debt | Slightly more upfront planning |
@@ -298,10 +310,11 @@ graph LR
 | Alternative | Why Not | Reconsider When |
 |-------------|---------|-----------------|
 | Redux Toolkit | Too much boilerplate | Team preference |
-| Firestore Only | Realtime DB better for cursors | Pricing changes |
+| Firestore for Objects | Array replacement causes race conditions, 2.5x slower, 10-20x more expensive | Need complex queries or >200k users |
+| Firestore + Realtime DB Hybrid | More complexity, higher costs, slower object sync | Need Firestore's advanced features |
 | Raw Canvas | Konva better DX | Bundle size critical |
 | Operational Transform | Too complex for MVP | True collab editing needed |
-| WebSocket Server | Firebase handles sync | Firebase costs exceed custom |
+| Custom WebSocket Server | Firebase Realtime DB sufficient for <50k users | Need <50ms latency or >200k users |
 | Traditional component structure | Less scalable, unclear boundaries | Never - vertical slices from start |
 | Evolutionary refactor | Creates technical debt | Never - right structure from Phase 0 |
 
@@ -329,11 +342,13 @@ graph LR
 | Metric | Target | Measurement |
 |--------|--------|-------------|
 | Canvas FPS | 60 | Konva.Animation |
-| Object sync | <100ms | Network timing |
-| Cursor sync | <50ms | Network timing |
+| Object sync | <150ms | Network timing (50ms throttle + 50-100ms network) |
+| Cursor sync | <150ms | Network timing (50ms throttle + 50-100ms network) |
 | Initial load | <3s | Lighthouse |
 | Concurrent users | 5-10 (MVP) | Load testing |
 | Max objects | 500 @ 60 FPS | Stress testing |
+
+**Note on Latency**: <50ms cursor sync is unrealistic with Firebase (network physics: 50-100ms baseline). Real-world testing shows 100-150ms total latency, which provides excellent UX for collaborative editing. Achieving <50ms would require custom WebSocket infrastructure (significant engineering effort).
 
 ---
 
