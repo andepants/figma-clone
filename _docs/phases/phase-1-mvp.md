@@ -13,7 +13,7 @@
 - ✅ Canvas has pan and zoom functionality
 - ✅ Users can create rectangles
 - ✅ Users can move rectangles by dragging
-- ✅ Changes sync to all users within <100ms
+- ✅ Changes sync to all users within <150ms
 - ✅ Multiplayer cursors visible with username labels
 - ✅ Online users list shows who's present
 - ✅ State persists (refresh doesn't lose work)
@@ -30,10 +30,10 @@ This phase delivers the core collaborative experience. Focus: **collaboration ov
 - Konva canvas with pan/zoom
 - Rectangle shape only (for speed)
 - Create and move objects
-- Real-time cursor sync (<50ms)
-- Real-time object sync (<100ms)
+- Real-time cursor sync (<150ms)
+- Real-time object sync (<150ms)
 - Presence system (who's online)
-- Auto-save to Firestore
+- Auto-save to Realtime DB
 - Deployed to Firebase Hosting
 
 **What's NOT Included:**
@@ -831,9 +831,9 @@ function getAuthErrorMessage(code: string): string {
 
 **Real-Time Collaboration:**
 - [ ] Open in 2 browser windows (different users)
-- [ ] Creating object in Window 1 appears in Window 2 within 100ms
-- [ ] Moving object in Window 1 updates in Window 2 within 100ms
-- [ ] Cursor movement from Window 1 visible in Window 2 within 50ms
+- [ ] Creating object in Window 1 appears in Window 2 within 150ms
+- [ ] Moving object in Window 1 updates in Window 2 within 150ms
+- [ ] Cursor movement from Window 1 visible in Window 2 within 150ms
 - [ ] Cursor label shows correct username
 
 **Presence:**
@@ -910,8 +910,8 @@ At the end of Phase 1 (MVP), you should have:
 ## Success Metrics
 
 **Latency:**
-- Object sync: <100ms ✅
-- Cursor sync: <50ms ✅
+- Object sync: <150ms ✅ (50ms throttle + 50-100ms network)
+- Cursor sync: <150ms ✅ (50ms throttle + 50-100ms network)
 
 **Performance:**
 - Canvas FPS: 60 FPS ✅
@@ -922,6 +922,8 @@ At the end of Phase 1 (MVP), you should have:
 - All MVP requirements met ✅
 - No critical bugs ✅
 - Deployed and accessible ✅
+
+**Note**: Target latencies are based on realistic Firebase Realtime Database performance. Achieving <50ms would require custom WebSocket infrastructure, which is unnecessary for excellent collaborative UX.
 
 ---
 

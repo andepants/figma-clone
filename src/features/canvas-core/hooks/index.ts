@@ -10,3 +10,6 @@ export * from './useResize';
 export * from './useWindowResize';
 export * from './useSpacebarPan';
 export * from './useTouchGestures';
+export * from './useTextEditor';
+export * from './useGroupDrag';
+export * from './useDragToSelect';

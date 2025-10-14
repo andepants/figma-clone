@@ -57,6 +57,7 @@ export {
   removeCanvasObject,
   clearAllCanvasObjects,
   getAllCanvasObjects,
+  batchUpdateCanvasObjects,
 } from './realtimeCanvasService'
 
 // Export Cursor Service
@@ -88,6 +89,10 @@ export {
   checkDragLock,
   subscribeToDragStates,
   cleanupStaleDragStates,
+  startGroupDragging,
+  updateGroupDragPositions,
+  throttledUpdateGroupDragPositions,
+  endGroupDragging,
 } from './dragStateService'
 
 // Export Selection Service
@@ -107,11 +112,16 @@ export {
   subscribeToResizeStates,
 } from './resizeService'
 
-// Export Offline Queue
+// Export Text Editing Service
 export {
-  queueOperation,
-  executeOrQueue,
-  getQueueStatus,
-  clearQueue,
-  cleanup as cleanupOfflineQueue,
-} from './offlineQueue'
+  startEditing,
+  updateEditHeartbeat,
+  updateLiveText,
+  throttledUpdateLiveText,
+  endEditing,
+  checkEditLock,
+  subscribeToEditStates,
+  cleanupStaleEditStates,
+  type EditState,
+  type EditStateMap,
+} from './textEditingService'

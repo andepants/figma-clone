@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useRef, memo, Fragment } from 'react';
-import { Text as KonvaText } from 'react-konva';
+import { Text as KonvaText, Label, Tag, Text as KonvaTextLabel } from 'react-konva';
 import type Konva from 'konva';
 import type { Text as TextType } from '@/types';
 import { useToolStore, useCanvasStore } from '@/stores';
@@ -18,12 +18,16 @@ import {
   throttledUpdateDragPosition,
   throttledUpdateCursor,
   endDragging,
+  startEditing,
+  endEditing,
+  checkEditLock,
+  type EditState,
 } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 import { getUserColor } from '@/features/collaboration/utils';
-import { screenToCanvasCoords } from '../utils';
-import { ResizeHandles } from '../components';
-import { useResize } from '../hooks';
+import { screenToCanvasCoords, getFontStyle, applyTextTransform, getTextShadowProps } from '../utils';
+import { ResizeHandles, TextSelectionBox, DimensionLabel } from '../components';
+import { useResize, useTextEditor } from '../hooks';
 
 /**
  * TextShape component props
@@ -33,10 +37,14 @@ interface TextShapeProps {
   text: TextType;
   /** Whether this text is currently selected */
   isSelected: boolean;
-  /** Callback when text is selected */
-  onSelect: () => void;
+  /** Callback when text is selected (supports shift-click for multi-select) */
+  onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Optional drag state from another user (for real-time position updates) */
   remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
+  /** Optional edit state from another user (for live text preview and editing indicators) */
+  editState?: EditState;
+  /** Whether this text is part of a multi-selection */
+  isInMultiSelect?: boolean;
 }
 
 /**
@@ -64,10 +72,12 @@ export const TextShape = memo(function TextShape({
   text,
   isSelected,
   onSelect,
-  remoteDragState
+  remoteDragState,
+  editState,
+  isInMultiSelect = false,
 }: TextShapeProps) {
-  const { activeTool } = useToolStore();
-  const { updateObject } = useCanvasStore();
+  const { activeTool, setActiveTool } = useToolStore();
+  const { updateObject, removeObject, editingTextId, setEditingText } = useCanvasStore();
   const { currentUser } = useAuth();
 
   // Resize hook
@@ -76,9 +86,13 @@ export const TextShape = memo(function TextShape({
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
 
-  // Refs for animation
+  // Refs for animation and editing
   const shapeRef = useRef<Konva.Text>(null);
   const animationRef = useRef<Konva.Tween | null>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
+
+  // Check if this text is being edited
+  const isEditing = editingTextId === text.id;
 
   // Determine if this object is being dragged by a remote user
   const isRemoteDragging = !!remoteDragState;
@@ -88,12 +102,105 @@ export const TextShape = memo(function TextShape({
   const displayY = remoteDragState?.y ?? text.y;
 
   // Text boxes have fixed dimensions (width and height)
-  const textWidth = text.width;
-  const textHeight = text.height;
+  // Ensure width and height are valid numbers to prevent NaN in offset calculations
+  const textWidth = text.width || 100;
+  const textHeight = text.height || 40;
+
+  /**
+   * Handle text save from editor
+   * Updates text content and ends editing mode
+   * If text is empty or unchanged from placeholder, deletes the text object
+   * Switches tool back to move after editing completes
+   */
+  async function handleTextSave(newText: string) {
+    // Trim whitespace (removes spaces, tabs, newlines from beginning and end)
+    const trimmedText = newText.trim();
+
+    // Check if text is empty or still the placeholder
+    const isEmpty = trimmedText === '';
+    const isPlaceholder = trimmedText === 'Start typing...';
+
+    if (isEmpty || isPlaceholder) {
+      // Delete the text object
+      removeObject(text.id);
+
+      // Sync deletion to Firebase
+      const { removeCanvasObject } = await import('@/lib/firebase');
+      await removeCanvasObject('main', text.id);
+    } else {
+      // Update text content (trimmed, so no leading/trailing whitespace)
+      updateObject(text.id, { text: trimmedText });
+      await updateCanvasObject('main', text.id, { text: trimmedText });
+    }
+
+    // End editing
+    setEditingText(null);
+    await endEditing('main', text.id);
+
+    // Switch back to move tool after editing completes (Figma-style behavior)
+    setActiveTool('move');
+  }
+
+  /**
+   * Handle text edit cancel
+   * Closes editor without saving changes
+   * Switches tool back to move after editing completes
+   */
+  async function handleTextCancel() {
+    // End editing without saving
+    setEditingText(null);
+    await endEditing('main', text.id);
+
+    // Switch back to move tool after editing completes (Figma-style behavior)
+    setActiveTool('move');
+  }
+
+  /**
+   * Update stage ref when component mounts or text node changes
+   */
+  useEffect(() => {
+    if (shapeRef.current) {
+      stageRef.current = shapeRef.current.getStage();
+    }
+  }, [shapeRef.current]);
+
+  /**
+   * Text editor hook - manages textarea overlay
+   */
+  useTextEditor({
+    text,
+    textNodeRef: shapeRef,
+    stageRef,
+    isEditing,
+    onSave: handleTextSave,
+    onCancel: handleTextCancel,
+  });
+
+  /**
+   * Edge case: Close editor when tool changes
+   * Auto-save changes when user switches tools
+   */
+  useEffect(() => {
+    // CRITICAL: Only trigger if we're editing AND tool is not 'move' AND tool is not 'text'
+    // Skip 'text' tool because that's the creation tool - we don't want to close
+    // the editor immediately after creating text
+    if (isEditing && activeTool !== 'move' && activeTool !== 'text') {
+      // Tool changed while editing, auto-save
+      // Get the current textarea value
+      const textarea = document.querySelector('textarea');
+      if (textarea) {
+        handleTextSave(textarea.value);
+      } else {
+        // Textarea not found, just close
+        handleTextCancel();
+      }
+    }
+  }, [activeTool, isEditing]);
 
   /**
    * Animate selection changes
    * Smoothly transitions with a subtle scale pulse when selection state changes
+   * Skip animation when text is being edited (text is invisible during edit)
    */
   useEffect(() => {
     const node = shapeRef.current;
@@ -104,6 +211,9 @@ export const TextShape = memo(function TextShape({
       animationRef.current.destroy();
       animationRef.current = null;
     }
+
+    // Don't animate during editing (text is hidden anyway)
+    if (isEditing) return;
 
     // Animate selection change
     if (isSelected) {
@@ -122,21 +232,76 @@ export const TextShape = memo(function TextShape({
         },
       });
     }
-  }, [isSelected]);
+  }, [isSelected, isEditing]);
 
   /**
    * Handle click on text
    * Only triggers selection when move tool is active
+   * Supports shift-click for multi-select
    */
-  function handleClick() {
+  function handleClick(e: Konva.KonvaEventObject<MouseEvent>) {
     if (activeTool === 'move') {
-      onSelect();
+      onSelect(e);
     }
+  }
+
+  /**
+   * Handle double-click on text
+   * Enters edit mode if move tool is active and text is not locked
+   */
+  async function handleDoubleClick(e: Konva.KonvaEventObject<MouseEvent>) {
+    // Only allow editing in move tool mode
+    if (activeTool !== 'move') {
+      return;
+    }
+
+    if (!currentUser) {
+      return;
+    }
+
+    // Can't edit if already editing (prevents redundant lock acquisition)
+    if (isEditing) {
+      return;
+    }
+
+    // Can't edit if another user is already editing
+    if (isRemoteEditing) {
+      // TODO: Show toast notification
+      return;
+    }
+
+    // Check if text is locked by another user
+    const lockState = await checkEditLock('main', text.id, currentUser.uid);
+    if (lockState) {
+      // TODO: Show toast notification
+      return;
+    }
+
+    // Attempt to acquire editing lock
+    const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
+    const color = getUserColor(currentUser.uid);
+
+    const canEdit = await startEditing('main', text.id, currentUser.uid, username, color);
+
+    if (!canEdit) {
+      // TODO: Show toast notification
+      return;
+    }
+
+    // Select the text first (create fake event without shift key to ensure single selection for editing)
+    const fakeEvent = {
+      evt: { shiftKey: false },
+    } as Konva.KonvaEventObject<MouseEvent>;
+    onSelect(fakeEvent);
+
+    // Enter edit mode
+    setEditingText(text.id);
   }
 
   /**
    * Handle drag start
    * Checks for drag lock and prevents stage from dragging when dragging a shape
+   * Note: In multi-select mode, individual shapes are non-draggable; group drag is handled by invisible drag target
    */
   async function handleDragStart(e: Konva.KonvaEventObject<DragEvent>) {
     // Prevent event from bubbling to stage (prevents stage drag)
@@ -159,8 +324,6 @@ export const TextShape = memo(function TextShape({
 
     if (!canDrag) {
       // Another user is dragging this object
-      console.log('Another user is editing this object');
-
       // Cancel the drag
       e.target.stopDrag();
       return;
@@ -266,83 +429,43 @@ export const TextShape = memo(function TextShape({
   }
 
   // Determine stroke styling based on state
+  // NOTE: Selection and hover are now handled by TextSelectionBox, not stroke
   const getStroke = () => {
+    // Remote editing: Show editor's color with dashed stroke (highest priority)
+    if (isRemoteEditing) return editState.color;
     if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
-    if (isSelected) return '#0ea5e9'; // Selected: bright blue
-    if (isHovered && activeTool === 'move') return '#94a3b8'; // Hovered: subtle gray
-    return undefined; // Default: no stroke
+    // Hover is now handled by TextSelectionBox underline
+    return undefined; // Default: no stroke (selection/hover handled by TextSelectionBox)
   };
 
   const getStrokeWidth = () => {
     if (isRemoteDragging) return 2; // Remote drag: medium border
-    if (isSelected) return 3; // Selected: thick border
-    if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
-    return undefined; // Default: no border
-  };
-
-  const getOpacity = () => {
-    if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
-    return text.opacity ?? 1; // Use shape opacity, default to fully opaque
-  };
-
-  const getShadow = () => {
-    // Add subtle glow when selected for better visual feedback
-    if (isSelected) {
-      return {
-        shadowColor: '#0ea5e9',
-        shadowBlur: 5,
-        shadowOffsetX: 0,
-        shadowOffsetY: 0,
-        shadowOpacity: 0.5,
-        shadowEnabled: true,
-      };
-    }
-    // Use shape's own shadow properties when not selected
-    return {
-      shadowColor: text.shadowColor,
-      shadowBlur: text.shadowBlur ?? 0,
-      shadowOffsetX: text.shadowOffsetX ?? 0,
-      shadowOffsetY: text.shadowOffsetY ?? 0,
-      shadowOpacity: text.shadowOpacity ?? 1,
-      shadowEnabled: text.shadowEnabled ?? false,
-    };
-  };
-
-  // Build fontStyle string (combines weight and style for Konva)
-  const getFontStyle = () => {
-    const weight = text.fontWeight || 400;
-    const style = text.fontStyle || 'normal';
-
-    // Konva expects format like "italic bold" or "normal" or "bold"
-    const parts: string[] = [];
-    if (style === 'italic') parts.push('italic');
-    if ((typeof weight === 'number' && weight >= 700) || weight === 'bold') parts.push('bold');
-
-    return parts.length > 0 ? parts.join(' ') : 'normal';
+    // Hover is now handled by TextSelectionBox underline
+    return undefined; // Default: no border (selection/hover handled by TextSelectionBox)
   };
 
   /**
-   * Apply text transform to the display text
+   * Determine if this text is being edited by a remote user
    */
-  const getTransformedText = () => {
-    const transform = text.textTransform || 'none';
-    const originalText = text.text;
+  const isRemoteEditing = editState && editState.userId !== currentUser?.uid;
 
-    switch (transform) {
-      case 'uppercase':
-        return originalText.toUpperCase();
-      case 'lowercase':
-        return originalText.toLowerCase();
-      case 'capitalize':
-        return originalText
-          .split(' ')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-          .join(' ');
-      case 'none':
-      default:
-        return originalText;
+  /**
+   * Get the text content to display
+   * If another user is editing, show their live text
+   * Otherwise show the persisted text (with transforms)
+   */
+  const getDisplayText = () => {
+    // If being edited by another user and we have live text, show it
+    if (isRemoteEditing && editState.liveText !== undefined) {
+      return editState.liveText;
     }
+
+    // Otherwise show persisted text (transformed)
+    return applyTextTransform(text.text, text.textTransform);
   };
+
+  // Calculate final draggable state
+  const isDraggable = (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isEditing && !isInMultiSelect;
 
   return (
     <Fragment>
@@ -352,11 +475,13 @@ export const TextShape = memo(function TextShape({
         // but with offset we need to position at center, so add half dimensions
         x={displayX + textWidth / 2}
         y={displayY + textHeight / 2}
-        text={getTransformedText()}
+        text={getDisplayText()}
         fontSize={text.fontSize}
         fontFamily={text.fontFamily}
-        fontStyle={getFontStyle()}
+        fontStyle={getFontStyle(text.fontWeight, text.fontStyle)}
         fill={text.fill}
+        // Transform properties
+        rotation={text.rotation ?? 0}
         opacity={(text.opacity ?? 1) * (isRemoteDragging ? 0.85 : 1)} // Combine shape opacity with state opacity
         // Typography properties
         textDecoration={text.textDecoration || ''}
@@ -376,12 +501,18 @@ export const TextShape = memo(function TextShape({
         stroke={getStroke() ?? text.stroke}
         strokeWidth={getStrokeWidth() ?? text.strokeWidth ?? 0}
         strokeEnabled={text.strokeEnabled ?? true}
-        // Shadow properties (with selection glow override)
-        {...getShadow()}
+        // Dashed stroke when being edited remotely
+        dash={isRemoteEditing ? [5, 5] : undefined}
+        // Shadow properties
+        {...getTextShadowProps(text)}
+        // Visibility - hide when editing
+        visible={!isEditing}
         // Interaction
         onClick={handleClick}
         onTap={handleClick} // Mobile support
-        draggable={(isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging} // Disable drag if remotely dragging
+        onDblClick={handleDoubleClick}
+        onDblTap={handleDoubleClick} // Mobile support
+        draggable={isDraggable} // Disable drag if editing, remotely dragging, or in multi-select
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -389,11 +520,56 @@ export const TextShape = memo(function TextShape({
         onMouseLeave={handleMouseLeave}
       />
 
-      {/* Resize Handles - only visible when selected */}
+      {/* Custom selection visualization for text shapes */}
+      {/* Shows underline with glow on hover, underline + bounding box on selection */}
+      <TextSelectionBox
+        text={text}
+        isSelected={isSelected && !isEditing}
+        isHovered={isHovered && activeTool === 'move' && !isSelected && !isEditing}
+        color={isInMultiSelect ? '#38bdf8' : '#0ea5e9'}
+        textNodeRef={shapeRef}
+      />
+
+      {/* Remote editing indicator - show underline + label when being edited by another user */}
+      {isRemoteEditing && (
+        <>
+          {/* Show underline in editor's color (just like local editing) */}
+          <TextSelectionBox
+            text={text}
+            isSelected={true}
+            color={editState.color}
+            textNodeRef={shapeRef}
+          />
+
+          {/* Show username label above text */}
+          <Label
+            x={displayX}
+            y={displayY - 25} // Above text
+            opacity={0.9}
+          >
+            <Tag
+              fill={editState.color}
+              pointerDirection="down"
+              pointerWidth={6}
+              pointerHeight={6}
+              cornerRadius={3}
+            />
+            <KonvaTextLabel
+              text={`${editState.username} is editing...`}
+              fontSize={12}
+              fontFamily="Inter"
+              fill="#ffffff"
+              padding={6}
+            />
+          </Label>
+        </>
+      )}
+
+      {/* Resize Handles - only visible when selected and not editing */}
       {/* Text boxes have fixed dimensions that can be resized in both width and height */}
       <ResizeHandles
         object={text}
-        isSelected={isSelected && activeTool === 'move'}
+        isSelected={isSelected && activeTool === 'move' && !isEditing}
         isResizing={isResizing}
         onResizeStart={(handleType) =>
           handleResizeStart(text.id, handleType, {
@@ -406,6 +582,9 @@ export const TextShape = memo(function TextShape({
         onResizeMove={(_handleType, x, y) => handleResizeMove(text.id, x, y)}
         onResizeEnd={() => handleResizeEnd(text.id)}
       />
+
+      {/* Dimension Label - shows width × height when selected and not editing */}
+      <DimensionLabel object={text} visible={isSelected && activeTool === 'move' && !isEditing} />
     </Fragment>
   );
 });

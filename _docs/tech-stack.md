@@ -11,8 +11,8 @@
 | **Styling** | Tailwind CSS | Utility-first CSS framework |
 | **Components** | shadcn/ui | Pre-built accessible components |
 | **State Management** | Zustand | Lightweight global state |
-| **Backend - Real-time** | Firebase Realtime Database | Cursor positions, presence |
-| **Backend - Persistence** | Cloud Firestore | Canvas objects storage |
+| **Backend - Real-time** | Firebase Realtime Database | All real-time data (objects, cursors, presence) |
+| **Backend - Persistence** | Firebase Realtime Database | Canvas objects storage |
 | **Authentication** | Firebase Authentication | User management |
 | **Routing** | React Router v6 | Client-side routing |
 | **Deployment** | Firebase Hosting | Static site hosting |
@@ -689,7 +689,7 @@ function setupPresence(userId: string, username: string) {
 
 ❌ **Don't send every mousemove event** - throttle to 50ms
 ❌ **Don't forget onDisconnect** - clean up presence
-❌ **Don't store large data** - use Firestore for objects
+❌ **Don't send every mousemove event** - throttle appropriately
 ✅ **Do use shallow listeners** - limit depth with limitToFirst/Last
 ✅ **Do clean up listeners** - return unsubscribe in useEffect
 
@@ -1181,8 +1181,8 @@ firebase deploy --only hosting
 | Metric | Target | Measured By |
 |--------|--------|-------------|
 | Canvas FPS | 60 FPS | Browser DevTools Performance |
-| Object Sync | <100ms | Network tab, user experience |
-| Cursor Sync | <50ms | Network tab, user experience |
+| Object Sync | <150ms | Network tab, user experience |
+| Cursor Sync | <150ms | Network tab, user experience |
 | Initial Load | <3s | Lighthouse, PageSpeed |
 | Bundle Size | <500kb (gzipped) | Build output |
 

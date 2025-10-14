@@ -6,6 +6,13 @@
  */
 
 /**
+ * Firebase error interface
+ */
+interface FirebaseError extends Error {
+  code?: string;
+}
+
+/**
  * Retries an async function with exponential backoff
  *
  * @param fn - The async function to retry
@@ -28,7 +35,7 @@ export async function retryAsync<T>(
   maxRetries: number = 3,
   baseDelay: number = 1000
 ): Promise<T> {
-  let lastError: Error | unknown
+  let lastError: Error
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -87,8 +94,8 @@ function isRetriableError(error: unknown): boolean {
   ]
 
   // Check for Firebase error codes
-  const errorCode = (error as any).code as string | undefined
-  if (errorCode && nonRetriableFirebaseErrors.includes(errorCode)) {
+  const firebaseError = error as FirebaseError
+  if (firebaseError.code && nonRetriableFirebaseErrors.includes(firebaseError.code)) {
     return false
   }
 
@@ -142,7 +149,7 @@ export async function retryWithOptions<T>(
     shouldRetry = isRetriableError,
   } = options
 
-  let lastError: Error | unknown
+  let lastError: Error = new Error('No attempts made')
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {

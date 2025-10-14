@@ -11,6 +11,7 @@ import { useCanvasStore, useToolStore } from '@/stores';
 import { useAuth } from '@/features/auth/hooks';
 import { addCanvasObject } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../utils/coordinates';
+import { getUserColor } from '@/features/collaboration/utils';
 import type { CanvasObject, Rectangle, Circle, Text } from '@/types';
 import { TEXT_DEFAULTS, DEFAULT_TEXT_WIDTH, DEFAULT_TEXT_HEIGHT } from '@/constants';
 
@@ -69,11 +70,6 @@ const DEFAULT_FONT_SIZE = 24;
 const DEFAULT_FONT_FAMILY = 'Inter';
 
 /**
- * Default text content for new text shapes
- */
-const DEFAULT_TEXT_CONTENT = 'Double-click to edit';
-
-/**
  * Hook for managing shape creation with click-drag-release
  *
  * Provides handlers for mouse events and preview state.
@@ -96,7 +92,7 @@ const DEFAULT_TEXT_CONTENT = 'Double-click to edit';
  */
 export function useShapeCreation(): UseShapeCreationReturn {
   const { activeTool, setActiveTool } = useToolStore();
-  const { addObject, clearSelection } = useCanvasStore();
+  const { addObject, clearSelection, setEditingText } = useCanvasStore();
   const { currentUser } = useAuth();
 
   const [previewShape, setPreviewShape] = useState<CanvasObject | null>(null);
@@ -169,14 +165,16 @@ export function useShapeCreation(): UseShapeCreationReturn {
 
       // For text tool: Create text immediately on click (no drag needed)
       if (activeTool === 'text') {
+
         // Create text shape immediately with all default typography properties
         // Text boxes are fixed-size containers (like rectangles) that hold text
+        // Start with placeholder text so it's visible while edit mode loads
         const newText: Text = {
           id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: 'text',
           x: canvasPos.x,
           y: canvasPos.y,
-          text: DEFAULT_TEXT_CONTENT,
+          text: 'Start typing...', // Placeholder text - visible while editing starts
           fontSize: DEFAULT_FONT_SIZE,
           fontFamily: DEFAULT_FONT_FAMILY,
           fill: DEFAULT_TEXT_FILL,
@@ -206,16 +204,49 @@ export function useShapeCreation(): UseShapeCreationReturn {
         // Add to canvas store (optimistic update)
         addObject(newText);
 
-        // Auto-switch back to move tool (Figma-style behavior)
-        setActiveTool('move');
+        // NOTE: Tool switch moved to handleTextSave/handleTextCancel (after editing completes)
+        // Don't auto-switch here - would happen before edit mode starts, breaking textarea
 
         // Sync to Realtime Database
-        addCanvasObject('main', newText).catch((error) => {
-          console.error('Failed to add text to RTDB:', error);
+        addCanvasObject('main', newText).catch(() => {
           // Rollback optimistic update on error
           const { removeObject } = useCanvasStore.getState();
           removeObject(newText.id);
         });
+
+        // CRITICAL: Switch to move tool BEFORE entering edit mode
+        // This prevents the "tool changed while editing" effect from triggering auto-save
+        setActiveTool('move');
+
+        // CRITICAL: Enter edit mode IMMEDIATELY (optimistically) so textarea appears instantly
+        // This ensures the user can start typing without any delay
+        setEditingText(newText.id);
+
+        // Acquire editing lock asynchronously in parallel
+        // If lock fails (rare), we gracefully handle it by closing the editor
+        (async () => {
+          if (!currentUser) {
+            return;
+          }
+
+          try {
+            const { startEditing } = await import('@/lib/firebase');
+            const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
+            const color = getUserColor(currentUser.uid);
+
+            const canEdit = await startEditing('main', newText.id, currentUser.uid, username, color);
+
+            if (!canEdit) {
+              // Failed to acquire lock (another user somehow has it)
+              // Close the editor gracefully
+              setEditingText(null);
+              // Optionally show a toast notification here
+            }
+          } catch (error) {
+            // Failed to acquire edit lock - close editor
+            setEditingText(null);
+          }
+        })();
 
         // Don't start drag creation flow for text
         return;
@@ -360,7 +391,6 @@ export function useShapeCreation(): UseShapeCreationReturn {
     try {
       await addCanvasObject('main', newShape);
     } catch (error) {
-      console.error('Failed to add object to RTDB:', error);
       // Rollback optimistic update on error
       const { removeObject } = useCanvasStore.getState();
       removeObject(newShape.id);

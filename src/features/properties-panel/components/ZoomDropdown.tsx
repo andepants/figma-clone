@@ -154,13 +154,8 @@ export function ZoomDropdown() {
    * Only submit if dropdown is still open (prevents double-submit on menu item click)
    */
   function handleInputBlur() {
-    // Use setTimeout to check if a menu item was clicked
-    // If menu item is clicked, dropdown will close first
-    setTimeout(() => {
-      if (isOpen) {
-        handleInputSubmit();
-      }
-    }, 100);
+    // Don't auto-submit on blur - only submit on Enter or menu item click
+    // This prevents the dropdown from closing when hovering over menu items
   }
 
   /**
@@ -201,7 +196,7 @@ export function ZoomDropdown() {
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-1 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 rounded transition-colors">
           <span className="font-mono">{zoomPercentage}%</span>
@@ -213,18 +208,13 @@ export function ZoomDropdown() {
         align="end"
         className="w-48"
         onCloseAutoFocus={(e) => e.preventDefault()}
-        // Disable focus trap loop so our input can receive focus
-        onInteractOutside={(e) => {
-          // Allow interactions outside
-          const target = e.target as HTMLElement;
-          // Don't close if clicking the input
-          if (inputRef.current?.contains(target)) {
-            e.preventDefault();
-          }
-        }}
+        onEscapeKeyDown={() => setIsOpen(false)}
       >
         {/* Zoom Input */}
-        <div className="px-2 py-1.5" onMouseDown={handleInputWrapperMouseDown}>
+        <div
+          className="px-2 py-1.5"
+          onMouseDown={handleInputWrapperMouseDown}
+        >
           <div className="relative">
             <input
               ref={inputRef}
@@ -256,21 +246,39 @@ export function ZoomDropdown() {
         <DropdownMenuSeparator />
 
         {/* Zoom In */}
-        <DropdownMenuItem onClick={zoomIn} className="text-xs">
+        <DropdownMenuItem
+          onSelect={() => {
+            zoomIn();
+            setIsOpen(false);
+          }}
+          className="text-xs"
+        >
           <ZoomIn className="w-3.5 h-3.5 mr-1.5" />
           <span>Zoom in</span>
           <span className="ml-auto text-[11px] text-gray-400">⌘+</span>
         </DropdownMenuItem>
 
         {/* Zoom Out */}
-        <DropdownMenuItem onClick={zoomOut} className="text-xs">
+        <DropdownMenuItem
+          onSelect={() => {
+            zoomOut();
+            setIsOpen(false);
+          }}
+          className="text-xs"
+        >
           <ZoomOut className="w-3.5 h-3.5 mr-1.5" />
           <span>Zoom out</span>
           <span className="ml-auto text-[11px] text-gray-400">⌘-</span>
         </DropdownMenuItem>
 
         {/* Zoom to Fit */}
-        <DropdownMenuItem onClick={zoomToFit} className="text-xs">
+        <DropdownMenuItem
+          onSelect={() => {
+            zoomToFit();
+            setIsOpen(false);
+          }}
+          className="text-xs"
+        >
           <Maximize className="w-3.5 h-3.5 mr-1.5" />
           <span>Zoom to fit</span>
           <span className="ml-auto text-[11px] text-gray-400">⇧1</span>
@@ -279,18 +287,36 @@ export function ZoomDropdown() {
         <DropdownMenuSeparator />
 
         {/* Preset: 50% */}
-        <DropdownMenuItem onClick={() => zoomTo(50)} className="text-xs">
+        <DropdownMenuItem
+          onSelect={() => {
+            zoomTo(50);
+            setIsOpen(false);
+          }}
+          className="text-xs"
+        >
           Zoom to 50%
         </DropdownMenuItem>
 
         {/* Preset: 100% */}
-        <DropdownMenuItem onClick={() => zoomTo(100)} className="text-xs">
+        <DropdownMenuItem
+          onSelect={() => {
+            zoomTo(100);
+            setIsOpen(false);
+          }}
+          className="text-xs"
+        >
           <span>Zoom to 100%</span>
           <span className="ml-auto text-[11px] text-gray-400">⌘0</span>
         </DropdownMenuItem>
 
         {/* Preset: 200% */}
-        <DropdownMenuItem onClick={() => zoomTo(200)} className="text-xs">
+        <DropdownMenuItem
+          onSelect={() => {
+            zoomTo(200);
+            setIsOpen(false);
+          }}
+          className="text-xs"
+        >
           Zoom to 200%
         </DropdownMenuItem>
       </DropdownMenuContent>

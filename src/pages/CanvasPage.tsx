@@ -5,26 +5,38 @@
  * Contains the collaborative canvas and toolbar with real-time Firestore sync.
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { MenuButton } from '@/features/navigation/components';
 import { PropertiesPanel } from '@/features/properties-panel';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore, usePageStore } from '@/stores';
+import { markManipulated, unmarkManipulated, isManipulated } from '@/stores/manipulationTracker';
 import {
   subscribeToCanvasObjects,
   subscribeToDragStates,
   subscribeToResizeStates,
+  subscribeToEditStates,
   setOnline,
   cleanupStaleDragStates,
   cleanupStaleCursors,
 } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
+import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
+import { hexToRgba } from '@/lib/utils';
 
 function CanvasPage() {
+  // Update SEO for canvas page
+  useSEO({
+    title: 'Canvas - CollabCanvas | Real-time Design Collaboration',
+    description: 'Create and design in real-time with your team. Collaborative canvas workspace with live cursors, instant sync, and multiplayer editing.',
+    url: 'https://collabcanvas.app/canvas',
+    type: 'website',
+  });
+
   // Keyboard shortcuts modal state
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
@@ -168,37 +180,23 @@ function CanvasPage() {
     const username = currentUser.username || currentUser.email || 'Anonymous';
 
     // Set user online (includes automatic onDisconnect cleanup)
-    setOnline('main', currentUser.uid, username)
-      .catch((error) => {
-        console.error('Failed to set user online:', error);
-      });
+    setOnline('main', currentUser.uid, username).catch(() => {});
 
     // Clean up any stale drag states from previous sessions
-    cleanupStaleDragStates('main')
-      .catch((error) => {
-        console.error('Failed to cleanup stale drag states:', error);
-      });
+    cleanupStaleDragStates('main').catch(() => {});
 
     // Clean up any stale cursors from previous sessions
-    cleanupStaleCursors('main')
-      .catch((error) => {
-        console.error('Failed to cleanup stale cursors:', error);
-      });
+    cleanupStaleCursors('main').catch(() => {});
 
     // Note: No explicit cleanup needed - onDisconnect() handles it
   }, [currentUser]);
 
   /**
-   * Track objects being actively manipulated by current user
-   * Used to prevent remote updates from overwriting local optimistic updates during drag/resize
-   *
-   * Key = objectId, Value = true if currently being manipulated
-   */
-  const activeManipulationsRef = useRef<Set<string>>(new Set());
-
-  /**
    * Subscribe to drag states to track which objects current user is dragging
    * This prevents remote updates from causing handle jump during drag
+   *
+   * PERFORMANCE FIX: Uses global manipulation tracker instead of local ref
+   * to enable immediate tracking in useGroupDrag before Firebase write completes
    */
   useEffect(() => {
     if (!currentUser) return;
@@ -207,9 +205,9 @@ function CanvasPage() {
       // Track which objects the current user is actively dragging
       Object.entries(dragStates).forEach(([objectId, dragState]) => {
         if (dragState.userId === currentUser.uid) {
-          activeManipulationsRef.current.add(objectId);
+          markManipulated(objectId);
         } else {
-          activeManipulationsRef.current.delete(objectId);
+          unmarkManipulated(objectId);
         }
       });
     });
@@ -220,6 +218,9 @@ function CanvasPage() {
   /**
    * Subscribe to resize states to track which objects current user is resizing
    * This prevents remote updates from causing handle jump during resize
+   *
+   * PERFORMANCE FIX: Uses global manipulation tracker instead of local ref
+   * to enable immediate tracking in useResize before Firebase write completes
    */
   useEffect(() => {
     if (!currentUser) return;
@@ -228,9 +229,31 @@ function CanvasPage() {
       // Track which objects the current user is actively resizing
       Object.entries(resizeStates).forEach(([objectId, resizeState]) => {
         if (resizeState.userId === currentUser.uid) {
-          activeManipulationsRef.current.add(objectId);
+          markManipulated(objectId);
         } else {
-          activeManipulationsRef.current.delete(objectId);
+          unmarkManipulated(objectId);
+        }
+      });
+    });
+
+    return unsubscribe;
+  }, [currentUser]);
+
+  /**
+   * Subscribe to edit states to track which text objects current user is editing
+   * This prevents remote updates from overwriting text content during editing
+   * CRITICAL FIX: Prevents textarea flickering and text reverting to stored value
+   */
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribe = subscribeToEditStates('main', (editStates) => {
+      // Track which text objects the current user is actively editing
+      Object.entries(editStates).forEach(([textId, editState]) => {
+        if (editState.userId === currentUser.uid) {
+          markManipulated(textId);
+        } else {
+          unmarkManipulated(textId);
         }
       });
     });
@@ -268,9 +291,10 @@ function CanvasPage() {
         const localObjectsMap = new Map(localObjects.map(obj => [obj.id, obj]));
 
         // Merge: Keep local version of actively manipulated objects, use remote for others
+        // PERFORMANCE FIX: Uses global manipulation tracker for immediate tracking
         const mergedObjects = remoteObjects.map(remoteObj => {
           // If current user is actively manipulating this object, keep local version
-          if (activeManipulationsRef.current.has(remoteObj.id)) {
+          if (isManipulated(remoteObj.id)) {
             const localObj = localObjectsMap.get(remoteObj.id);
             // If we have a local version, use it; otherwise fall back to remote
             return localObj || remoteObj;
@@ -284,7 +308,7 @@ function CanvasPage() {
         // (e.g., objects that were just created locally and haven't synced yet)
         localObjects.forEach(localObj => {
           const existsRemotely = remoteObjects.some(remoteObj => remoteObj.id === localObj.id);
-          if (!existsRemotely && activeManipulationsRef.current.has(localObj.id)) {
+          if (!existsRemotely && isManipulated(localObj.id)) {
             mergedObjects.push(localObj);
           }
         });
@@ -304,7 +328,6 @@ function CanvasPage() {
         unsubscribe();
       };
     } catch (error) {
-      console.error('Error setting up Realtime Database subscription:', error);
       // Mark loading as complete even on error
       setIsLoading(false);
     }
@@ -315,15 +338,6 @@ function CanvasPage() {
   // Calculate background color with opacity
   const backgroundColor = pageSettings.backgroundColor;
   const opacity = pageSettings.opacity / 100;
-
-  // Convert hex to rgba
-  const hexToRgba = (hex: string, alpha: number) => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
-
   const bgColorWithOpacity = hexToRgba(backgroundColor, opacity);
 
   // Show loading indicator during initial load
@@ -384,7 +398,6 @@ function CanvasPage() {
       </div>
     );
   } catch (error) {
-    console.error('Error rendering CanvasPage:', error);
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">

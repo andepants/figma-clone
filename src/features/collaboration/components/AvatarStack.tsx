@@ -59,7 +59,7 @@ interface AvatarStackProps {
  *   ]}
  *   maxVisible={3}
  *   size="sm"
- *   onShowAll={() => console.log('Show all users')}
+ *   onShowAll={() => {}}
  * />
  */
 export function AvatarStack({

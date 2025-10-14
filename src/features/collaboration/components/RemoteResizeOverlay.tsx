@@ -93,7 +93,6 @@ export const RemoteResizeOverlay = memo(function RemoteResizeOverlay({
 
   // Early return if critical bounds data is missing or object not found
   if (!currentBounds || currentBounds.x === undefined || currentBounds.y === undefined) {
-    console.warn('RemoteResizeOverlay: Missing bounds data', resizeState);
     return null;
   }
 

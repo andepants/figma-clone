@@ -19,7 +19,7 @@
  * const throttledUpdate = throttle((x, y) => updateCursor(x, y), 50)
  * // Called every 50ms max, even if invoked more frequently
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {

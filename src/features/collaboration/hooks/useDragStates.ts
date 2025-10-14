@@ -72,7 +72,6 @@ export function useDragStates(canvasId: string): DragStateWithObject[] {
             state.userId !== undefined;
 
           if (!isValid) {
-            console.warn('Incomplete drag state detected, filtering out:', state);
           }
 
           return isValid;

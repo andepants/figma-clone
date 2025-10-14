@@ -63,7 +63,7 @@ interface ToolbarProps {
  */
 export function Toolbar({ onShowShortcuts }: ToolbarProps) {
   const { activeTool, setActiveTool } = useToolStore();
-  const { clearObjects, selectedId, removeObject, selectObject, objects, addObject } = useCanvasStore();
+  const { clearObjects, selectedIds, removeObject, selectObjects, objects, addObject } = useCanvasStore();
 
   /**
    * Handle tool button click
@@ -73,44 +73,51 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
   }
 
   /**
-   * Handle duplicate selected object
-   * Creates a copy of the selected object with offset position
+   * Handle duplicate selected objects (supports multi-select)
+   * Creates copies of all selected objects with offset position
    */
   async function handleDuplicate() {
-    const selectedObject = objects.find(obj => obj.id === selectedId);
-    if (!selectedObject) return;
+    if (selectedIds.length === 0) return;
 
-    // Create duplicate with new ID and offset position
-    const duplicate = duplicateObject(selectedObject);
+    const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+    const newIds: string[] = [];
 
-    // Optimistic update - add to local store immediately
-    addObject(duplicate);
-    selectObject(duplicate.id);
+    // Create duplicates for all selected objects
+    for (const selectedObject of selectedObjects) {
+      const duplicate = duplicateObject(selectedObject);
 
-    // Sync to Realtime Database
-    try {
-      await addCanvasObject('main', duplicate);
-    } catch (error) {
-      console.error('Failed to sync duplicate to RTDB:', error);
-      // Note: RTDB subscription will restore correct state if sync fails
-    }
-  }
-
-  /**
-   * Handle delete selected object
-   * Removes the currently selected object from canvas and syncs to Realtime Database
-   */
-  async function handleDelete() {
-    if (selectedId) {
-      // Optimistic update - remove from local store immediately
-      removeObject(selectedId);
-      selectObject(null);
+      // Optimistic update - add to local store immediately
+      addObject(duplicate);
+      newIds.push(duplicate.id);
 
       // Sync to Realtime Database
       try {
-        await removeCanvasObject('main', selectedId);
+        await addCanvasObject('main', duplicate);
       } catch (error) {
-        console.error('Failed to sync deletion to RTDB:', error);
+        // Note: RTDB subscription will restore correct state if sync fails
+      }
+    }
+
+    // Select the duplicates
+    selectObjects(newIds);
+  }
+
+  /**
+   * Handle delete selected objects (supports multi-select)
+   * Removes all selected objects from canvas and syncs to Realtime Database
+   */
+  async function handleDelete() {
+    if (selectedIds.length === 0) return;
+
+    // Optimistic update - remove all from local store immediately
+    selectedIds.forEach(id => removeObject(id));
+    selectObjects([]);
+
+    // Sync to Realtime Database
+    for (const id of selectedIds) {
+      try {
+        await removeCanvasObject('main', id);
+      } catch (error) {
         // Note: RTDB subscription will restore correct state if sync fails
       }
     }
@@ -131,7 +138,6 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
       try {
         await clearAllCanvasObjects('main');
       } catch (error) {
-        console.error('Failed to clear canvas objects:', error);
         // Note: Could add rollback logic here if needed
       }
     }
@@ -154,22 +160,22 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
 
         <ToolbarDivider />
 
-        {/* Duplicate selected object button */}
+        {/* Duplicate selected objects button */}
         <ToolButton
           icon={Copy}
-          label="Duplicate selected object"
+          label="Duplicate selected objects"
           tooltip="Duplicate ⌘D"
           onClick={handleDuplicate}
-          disabled={!selectedId}
+          disabled={selectedIds.length === 0}
         />
 
-        {/* Delete selected object button */}
+        {/* Delete selected objects button */}
         <ToolButton
           icon={Trash2}
-          label="Delete selected object"
+          label="Delete selected objects"
           tooltip="Delete Del"
           onClick={handleDelete}
-          disabled={!selectedId}
+          disabled={selectedIds.length === 0}
         />
 
         <ToolbarDivider />

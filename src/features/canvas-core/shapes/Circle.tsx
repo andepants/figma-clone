@@ -21,7 +21,7 @@ import {
 import { useAuth } from '@/features/auth/hooks';
 import { getUserColor } from '@/features/collaboration/utils';
 import { screenToCanvasCoords } from '../utils';
-import { ResizeHandles } from '../components';
+import { ResizeHandles, DimensionLabel } from '../components';
 import { useResize } from '../hooks';
 
 /**
@@ -32,8 +32,10 @@ interface CircleProps {
   circle: CircleType;
   /** Whether this circle is currently selected */
   isSelected: boolean;
-  /** Callback when circle is selected */
-  onSelect: () => void;
+  /** Whether this circle is part of a multi-select */
+  isInMultiSelect?: boolean;
+  /** Callback when circle is selected (receives event for shift-click detection) */
+  onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Optional drag state from another user (for real-time position updates) */
   remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
 }
@@ -62,8 +64,9 @@ interface CircleProps {
 export const Circle = memo(function Circle({
   circle,
   isSelected,
+  isInMultiSelect = false,
   onSelect,
-  remoteDragState
+  remoteDragState,
 }: CircleProps) {
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
@@ -122,16 +125,18 @@ export const Circle = memo(function Circle({
   /**
    * Handle click on circle
    * Only triggers selection when move tool is active
+   * Passes event to parent for shift-click multi-select detection
    */
-  function handleClick() {
+  function handleClick(e: Konva.KonvaEventObject<MouseEvent>) {
     if (activeTool === 'move') {
-      onSelect();
+      onSelect(e);
     }
   }
 
   /**
    * Handle drag start
    * Checks for drag lock and prevents stage from dragging when dragging a shape
+   * Note: In multi-select mode, individual shapes are non-draggable; group drag is handled by invisible drag target
    */
   async function handleDragStart(e: Konva.KonvaEventObject<DragEvent>) {
     // Prevent event from bubbling to stage (prevents stage drag)
@@ -154,8 +159,6 @@ export const Circle = memo(function Circle({
 
     if (!canDrag) {
       // Another user is dragging this object
-      console.log('Another user is editing this object');
-
       // Cancel the drag
       e.target.stopDrag();
       return;
@@ -255,6 +258,7 @@ export const Circle = memo(function Circle({
   // Determine stroke styling based on state
   const getStroke = () => {
     if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
+    if (isInMultiSelect) return '#38bdf8'; // Multi-select: lighter blue
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
     if (isHovered && activeTool === 'move') return '#94a3b8'; // Hovered: subtle gray
     return undefined; // Default: no stroke
@@ -265,11 +269,6 @@ export const Circle = memo(function Circle({
     if (isSelected) return 3; // Selected: thick border
     if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
     return undefined; // Default: no border
-  };
-
-  const getOpacity = () => {
-    if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
-    return circle.opacity ?? 1; // Use shape opacity, default to fully opaque
   };
 
   const getShadow = () => {
@@ -321,7 +320,7 @@ export const Circle = memo(function Circle({
         // Interaction
         onClick={handleClick}
         onTap={handleClick} // Mobile support
-        draggable={(isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging} // Disable drag if remotely dragging
+        draggable={(isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isInMultiSelect} // Disable drag if remotely dragging or in multi-select
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -349,6 +348,9 @@ export const Circle = memo(function Circle({
         onResizeMove={(_handleType, x, y) => handleResizeMove(circle.id, x, y)}
         onResizeEnd={() => handleResizeEnd(circle.id)}
       />
+
+      {/* Dimension Label - shows width × height when selected */}
+      <DimensionLabel object={circle} visible={isSelected && activeTool === 'move'} />
     </Fragment>
   );
 });

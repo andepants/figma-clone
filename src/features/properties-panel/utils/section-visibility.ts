@@ -127,7 +127,7 @@ export function isSectionVisible(
  * @example
  * ```ts
  * const visibleSections = getVisibleSectionNames(shape);
- * console.log('Visible sections:', visibleSections); // ['position', 'layout', 'fill']
+ * // visibleSections: ['position', 'layout', 'fill']
  * ```
  */
 export function getVisibleSectionNames(shape: CanvasObject | null): string[] {

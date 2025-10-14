@@ -62,7 +62,6 @@ export const DragIndicator = memo(function DragIndicator({
 
   // Early return if critical position data is missing
   if (x === undefined || y === undefined) {
-    console.warn('DragIndicator: Missing position data', dragState);
     return null;
   }
 

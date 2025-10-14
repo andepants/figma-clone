@@ -1,0 +1,26 @@
+# Icon Placeholders
+
+This directory should contain the following icon files for full SEO optimization:
+
+## Required Icons:
+- favicon-16x16.png (16x16 px)
+- favicon-32x32.png (32x32 px)
+- apple-touch-icon.png (180x180 px)
+- android-chrome-192x192.png (192x192 px)
+- android-chrome-512x512.png (512x512 px)
+
+## Social Media Images:
+- og-image.png (1200x630 px) - For Open Graph (Facebook, LinkedIn)
+- twitter-image.png (1200x675 px) - For Twitter Cards
+- screenshot.png (1280x720 px) - For structured data
+- screenshot-wide.png (1920x1080 px) - For PWA manifest
+- screenshot-mobile.png (750x1334 px) - For PWA manifest
+
+## How to Generate:
+Use the favicon.svg as a base and generate PNG versions:
+1. Use a tool like https://realfavicongenerator.net/
+2. Or use ImageMagick: `convert favicon.svg -resize 32x32 favicon-32x32.png`
+3. Create screenshots of the actual app for social media images
+
+The current favicon.svg uses the CollabCanvas brand color (#0ea5e9) with a
+minimalist design representing a canvas with shapes.

@@ -6,25 +6,178 @@
           ".read": "auth != null",
           ".write": "auth != null",
           "$objectId": {
-            ".write": "auth != null"
+            ".write": "auth != null",
+            ".validate": "newData.hasChild('id') && newData.hasChild('type') && newData.hasChild('createdBy')",
+            "id": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "type": {
+              ".validate": "newData.isString() && (newData.val() == 'rectangle' || newData.val() == 'circle' || newData.val() == 'text')"
+            },
+            "text": {
+              ".validate": "newData.isString() && newData.val().length <= 50000"
+            },
+            "x": {
+              ".validate": "newData.isNumber()"
+            },
+            "y": {
+              ".validate": "newData.isNumber()"
+            },
+            "width": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000"
+            },
+            "height": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000"
+            },
+            "radius": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 25000"
+            },
+            "fill": {
+              ".validate": "newData.isString() && newData.val().length <= 50"
+            },
+            "fontSize": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 500"
+            },
+            "fontFamily": {
+              ".validate": "newData.isString() && newData.val().length <= 100"
+            },
+            "$other": {
+              ".validate": "true"
+            }
           }
         },
         "cursors": {
           ".read": "auth != null",
           "$userId": {
-            ".write": "auth.uid == $userId"
+            ".write": "auth.uid == $userId",
+            ".validate": "newData.hasChild('x') && newData.hasChild('y') && newData.hasChild('username') && newData.hasChild('color')",
+            "x": {
+              ".validate": "newData.isNumber()"
+            },
+            "y": {
+              ".validate": "newData.isNumber()"
+            },
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[0-9A-Fa-f]{6}$/)"
+            }
           }
         },
         "drag-states": {
           ".read": "auth != null",
           "$objectId": {
-            ".write": "auth != null"
+            ".write": "auth != null",
+            "x": {
+              ".validate": "newData.isNumber()"
+            },
+            "y": {
+              ".validate": "newData.isNumber()"
+            },
+            "userId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            },
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[0-9A-Fa-f]{6}$/)"
+            },
+            "startedAt": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "lastUpdate": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "$other": {
+              ".validate": "false"
+            }
           }
         },
         "resize-states": {
           ".read": "auth != null",
           "$objectId": {
-            ".write": "auth != null"
+            ".write": "auth != null",
+            "objectId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "userId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            },
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[0-9A-Fa-f]{6}$/)"
+            },
+            "handle": {
+              ".validate": "newData.isString() && (newData.val() == 'nw' || newData.val() == 'ne' || newData.val() == 'sw' || newData.val() == 'se' || newData.val() == 'n' || newData.val() == 's' || newData.val() == 'e' || newData.val() == 'w')"
+            },
+            "startBounds": {
+              "x": {
+                ".validate": "newData.isNumber()"
+              },
+              "y": {
+                ".validate": "newData.isNumber()"
+              },
+              "width": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "height": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              }
+            },
+            "currentBounds": {
+              "x": {
+                ".validate": "newData.isNumber()"
+              },
+              "y": {
+                ".validate": "newData.isNumber()"
+              },
+              "width": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "height": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              }
+            },
+            "anchor": {
+              "x": {
+                ".validate": "newData.isNumber()"
+              },
+              "y": {
+                ".validate": "newData.isNumber()"
+              }
+            },
+            "timestamp": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            }
+          }
+        },
+        "edit-states": {
+          ".read": "auth != null",
+          "$textId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChild('userId') && newData.hasChild('username') && newData.hasChild('color') && newData.hasChild('lastUpdate')",
+            "userId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            },
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[0-9A-Fa-f]{6}$/)"
+            },
+            "liveText": {
+              ".validate": "newData.isString() && newData.val().length <= 50000"
+            },
+            "lastUpdate": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "startedAt": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            }
           }
         },
         "selections": {
@@ -36,7 +189,14 @@
         "presence": {
           ".read": "auth != null",
           "$userId": {
-            ".write": "auth.uid == $userId"
+            ".write": "auth.uid == $userId",
+            ".validate": "newData.hasChild('username') && newData.hasChild('online')",
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "online": {
+              ".validate": "newData.isBoolean()"
+            }
           }
         }
       }

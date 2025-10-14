@@ -36,11 +36,11 @@ function isInputFocused(): boolean {
  * - R: Rectangle tool
  * - C: Circle tool
  * - T: Text tool
- * - Cmd/Ctrl+D: Duplicate selected object
+ * - Cmd/Ctrl+D: Duplicate selected objects (supports multi-select)
  * - Cmd/Ctrl+0: Reset zoom to 100%
  * - Cmd/Ctrl+1: Fit all objects in view
- * - Cmd/Ctrl+2: Zoom to selection
- * - Delete/Backspace: Delete selected object
+ * - Cmd/Ctrl+2: Zoom to selection (supports multi-select)
+ * - Delete/Backspace: Delete selected objects (supports multi-select)
  * - Escape: Clear selection
  * - ?: Show keyboard shortcuts modal
  *
@@ -59,7 +59,7 @@ function isInputFocused(): boolean {
  */
 export function useToolShortcuts(onShowShortcuts?: () => void) {
   const { setActiveTool } = useToolStore();
-  const { clearSelection, selectedId, removeObject, objects, addObject, selectObject, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo } = useCanvasStore();
+  const { clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo } = useCanvasStore();
 
   useEffect(() => {
     /**
@@ -73,26 +73,30 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
 
       const key = event.key.toLowerCase();
 
-      // Handle Cmd/Ctrl+D for duplicate
+      // Handle Cmd/Ctrl+D for duplicate (supports multi-select)
       if ((event.metaKey || event.ctrlKey) && key === 'd') {
         event.preventDefault(); // Prevent browser "Add Bookmark" dialog
 
-        if (selectedId) {
-          const selectedObject = objects.find(obj => obj.id === selectedId);
-          if (selectedObject) {
-            // Create duplicate with new ID and offset position
+        if (selectedIds.length > 0) {
+          const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+          const newIds: string[] = [];
+
+          // Create duplicates for all selected objects
+          for (const selectedObject of selectedObjects) {
             const duplicate = duplicateObject(selectedObject);
 
             // Optimistic update
             addObject(duplicate);
-            selectObject(duplicate.id);
+            newIds.push(duplicate.id);
 
             // Sync to Realtime Database
             addCanvasObject('main', duplicate)
               .catch((error) => {
-                console.error('Failed to sync duplicate to RTDB:', error);
               });
           }
+
+          // Select the duplicates
+          selectObjects(newIds);
         }
         return;
       }
@@ -178,40 +182,43 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
         return;
       }
 
-      // Handle Cmd/Ctrl+2 for zoom to selection
+      // Handle Cmd/Ctrl+2 for zoom to selection (supports multi-select)
       if ((event.metaKey || event.ctrlKey) && key === '2') {
         event.preventDefault();
 
-        if (!selectedId) {
+        if (selectedIds.length === 0) {
           return;
         }
 
-        const selectedObject = objects.find(obj => obj.id === selectedId);
-        if (!selectedObject) return;
+        const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+        if (selectedObjects.length === 0) return;
 
-        // Calculate bounding box of selected object
-        let minX, minY, maxX, maxY;
+        // Calculate bounding box of all selected objects
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
 
-        if (selectedObject.type === 'rectangle') {
-          minX = selectedObject.x;
-          minY = selectedObject.y;
-          maxX = selectedObject.x + selectedObject.width;
-          maxY = selectedObject.y + selectedObject.height;
-        } else if (selectedObject.type === 'circle') {
-          minX = selectedObject.x - selectedObject.radius;
-          minY = selectedObject.y - selectedObject.radius;
-          maxX = selectedObject.x + selectedObject.radius;
-          maxY = selectedObject.y + selectedObject.radius;
-        } else if (selectedObject.type === 'text') {
-          const textWidth = selectedObject.width || 200;
-          const textHeight = selectedObject.fontSize * 1.2 || 30;
-          minX = selectedObject.x;
-          minY = selectedObject.y;
-          maxX = selectedObject.x + textWidth;
-          maxY = selectedObject.y + textHeight;
-        } else {
-          return;
-        }
+        selectedObjects.forEach((selectedObject) => {
+          if (selectedObject.type === 'rectangle') {
+            minX = Math.min(minX, selectedObject.x);
+            minY = Math.min(minY, selectedObject.y);
+            maxX = Math.max(maxX, selectedObject.x + selectedObject.width);
+            maxY = Math.max(maxY, selectedObject.y + selectedObject.height);
+          } else if (selectedObject.type === 'circle') {
+            minX = Math.min(minX, selectedObject.x - selectedObject.radius);
+            minY = Math.min(minY, selectedObject.y - selectedObject.radius);
+            maxX = Math.max(maxX, selectedObject.x + selectedObject.radius);
+            maxY = Math.max(maxY, selectedObject.y + selectedObject.radius);
+          } else if (selectedObject.type === 'text') {
+            const textWidth = selectedObject.width || 200;
+            const textHeight = selectedObject.fontSize * 1.2 || 30;
+            minX = Math.min(minX, selectedObject.x);
+            minY = Math.min(minY, selectedObject.y);
+            maxX = Math.max(maxX, selectedObject.x + textWidth);
+            maxY = Math.max(maxY, selectedObject.y + textHeight);
+          }
+        });
 
         // Add padding
         const padding = 100;
@@ -262,17 +269,18 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
           break;
         case 'delete':
         case 'backspace':
-          if (selectedId) {
-            // Optimistic update
-            removeObject(selectedId);
+          if (selectedIds.length > 0) {
+            // Optimistic update - remove all selected objects
+            selectedIds.forEach(id => removeObject(id));
             clearSelection();
             event.preventDefault();
 
             // Sync to Realtime Database
-            removeCanvasObject('main', selectedId)
-              .catch((error) => {
-                console.error('Failed to sync deletion to RTDB:', error);
-              });
+            for (const id of selectedIds) {
+              removeCanvasObject('main', id)
+                .catch((error) => {
+                });
+            }
           }
           break;
         case 'escape':
@@ -291,5 +299,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, clearSelection, selectedId, removeObject, objects, addObject, selectObject, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, onShowShortcuts]);
+  }, [setActiveTool, clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, onShowShortcuts]);
 }

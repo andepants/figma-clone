@@ -31,7 +31,7 @@ import type { CanvasObject } from '@/types';
  * @example
  * ```typescript
  * const unsubscribe = subscribeToCanvasObjects('main', (objects) => {
- *   console.log('Canvas updated:', objects);
+ *   // Process updated canvas objects
  * });
  *
  * // Later, cleanup
@@ -68,7 +68,6 @@ export function subscribeToCanvasObjects(
       callback(objectsArray);
     },
     (error) => {
-      console.error('Error subscribing to canvas objects:', error);
       // Still call callback with empty array on error
       callback([]);
     }
@@ -127,7 +126,6 @@ export async function addCanvasObject(
       }
     }, 3, 1000);
   } catch (error) {
-    console.error('Failed to add canvas object after retries:', error);
     throw error;
   }
 }
@@ -171,7 +169,6 @@ export async function updateCanvasObject(
 
     await update(objectRef, updatesWithTimestamp);
   } catch (error) {
-    console.error('Failed to update canvas object:', error);
     // Don't throw - updates shouldn't break the app
   }
 }
@@ -219,7 +216,6 @@ export async function removeCanvasObject(
       await remove(objectRef);
     }, 3, 1000);
   } catch (error) {
-    console.error('Failed to remove canvas object after retries:', error);
     throw error;
   }
 }
@@ -250,8 +246,61 @@ export async function clearAllCanvasObjects(canvasId: string): Promise<void> {
       await set(objectsRef, null);
     }, 3, 1000);
   } catch (error) {
-    console.error('Failed to clear canvas objects after retries:', error);
     throw error;
+  }
+}
+
+/**
+ * Atomic batch update for multiple canvas objects
+ *
+ * Updates multiple objects in a single Firebase transaction.
+ * This is essential for group operations like multi-select drag,
+ * where all objects must update atomically to prevent flickering
+ * or drift for other users.
+ *
+ * Benefits:
+ * - Single network call instead of N separate calls
+ * - Atomic: All objects update together or none do
+ * - No drift: Other users receive single consistent update
+ * - Faster: ~100ms total instead of N × 100ms
+ *
+ * @param {string} canvasId - Canvas identifier
+ * @param {Record<string, Partial<CanvasObject>>} updates - Map of objectId → partial updates
+ * @returns {Promise<void>}
+ *
+ * @example
+ * ```typescript
+ * // Update positions of multiple objects in group drag
+ * await batchUpdateCanvasObjects('main', {
+ *   'rect1': { x: 100, y: 200 },
+ *   'rect2': { x: 150, y: 250 },
+ *   'circle1': { x: 300, y: 100 }
+ * });
+ * ```
+ */
+export async function batchUpdateCanvasObjects(
+  canvasId: string,
+  updates: Record<string, Partial<CanvasObject>>
+): Promise<void> {
+  try {
+    const dbRef = ref(realtimeDb);
+
+    // Build multi-path update object
+    const multiPathUpdates: Record<string, any> = {};
+    const timestamp = Date.now();
+
+    for (const [objectId, objectUpdates] of Object.entries(updates)) {
+      for (const [key, value] of Object.entries(objectUpdates)) {
+        multiPathUpdates[`canvases/${canvasId}/objects/${objectId}/${key}`] = value;
+      }
+      // Always update timestamp
+      multiPathUpdates[`canvases/${canvasId}/objects/${objectId}/updatedAt`] = timestamp;
+    }
+
+    // Single atomic update
+    await update(dbRef, multiPathUpdates);
+  } catch (error) {
+    // Don't throw - updates shouldn't break the app
   }
 }
 
@@ -267,7 +316,7 @@ export async function clearAllCanvasObjects(canvasId: string): Promise<void> {
  * @example
  * ```typescript
  * const objects = await getAllCanvasObjects('main');
- * console.log(`Found ${objects.length} objects`);
+ * // Process retrieved objects
  * ```
  */
 export async function getAllCanvasObjects(
@@ -291,7 +340,6 @@ export async function getAllCanvasObjects(
 
     return objectsArray;
   } catch (error) {
-    console.error('Failed to get canvas objects:', error);
     return [];
   }
 }

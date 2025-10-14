@@ -20,7 +20,7 @@ import {
 import { useAuth } from '@/features/auth/hooks';
 import { getUserColor } from '@/features/collaboration/utils';
 import { screenToCanvasCoords } from '../utils';
-import { ResizeHandles } from '../components';
+import { ResizeHandles, DimensionLabel } from '../components';
 import { useResize } from '../hooks';
 
 /**
@@ -31,8 +31,10 @@ interface RectangleProps {
   rectangle: RectangleType;
   /** Whether this rectangle is currently selected */
   isSelected: boolean;
-  /** Callback when rectangle is selected */
-  onSelect: () => void;
+  /** Whether this rectangle is part of a multi-select */
+  isInMultiSelect?: boolean;
+  /** Callback when rectangle is selected (receives event for shift-click detection) */
+  onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Optional drag state from another user (for real-time position updates) */
   remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
 }
@@ -59,8 +61,9 @@ interface RectangleProps {
 export const Rectangle = memo(function Rectangle({
   rectangle,
   isSelected,
+  isInMultiSelect = false,
   onSelect,
-  remoteDragState
+  remoteDragState,
 }: RectangleProps) {
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
@@ -82,6 +85,10 @@ export const Rectangle = memo(function Rectangle({
   // Use drag state position if available, otherwise use persisted position
   const displayX = remoteDragState?.x ?? rectangle.x;
   const displayY = remoteDragState?.y ?? rectangle.y;
+
+  // Ensure width and height are valid numbers to prevent NaN in offset calculations
+  const width = rectangle.width || 100;
+  const height = rectangle.height || 100;
 
   /**
    * Animate selection changes
@@ -119,16 +126,18 @@ export const Rectangle = memo(function Rectangle({
   /**
    * Handle click on rectangle
    * Only triggers selection when move tool is active
+   * Passes event to parent for shift-click multi-select detection
    */
-  function handleClick() {
+  function handleClick(e: Konva.KonvaEventObject<MouseEvent>) {
     if (activeTool === 'move') {
-      onSelect();
+      onSelect(e);
     }
   }
 
   /**
    * Handle drag start
    * Checks for drag lock and prevents stage from dragging when dragging a shape
+   * Note: In multi-select mode, individual shapes are non-draggable; group drag is handled by invisible drag target
    */
   async function handleDragStart(e: Konva.KonvaEventObject<DragEvent>) {
     // Prevent event from bubbling to stage (prevents stage drag)
@@ -151,8 +160,6 @@ export const Rectangle = memo(function Rectangle({
 
     if (!canDrag) {
       // Another user is dragging this object
-      console.log('Another user is editing this object');
-
       // Cancel the drag
       e.target.stopDrag();
       return;
@@ -172,8 +179,8 @@ export const Rectangle = memo(function Rectangle({
     const stage = node.getStage();
     // With offset, node.x() returns CENTER position, subtract offset to get top-left
     const position = {
-      x: node.x() - rectangle.width / 2,
-      y: node.y() - rectangle.height / 2
+      x: node.x() - width / 2,
+      y: node.y() - height / 2
     };
 
     // Update local store immediately (optimistic update)
@@ -211,8 +218,8 @@ export const Rectangle = memo(function Rectangle({
     const node = e.target;
     // With offset, node.x() returns CENTER position, subtract offset to get top-left
     const position = {
-      x: node.x() - rectangle.width / 2,
-      y: node.y() - rectangle.height / 2
+      x: node.x() - width / 2,
+      y: node.y() - height / 2
     };
 
     // Update local store (optimistic update)
@@ -260,6 +267,7 @@ export const Rectangle = memo(function Rectangle({
   // Determine stroke styling based on state
   const getStroke = () => {
     if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
+    if (isInMultiSelect) return '#38bdf8'; // Multi-select: lighter blue
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
     if (isHovered && activeTool === 'move') return '#94a3b8'; // Hovered: subtle gray
     return undefined; // Default: no stroke
@@ -306,10 +314,10 @@ export const Rectangle = memo(function Rectangle({
         ref={shapeRef}
         // Position adjusted for center-based offset: x,y in data model represents top-left,
         // but with offset we need to position at center, so add half dimensions
-        x={displayX + rectangle.width / 2}
-        y={displayY + rectangle.height / 2}
-        width={rectangle.width}
-        height={rectangle.height}
+        x={displayX + width / 2}
+        y={displayY + height / 2}
+        width={width}
+        height={height}
         fill={rectangle.fill}
         // Transform properties
         rotation={rectangle.rotation ?? 0}
@@ -319,8 +327,8 @@ export const Rectangle = memo(function Rectangle({
         skewX={rectangle.skewX ?? 0}
         skewY={rectangle.skewY ?? 0}
         // Offset for center-based rotation (shapes rotate around their center, not top-left)
-        offsetX={rectangle.width / 2}
-        offsetY={rectangle.height / 2}
+        offsetX={width / 2}
+        offsetY={height / 2}
         // Shape-specific properties
         cornerRadius={rectangle.cornerRadius ?? 0}
         // Stroke properties (with state-based overrides for selection/hover)
@@ -333,7 +341,7 @@ export const Rectangle = memo(function Rectangle({
         // Interaction
         onClick={handleClick}
         onTap={handleClick} // Mobile support
-        draggable={(isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging} // Disable drag if remotely dragging
+        draggable={(isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isInMultiSelect} // Disable drag if remotely dragging or in multi-select
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -350,13 +358,16 @@ export const Rectangle = memo(function Rectangle({
           handleResizeStart(rectangle.id, handleType, {
             x: rectangle.x,
             y: rectangle.y,
-            width: rectangle.width,
-            height: rectangle.height,
+            width: width,
+            height: height,
           })
         }
         onResizeMove={(_handleType, x, y) => handleResizeMove(rectangle.id, x, y)}
         onResizeEnd={() => handleResizeEnd(rectangle.id)}
       />
+
+      {/* Dimension Label - shows width × height when selected */}
+      <DimensionLabel object={rectangle} visible={isSelected && activeTool === 'move'} />
     </Fragment>
   );
 });

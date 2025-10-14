@@ -110,7 +110,6 @@ export async function startResizing(
     // Set resize state in RTDB
     await set(resizeStateRef, resizeState);
   } catch (error) {
-    console.error('Failed to start resizing:', error);
     throw error;
   }
 }
@@ -150,7 +149,6 @@ export async function updateResizePosition(
       timestamp: Date.now(),
     });
   } catch (error) {
-    console.error('Failed to update resize position:', error);
     // Don't throw - resize updates shouldn't break the app
   }
 }
@@ -208,7 +206,6 @@ export async function endResizing(
     // Remove the resize state
     await remove(resizeStateRef);
   } catch (error) {
-    console.error('Failed to end resizing:', error);
     // Don't throw - cleanup errors shouldn't break the app
   }
 }
@@ -229,10 +226,7 @@ export async function endResizing(
  * @example
  * ```ts
  * const unsubscribe = subscribeToResizeStates('canvas-123', (resizeStates) => {
- *   console.log('Active resizes:', Object.keys(resizeStates).length);
- *   Object.entries(resizeStates).forEach(([objectId, state]) => {
- *     console.log(`${state.username} is resizing ${objectId} via ${state.handle} handle`);
- *   });
+ *   // Process active resize states
  * });
  *
  * // Later, cleanup
@@ -261,7 +255,6 @@ export function subscribeToResizeStates(
       callback(resizeStates);
     },
     (error) => {
-      console.error('Firebase resize states subscription error:', error);
       // On error, return empty map
       callback({});
     }

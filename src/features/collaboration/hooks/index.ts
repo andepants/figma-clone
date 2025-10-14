@@ -20,3 +20,4 @@ export {
   useObjectResizeState,
   type ResizeStateWithObject,
 } from './useRemoteResizes'
+export { useEditStates } from './useEditStates'

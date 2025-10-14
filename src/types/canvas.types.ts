@@ -203,14 +203,14 @@ export type DragStateMap = Record<string, DragState>;
 
 /**
  * Real-time selection state for collaborative editing
- * Tracks which object each user has selected
+ * Tracks which objects each user has selected (supports multi-select)
  *
  * @interface SelectionState
- * @property {string | null} objectId - ID of selected object, null if nothing selected
+ * @property {string[]} objectIds - IDs of selected objects (empty array if nothing selected)
  * @property {number} timestamp - Unix timestamp of selection change
  */
 export interface SelectionState {
-  objectId: string | null;
+  objectIds: string[];
   timestamp: number;
 }
 
@@ -222,16 +222,16 @@ export interface SelectionState {
 export type SelectionStateMap = Record<string, SelectionState>;
 
 /**
- * Remote selection info with user details for rendering
+ * Remote selection info with user details for rendering (supports multi-select)
  * @interface RemoteSelection
  * @property {string} userId - ID of user who made selection
- * @property {string} objectId - ID of selected object
+ * @property {string[]} objectIds - IDs of selected objects
  * @property {string} username - Display name of user
  * @property {string} color - User's assigned color
  */
 export interface RemoteSelection {
   userId: string;
-  objectId: string;
+  objectIds: string[];
   username: string;
   color: string;
 }

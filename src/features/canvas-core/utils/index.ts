@@ -7,3 +7,6 @@
 // Export canvas utilities
 export * from './coordinates';
 export * from './objectHelpers';
+export * from './multiSelect';
+export * from './collision';
+export * from './textFormatting';

@@ -71,7 +71,6 @@ export async function setOnline(
       lastSeen: serverTimestamp(),
     } as PresenceData)
   } catch (error) {
-    console.error('Failed to set user online:', error)
     throw error
   }
 }
@@ -101,7 +100,6 @@ export async function setOffline(
       lastSeen: serverTimestamp(),
     } as PresenceData)
   } catch (error) {
-    console.error('Failed to set user offline:', error)
     // Don't throw - offline updates shouldn't break the app
   }
 }
@@ -117,7 +115,7 @@ export async function setOffline(
  * ```ts
  * useEffect(() => {
  *   const unsubscribe = subscribeToPresence('main', (users) => {
- *     console.log('Online users:', users.filter(u => u.online))
+ *     // Process online users
  *   })
  *   return unsubscribe
  * }, [])
@@ -152,7 +150,6 @@ export function subscribeToPresence(
       callback(presence)
     },
     (error) => {
-      console.error('Firebase presence subscription error:', error)
       callback([])
     }
   )

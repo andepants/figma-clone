@@ -48,5 +48,7 @@ export const useToolStore = create<ToolStore>((set) => ({
   activeTool: 'move',
 
   // Actions
-  setActiveTool: (tool) => set({ activeTool: tool }),
+  setActiveTool: (tool) => {
+    set({ activeTool: tool });
+  },
 }));

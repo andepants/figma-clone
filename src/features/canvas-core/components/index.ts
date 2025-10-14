@@ -8,3 +8,6 @@
 export { CanvasStage } from './CanvasStage';
 export { ResizeHandle } from './ResizeHandle';
 export { ResizeHandles } from './ResizeHandles';
+export { GroupBoundingBox } from './GroupBoundingBox';
+export { TextSelectionBox } from './TextSelectionBox';
+export { DimensionLabel } from './DimensionLabel';

@@ -27,8 +27,9 @@ export function isTouchDevice(): boolean {
     return true;
   }
 
-  // Fallback check for older browsers
-  if ('msMaxTouchPoints' in navigator && (navigator as any).msMaxTouchPoints > 0) {
+  // Fallback check for older browsers (IE/Edge)
+  const legacyNavigator = navigator as Navigator & { msMaxTouchPoints?: number };
+  if (legacyNavigator.msMaxTouchPoints && legacyNavigator.msMaxTouchPoints > 0) {
     return true;
   }
 
@@ -129,7 +130,7 @@ export function isAndroid(): boolean {
  *
  * @example
  * const deviceType = getDeviceType();
- * console.log(`User is on: ${deviceType}`);
+ * // Use device type for conditional logic
  */
 export function getDeviceType(): 'mobile' | 'tablet' | 'desktop' | 'touch-desktop' {
   if (isMobile()) {

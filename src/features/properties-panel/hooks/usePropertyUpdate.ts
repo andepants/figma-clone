@@ -60,7 +60,6 @@ export function usePropertyUpdate(): UsePropertyUpdateReturn {
         } catch (err) {
           const error = err as Error;
           setError(error);
-          console.error('Failed to sync property changes:', error);
         } finally {
           setIsUpdating(false);
         }

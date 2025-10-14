@@ -75,7 +75,6 @@ export function useRemoteResizes(canvasId: string): ResizeStateWithObject[] {
             state.anchor !== undefined;
 
           if (!isValid) {
-            console.warn('Incomplete resize state detected, filtering out:', state);
           }
 
           return isValid;

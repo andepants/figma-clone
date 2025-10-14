@@ -124,7 +124,6 @@ export function useResize(): UseResizeReturn {
   const handleResizeStart = useCallback(
     async (objectId: string, handle: ResizeHandle, bounds: Bounds) => {
       if (!currentUser) {
-        console.log('You must be logged in to resize objects');
         return;
       }
 
@@ -158,8 +157,6 @@ export function useResize(): UseResizeReturn {
           color
         );
       } catch (error) {
-        console.error('Failed to start resize in Firebase:', error);
-
         // Reset state on error (both refs and React state)
         isResizingRef.current = false;
         activeHandleRef.current = null;
@@ -387,7 +384,7 @@ export function useResize(): UseResizeReturn {
           // This prevents flash-back: when resize state clears, object is already at correct position
           await endResizing('main', objectId);
         } catch (error) {
-          console.error('Failed to end resize in Firebase:', error);
+          // Silently fail
         }
       }
 
