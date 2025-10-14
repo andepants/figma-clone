@@ -72,7 +72,7 @@ export function Toolbar() {
   }
 
   return (
-    <div className="absolute left-4 top-4 z-10 flex flex-col gap-1 rounded-lg bg-white p-2 shadow-lg">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-row gap-1 rounded-lg bg-white p-2 shadow-lg">
       {/* Tool selection buttons */}
       {TOOLS.map((tool) => {
         const Icon = tool.icon;
@@ -101,7 +101,7 @@ export function Toolbar() {
       })}
 
       {/* Divider */}
-      <div className="my-1 h-px bg-neutral-200" />
+      <div className="mx-1 w-px bg-neutral-200" />
 
       {/* Clear canvas button */}
       <button

@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { ActiveUsers } from '@/features/collaboration/components';
+import { MenuButton } from '@/features/navigation/components';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore } from '@/stores';
 import { subscribeToCanvasObjects, setOnline, cleanupStaleDragStates, cleanupStaleCursors } from '@/lib/firebase';
@@ -110,6 +111,9 @@ function CanvasPage() {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <Toolbar />
+        <div className="absolute top-4 left-4 z-10">
+          <MenuButton />
+        </div>
         <ActiveUsers />
         <CanvasStage />
       </div>
