@@ -44,7 +44,8 @@ export interface PresenceWithUser extends PresenceData {
  * @example
  * ```ts
  * useEffect(() => {
- *   setOnline('main', currentUser.uid, currentUser.email)
+ *   const username = currentUser.username || currentUser.email || 'Anonymous'
+ *   setOnline('main', currentUser.uid, username)
  * }, [currentUser])
  * ```
  */

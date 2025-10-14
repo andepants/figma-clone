@@ -72,3 +72,22 @@ export {
   type PresenceData,
   type PresenceWithUser,
 } from './presenceService'
+
+// Export Drag State Service
+export {
+  startDragging,
+  updateDragPosition,
+  throttledUpdateDragPosition,
+  endDragging,
+  checkDragLock,
+  subscribeToDragStates,
+  cleanupStaleDragStates,
+} from './dragStateService'
+
+// Export Selection Service
+export {
+  updateSelection,
+  clearSelection,
+  subscribeToSelections,
+  setOnlineWithSelectionCleanup,
+} from './selectionService'

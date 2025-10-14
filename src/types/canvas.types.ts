@@ -85,3 +85,68 @@ export interface Text extends BaseCanvasObject {
  * @typedef {Rectangle | Circle | Text} CanvasObject
  */
 export type CanvasObject = Rectangle | Circle | Text;
+
+/**
+ * Real-time drag state for collaborative editing
+ * Tracks which user is currently dragging which object
+ *
+ * @interface DragState
+ * @property {string} userId - ID of user performing the drag
+ * @property {number} x - Current X position during drag (canvas coordinates)
+ * @property {number} y - Current Y position during drag (canvas coordinates)
+ * @property {string} username - Display name of user dragging
+ * @property {string} color - User's assigned color for visual feedback
+ * @property {number} startedAt - Unix timestamp when drag started
+ * @property {number} lastUpdate - Unix timestamp of last position update
+ */
+export interface DragState {
+  userId: string;
+  x: number;
+  y: number;
+  username: string;
+  color: string;
+  startedAt: number;
+  lastUpdate: number;
+}
+
+/**
+ * Map of object IDs to their drag states
+ * Used for tracking multiple concurrent drags
+ * @typedef {Record<string, DragState>} DragStateMap
+ */
+export type DragStateMap = Record<string, DragState>;
+
+/**
+ * Real-time selection state for collaborative editing
+ * Tracks which object each user has selected
+ *
+ * @interface SelectionState
+ * @property {string | null} objectId - ID of selected object, null if nothing selected
+ * @property {number} timestamp - Unix timestamp of selection change
+ */
+export interface SelectionState {
+  objectId: string | null;
+  timestamp: number;
+}
+
+/**
+ * Map of user IDs to their selection states
+ * Used for tracking all users' selections
+ * @typedef {Record<string, SelectionState>} SelectionStateMap
+ */
+export type SelectionStateMap = Record<string, SelectionState>;
+
+/**
+ * Remote selection info with user details for rendering
+ * @interface RemoteSelection
+ * @property {string} userId - ID of user who made selection
+ * @property {string} objectId - ID of selected object
+ * @property {string} username - Display name of user
+ * @property {string} color - User's assigned color
+ */
+export interface RemoteSelection {
+  userId: string;
+  objectId: string;
+  username: string;
+  color: string;
+}

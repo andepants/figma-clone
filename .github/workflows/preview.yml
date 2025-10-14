@@ -10,6 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     if: '${{ github.event.pull_request.head.repo.full_name == github.repository }}'
 
+    # Permissions needed for Firebase Hosting action
+    permissions:
+      checks: write          # Create check runs with deployment status
+      contents: read         # Checkout repository code
+      pull-requests: write   # Comment on PRs with preview URLs
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

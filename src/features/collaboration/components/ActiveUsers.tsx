@@ -50,7 +50,7 @@ export function ActiveUsers() {
     if (currentUser) {
       users.push({
         userId: currentUser.uid,
-        username: currentUser.email || 'Unknown',
+        username: currentUser.username || currentUser.email || 'Unknown',
         color: onlineUsers.find(u => u.userId === currentUser.uid)?.color || '#888',
         isCurrentUser: true,
       })
