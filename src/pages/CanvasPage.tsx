@@ -11,7 +11,7 @@ import { Toolbar } from '@/features/toolbar/components';
 import { ActiveUsers } from '@/features/collaboration/components';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore } from '@/stores';
-import { subscribeToCanvas, setOnline, cleanupStaleDragStates } from '@/lib/firebase';
+import { subscribeToCanvasObjects, setOnline, cleanupStaleDragStates, cleanupStaleCursors } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 
 function CanvasPage() {
@@ -28,7 +28,7 @@ function CanvasPage() {
 
   /**
    * Set user as online with automatic disconnect handling
-   * Also cleans up any stale drag states from previous sessions
+   * Also cleans up any stale drag states and cursors from previous sessions
    * Firebase onDisconnect() will mark user offline on:
    * - Browser close/crash
    * - Network disconnect
@@ -61,31 +61,46 @@ function CanvasPage() {
         console.error('Failed to cleanup stale drag states:', error);
       });
 
+    // Clean up any stale cursors from previous sessions
+    cleanupStaleCursors('main')
+      .then((count) => {
+        if (count > 0) {
+          console.log(`Cleaned up ${count} stale cursors`);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to cleanup stale cursors:', error);
+      });
+
     // Note: No explicit cleanup needed - onDisconnect() handles it
   }, [currentUser]);
 
   /**
-   * Subscribe to Firestore for real-time canvas updates
+   * Subscribe to Realtime Database for real-time canvas updates
    * Cleanup subscription on unmount
+   *
+   * Note: Migrated from Firestore to RTDB to eliminate race conditions
+   * and flash-back bugs during collaborative editing.
    */
   useEffect(() => {
-    console.log('Setting up Firestore subscription...');
+    console.log('Setting up Realtime Database subscription...');
 
     try {
-      // Subscribe to 'main' canvas document
-      const unsubscribe = subscribeToCanvas('main', (objects) => {
-        console.log('Received from Firestore:', objects.length, 'objects');
-        // Update local store with Firestore data
+      // Subscribe to 'main' canvas objects in RTDB
+      const unsubscribe = subscribeToCanvasObjects('main', (objects) => {
+        console.log('Received from RTDB:', objects.length, 'objects');
+        // Update local store with RTDB data
+        // No need for complex merge logic - RTDB is now the single source of truth
         setObjects(objects);
       });
 
       // Cleanup: unsubscribe on unmount
       return () => {
-        console.log('Cleaning up Firestore subscription');
+        console.log('Cleaning up Realtime Database subscription');
         unsubscribe();
       };
     } catch (error) {
-      console.error('Error setting up Firestore subscription:', error);
+      console.error('Error setting up Realtime Database subscription:', error);
     }
     // Empty dependency array - only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps

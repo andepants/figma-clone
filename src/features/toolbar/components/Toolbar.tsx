@@ -7,7 +7,7 @@
 
 import { MousePointer2, Square, Trash2 } from 'lucide-react';
 import { useToolStore, useCanvasStore } from '@/stores';
-import { debouncedUpdateCanvas } from '@/lib/firebase';
+import { clearAllCanvasObjects } from '@/lib/firebase';
 import type { Tool, ToolType } from '@/types';
 
 /**
@@ -52,13 +52,22 @@ export function Toolbar() {
 
   /**
    * Handle clear canvas button click
-   * Clears all objects from canvas and syncs to Firestore
+   * Clears all objects from canvas and syncs to Realtime Database
+   *
+   * Note: Migrated from Firestore to RTDB for atomic operation
    */
-  function handleClearCanvas() {
+  async function handleClearCanvas() {
     if (window.confirm('Clear all shapes from the canvas?')) {
+      // Optimistic update
       clearObjects();
-      // Sync empty canvas to Firestore
-      debouncedUpdateCanvas('main', []);
+
+      // Sync to Realtime Database (atomic clear operation)
+      try {
+        await clearAllCanvasObjects('main');
+      } catch (error) {
+        console.error('Failed to clear canvas objects:', error);
+        // Note: Could add rollback logic here if needed
+      }
     }
   }
 

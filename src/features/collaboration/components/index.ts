@@ -6,5 +6,5 @@
 
 export { Cursor } from './Cursor'
 export { ActiveUsers } from './ActiveUsers'
-export { DragIndicator } from './DragIndicator'
 export { SelectionOverlay } from './SelectionOverlay'
+// DragIndicator is no longer used - objects now move in real-time using drag state positions

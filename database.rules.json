@@ -1,6 +1,38 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null"
+    "canvases": {
+      "$canvasId": {
+        "objects": {
+          ".read": "auth != null",
+          "$objectId": {
+            ".write": "auth != null"
+          }
+        },
+        "cursors": {
+          ".read": "auth != null",
+          "$userId": {
+            ".write": "auth.uid == $userId"
+          }
+        },
+        "drag-states": {
+          ".read": "auth != null",
+          "$objectId": {
+            ".write": "auth != null"
+          }
+        },
+        "selections": {
+          ".read": "auth != null",
+          "$userId": {
+            ".write": "auth.uid == $userId"
+          }
+        },
+        "presence": {
+          ".read": "auth != null",
+          "$userId": {
+            ".write": "auth.uid == $userId"
+          }
+        }
+      }
+    }
   }
 }

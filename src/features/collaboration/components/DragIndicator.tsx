@@ -1,8 +1,13 @@
 /**
  * DragIndicator Component
  *
- * Visual overlay shown when another user is dragging an object in real-time.
- * Features:
+ * @deprecated This component is no longer used. Objects now move in real-time
+ * using drag state positions applied directly to the shape components.
+ * The actual objects show colored borders and move smoothly with 50ms updates
+ * via Realtime Database, making this separate indicator unnecessary.
+ *
+ * Previous functionality:
+ * - Visual overlay shown when another user is dragging an object in real-time.
  * - Colored border matching the user's color
  * - Username badge showing who is dragging
  * - Subtle pulsing animation

@@ -10,13 +10,16 @@ import type Konva from 'konva';
 import type { Rectangle as RectangleType } from '@/types';
 import { useToolStore, useCanvasStore } from '@/stores';
 import {
-  debouncedUpdateCanvas,
+  updateCanvasObject,
+  throttledUpdateCanvasObject,
   startDragging,
   throttledUpdateDragPosition,
+  throttledUpdateCursor,
   endDragging,
 } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 import { getUserColor } from '@/features/collaboration/utils';
+import { screenToCanvasCoords } from '../utils';
 import { toast } from 'sonner';
 
 /**
@@ -29,6 +32,8 @@ interface RectangleProps {
   isSelected: boolean;
   /** Callback when rectangle is selected */
   onSelect: () => void;
+  /** Optional drag state from another user (for real-time position updates) */
+  remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
 }
 
 /**
@@ -50,13 +55,25 @@ interface RectangleProps {
  * />
  * ```
  */
-export const Rectangle = memo(function Rectangle({ rectangle, isSelected, onSelect }: RectangleProps) {
+export const Rectangle = memo(function Rectangle({
+  rectangle,
+  isSelected,
+  onSelect,
+  remoteDragState
+}: RectangleProps) {
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
 
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
+
+  // Determine if this object is being dragged by a remote user
+  const isRemoteDragging = !!remoteDragState;
+
+  // Use drag state position if available, otherwise use persisted position
+  const displayX = remoteDragState?.x ?? rectangle.x;
+  const displayY = remoteDragState?.y ?? rectangle.y;
 
   /**
    * Handle click on rectangle
@@ -106,45 +123,61 @@ export const Rectangle = memo(function Rectangle({ rectangle, isSelected, onSele
   /**
    * Handle drag move
    * Emits throttled position updates to Realtime DB for real-time sync
+   * Also updates cursor position so other users see cursor moving with object
+   *
+   * CRITICAL: Updates BOTH drag state AND object position to keep them in sync
+   * This prevents flash-back bugs when drag ends.
    */
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>) {
     const node = e.target;
+    const stage = node.getStage();
+    const position = { x: node.x(), y: node.y() };
 
     // Update local store immediately (optimistic update)
-    updateObject(rectangle.id, {
-      x: node.x(),
-      y: node.y(),
-    });
+    updateObject(rectangle.id, position);
 
-    // Emit throttled position update to Realtime DB (50ms)
-    throttledUpdateDragPosition('main', rectangle.id, {
-      x: node.x(),
-      y: node.y(),
-    });
+    // Emit throttled updates to Realtime DB (50ms)
+    // Update BOTH drag state AND object to keep them in perfect sync
+    throttledUpdateDragPosition('main', rectangle.id, position);
+    throttledUpdateCanvasObject('main', rectangle.id, position); // ← CRITICAL: Keep object current!
+
+    // Update cursor position during drag so other users see cursor moving with object
+    if (stage && currentUser) {
+      const pointerPosition = stage.getPointerPosition();
+      if (pointerPosition) {
+        const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
+        const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
+        const color = getUserColor(currentUser.uid);
+        throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
+      }
+    }
   }
 
   /**
    * Handle drag end
-   * Updates rectangle position in store and syncs to Firestore
+   * Updates rectangle position in store and syncs to Realtime Database
+   *
+   * CRITICAL FIX: Updates object IMMEDIATELY (no throttle) BEFORE clearing drag state
+   * This eliminates the flash-back bug by ensuring object position is current
+   * when remote users fall back from drag state to object position.
    */
   async function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {
     // Prevent event from bubbling to stage (prevents stage drag)
     e.cancelBubble = true;
 
     const node = e.target;
+    const position = { x: node.x(), y: node.y() };
 
     // Update local store (optimistic update)
-    updateObject(rectangle.id, {
-      x: node.x(),
-      y: node.y(),
-    });
+    updateObject(rectangle.id, position);
 
-    // Clear drag state from Realtime DB
+    // CRITICAL: Update object position IMMEDIATELY (no throttle)
+    // This ensures RTDB has the correct position before drag state is cleared
+    await updateCanvasObject('main', rectangle.id, position);
+
+    // Clear drag state AFTER object update completes
+    // This prevents flash-back: when drag state clears, object is already at correct position
     await endDragging('main', rectangle.id);
-
-    // Sync to Firestore (debounced 500ms)
-    const currentObjects = useCanvasStore.getState().objects;
-    debouncedUpdateCanvas('main', currentObjects);
   }
 
   /**
@@ -179,31 +212,40 @@ export const Rectangle = memo(function Rectangle({ rectangle, isSelected, onSele
 
   // Determine stroke styling based on state
   const getStroke = () => {
+    if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
     if (isHovered && activeTool === 'select') return '#94a3b8'; // Hovered: subtle gray
     return undefined; // Default: no stroke
   };
 
   const getStrokeWidth = () => {
+    if (isRemoteDragging) return 2; // Remote drag: medium border
     if (isSelected) return 3; // Selected: thick border
     if (isHovered && activeTool === 'select') return 2; // Hovered: thin border
     return undefined; // Default: no border
   };
 
+  const getOpacity = () => {
+    if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
+    return 1; // Default: fully opaque
+  };
+
   return (
     <Rect
-      x={rectangle.x}
-      y={rectangle.y}
+      x={displayX}
+      y={displayY}
       width={rectangle.width}
       height={rectangle.height}
       fill={rectangle.fill}
+      opacity={getOpacity()}
       // Dynamic stroke based on state
       stroke={getStroke()}
       strokeWidth={getStrokeWidth()}
+      dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
       // Interaction
       onClick={handleClick}
       onTap={handleClick} // Mobile support
-      draggable={(isSelected || isHovered) && activeTool === 'select'}
+      draggable={(isSelected || isHovered) && activeTool === 'select' && !isRemoteDragging} // Disable drag if remotely dragging
       onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
