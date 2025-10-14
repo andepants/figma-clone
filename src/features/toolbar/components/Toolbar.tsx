@@ -5,12 +5,11 @@
  * Displays available tools with icons and handles tool switching.
  */
 
-import { toast } from 'sonner';
 import { MousePointer2, Square, Circle as CircleIcon, Type, Trash2, Copy, HelpCircle } from 'lucide-react';
 import { useToolStore, useCanvasStore } from '@/stores';
 import { clearAllCanvasObjects, removeCanvasObject, addCanvasObject } from '@/lib/firebase';
 import { duplicateObject } from '@/features/canvas-core/utils';
-import { ToolButton, ToolbarDivider, ZoomControls } from './';
+import { ToolButton, ToolbarDivider } from './';
 import type { Tool, ToolType } from '@/types';
 import { TooltipProvider } from '@/components/ui';
 
@@ -91,10 +90,8 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
     // Sync to Realtime Database
     try {
       await addCanvasObject('main', duplicate);
-      toast.success('Object duplicated');
     } catch (error) {
       console.error('Failed to sync duplicate to RTDB:', error);
-      toast.error('Failed to duplicate object');
       // Note: RTDB subscription will restore correct state if sync fails
     }
   }
@@ -112,10 +109,8 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
       // Sync to Realtime Database
       try {
         await removeCanvasObject('main', selectedId);
-        toast.success('Object deleted');
       } catch (error) {
         console.error('Failed to sync deletion to RTDB:', error);
-        toast.error('Failed to delete object');
         // Note: RTDB subscription will restore correct state if sync fails
       }
     }
@@ -135,10 +130,8 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
       // Sync to Realtime Database (atomic clear operation)
       try {
         await clearAllCanvasObjects('main');
-        toast.success('Canvas cleared');
       } catch (error) {
         console.error('Failed to clear canvas objects:', error);
-        toast.error('Failed to clear canvas');
         // Note: Could add rollback logic here if needed
       }
     }
@@ -189,11 +182,6 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
           onClick={handleClearCanvas}
           variant="danger"
         />
-
-        <ToolbarDivider />
-
-        {/* Zoom controls */}
-        <ZoomControls />
 
         <ToolbarDivider />
 

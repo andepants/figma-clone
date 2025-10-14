@@ -61,16 +61,16 @@ export function TypographySection() {
   return (
     <PropertySection
       title="Typography"
-      icon={<Type className="w-4 h-4" />}
+      icon={<Type className="w-3.5 h-3.5" />}
       storageKey="props-typography"
     >
       {/* Font Family */}
       <div>
-        <Label className="text-xs text-gray-600 mb-1 block">Font</Label>
+        <Label className="text-[11px] text-gray-600 mb-0.5 block">Font</Label>
         <select
           value={fontFamily}
           onChange={(e) => updateShapeProperty(shape.id, { fontFamily: e.target.value })}
-          className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          className="w-full h-7 px-2 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           style={{ fontFamily }}
         >
           {FONT_FAMILIES.map((font) => (
@@ -82,13 +82,13 @@ export function TypographySection() {
       </div>
 
       {/* Font Weight and Size (2 columns) */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         <div>
-          <Label className="text-xs text-gray-600 mb-1 block">Weight</Label>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">Weight</Label>
           <select
             value={typeof fontWeight === 'number' ? fontWeight : validateFontWeight(fontWeight)}
             onChange={(e) => updateShapeProperty(shape.id, { fontWeight: Number(e.target.value) })}
-            className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="w-full h-7 px-2 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             {FONT_WEIGHTS.map((weight) => (
               <option key={weight.value} value={weight.value}>
@@ -99,7 +99,7 @@ export function TypographySection() {
         </div>
 
         <div>
-          <Label className="text-xs text-gray-600 mb-1 block">Size</Label>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">Size</Label>
           <NumberInput
             value={fontSize}
             onChange={(value) => updateShapeProperty(shape.id, { fontSize: validateFontSize(value) })}
@@ -113,9 +113,9 @@ export function TypographySection() {
       </div>
 
       {/* Line Height and Letter Spacing (2 columns) */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         <div>
-          <Label className="text-xs text-gray-600 mb-1 block">Line height</Label>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">Line height</Label>
           <NumberInput
             value={lineHeight}
             onChange={(value) => updateShapeProperty(shape.id, { lineHeight: validateLineHeight(value) })}
@@ -127,7 +127,7 @@ export function TypographySection() {
         </div>
 
         <div>
-          <Label className="text-xs text-gray-600 mb-1 block">Letter spacing</Label>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">Letter spacing</Label>
           <NumberInput
             value={letterSpacing}
             onChange={(value) => updateShapeProperty(shape.id, { letterSpacing: validateLetterSpacing(value) })}
@@ -142,43 +142,43 @@ export function TypographySection() {
 
       {/* Alignment Controls */}
       <div>
-        <Label className="text-xs text-gray-600 mb-2 block">Alignment</Label>
+        <Label className="text-[11px] text-gray-600 mb-1 block">Alignment</Label>
 
         {/* Horizontal Alignment */}
-        <div className="mb-2">
+        <div className="mb-1.5">
           <div className="flex gap-1">
             <button
               onClick={() => updateShapeProperty(shape.id, { textAlign: 'left', align: 'left' })}
-              className={`flex-1 h-8 flex items-center justify-center border rounded transition-colors ${
+              className={`flex-1 h-6 flex items-center justify-center border rounded transition-colors ${
                 textAlign === 'left'
                   ? 'bg-blue-100 border-blue-500 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
               title="Align left"
             >
-              <AlignLeft className="w-4 h-4" />
+              <AlignLeft className="w-3 h-3" />
             </button>
             <button
               onClick={() => updateShapeProperty(shape.id, { textAlign: 'center', align: 'center' })}
-              className={`flex-1 h-8 flex items-center justify-center border rounded transition-colors ${
+              className={`flex-1 h-6 flex items-center justify-center border rounded transition-colors ${
                 textAlign === 'center'
                   ? 'bg-blue-100 border-blue-500 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
               title="Align center"
             >
-              <AlignCenter className="w-4 h-4" />
+              <AlignCenter className="w-3 h-3" />
             </button>
             <button
               onClick={() => updateShapeProperty(shape.id, { textAlign: 'right', align: 'right' })}
-              className={`flex-1 h-8 flex items-center justify-center border rounded transition-colors ${
+              className={`flex-1 h-6 flex items-center justify-center border rounded transition-colors ${
                 textAlign === 'right'
                   ? 'bg-blue-100 border-blue-500 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
               title="Align right"
             >
-              <AlignRight className="w-4 h-4" />
+              <AlignRight className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -188,36 +188,36 @@ export function TypographySection() {
           <div className="flex gap-1">
             <button
               onClick={() => updateShapeProperty(shape.id, { verticalAlign: 'top' })}
-              className={`flex-1 h-8 flex items-center justify-center border rounded transition-colors ${
+              className={`flex-1 h-6 flex items-center justify-center border rounded transition-colors ${
                 verticalAlign === 'top'
                   ? 'bg-blue-100 border-blue-500 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
               title="Align top"
             >
-              <AlignVerticalJustifyStart className="w-4 h-4" />
+              <AlignVerticalJustifyStart className="w-3 h-3" />
             </button>
             <button
               onClick={() => updateShapeProperty(shape.id, { verticalAlign: 'middle' })}
-              className={`flex-1 h-8 flex items-center justify-center border rounded transition-colors ${
+              className={`flex-1 h-6 flex items-center justify-center border rounded transition-colors ${
                 verticalAlign === 'middle'
                   ? 'bg-blue-100 border-blue-500 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
               title="Align middle"
             >
-              <AlignVerticalJustifyCenter className="w-4 h-4" />
+              <AlignVerticalJustifyCenter className="w-3 h-3" />
             </button>
             <button
               onClick={() => updateShapeProperty(shape.id, { verticalAlign: 'bottom' })}
-              className={`flex-1 h-8 flex items-center justify-center border rounded transition-colors ${
+              className={`flex-1 h-6 flex items-center justify-center border rounded transition-colors ${
                 verticalAlign === 'bottom'
                   ? 'bg-blue-100 border-blue-500 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
               title="Align bottom"
             >
-              <AlignVerticalJustifyEnd className="w-4 h-4" />
+              <AlignVerticalJustifyEnd className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -225,13 +225,13 @@ export function TypographySection() {
 
       {/* Text Transform */}
       <div>
-        <Label className="text-xs text-gray-600 mb-1 block">Text transform</Label>
+        <Label className="text-[11px] text-gray-600 mb-0.5 block">Text transform</Label>
         <select
           value={textTransform}
           onChange={(e) => updateShapeProperty(shape.id, {
             textTransform: e.target.value as 'none' | 'uppercase' | 'lowercase' | 'capitalize'
           })}
-          className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          className="w-full h-7 px-2 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
         >
           <option value="none">None</option>
           <option value="uppercase">Uppercase</option>
@@ -243,7 +243,7 @@ export function TypographySection() {
       {/* Paragraph Spacing - Only show for multi-line text */}
       {shape.text && shape.text.includes('\n') && (
         <div>
-          <Label className="text-xs text-gray-600 mb-1 block">Paragraph spacing</Label>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">Paragraph spacing</Label>
           <NumberInput
             value={paragraphSpacing}
             onChange={(value) => updateShapeProperty(shape.id, { paragraphSpacing: Math.max(0, Math.min(100, value)) })}

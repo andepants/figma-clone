@@ -145,7 +145,8 @@ export interface Circle extends BaseCanvasObject, VisualProperties, CircleProper
  * @property {number} fontSize - Font size in pixels (default: 24)
  * @property {string} fontFamily - Font family name (default: 'Inter')
  * @property {string} fill - Text color (hex, rgb, or color name)
- * @property {number} [width] - Optional fixed width for text box (undefined = auto-width)
+ * @property {number} width - Fixed width for text box (text wraps/clips within bounds)
+ * @property {number} height - Fixed height for text box (text clips if exceeds bounds)
  * @property {'left' | 'center' | 'right'} [align] - Text alignment within width
  * @property {'top' | 'middle' | 'bottom'} [verticalAlign] - Vertical alignment
  * @property {'word' | 'char' | 'none'} [wrap] - Text wrapping mode
@@ -156,7 +157,8 @@ export interface Text extends BaseCanvasObject, VisualProperties, TextProperties
   fontSize: number;
   fontFamily: string;
   fill: string;
-  width?: number;
+  width: number;
+  height: number;
   align?: 'left' | 'center' | 'right';
   verticalAlign?: 'top' | 'middle' | 'bottom';
   wrap?: 'word' | 'char' | 'none';

@@ -93,10 +93,8 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
 
       setHexInput(inputValue);
 
-      // Validate and update if valid
-      if (validateHex(inputValue)) {
-        onChange(normalizeHex(inputValue));
-      }
+      // Don't call onChange here - let handleHexBlur handle validation
+      // This allows users to type their full hex color without auto-filling
     }
 
     /**
@@ -110,6 +108,16 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
       } else {
         // Restore previous valid value
         setHexInput(value);
+      }
+    }
+
+    /**
+     * Handle key down - apply color on Enter
+     */
+    function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.currentTarget.blur(); // Trigger blur to apply color
       }
     }
 
@@ -188,6 +196,7 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
               value={hexInput}
               onChange={handleHexChange}
               onBlur={handleHexBlur}
+              onKeyDown={handleKeyDown}
               disabled={disabled}
               placeholder="#000000"
               maxLength={7}

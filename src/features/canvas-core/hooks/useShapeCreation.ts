@@ -12,7 +12,7 @@ import { useAuth } from '@/features/auth/hooks';
 import { addCanvasObject } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../utils/coordinates';
 import type { CanvasObject, Rectangle, Circle, Text } from '@/types';
-import { TEXT_DEFAULTS } from '@/constants';
+import { TEXT_DEFAULTS, DEFAULT_TEXT_WIDTH, DEFAULT_TEXT_HEIGHT } from '@/constants';
 
 /**
  * Point in 2D space
@@ -170,6 +170,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
       // For text tool: Create text immediately on click (no drag needed)
       if (activeTool === 'text') {
         // Create text shape immediately with all default typography properties
+        // Text boxes are fixed-size containers (like rectangles) that hold text
         const newText: Text = {
           id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: 'text',
@@ -179,6 +180,10 @@ export function useShapeCreation(): UseShapeCreationReturn {
           fontSize: DEFAULT_FONT_SIZE,
           fontFamily: DEFAULT_FONT_FAMILY,
           fill: DEFAULT_TEXT_FILL,
+          // Fixed dimensions - text wraps/clips within these bounds
+          width: DEFAULT_TEXT_WIDTH,
+          height: DEFAULT_TEXT_HEIGHT,
+          wrap: 'word', // Enable text wrapping by default
           // Typography properties from TEXT_DEFAULTS
           fontWeight: TEXT_DEFAULTS.fontWeight,
           fontStyle: TEXT_DEFAULTS.fontStyle,

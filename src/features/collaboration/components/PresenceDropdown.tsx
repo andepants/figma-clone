@@ -86,7 +86,7 @@ export function PresenceDropdown({
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <div className={className}>{trigger}</div>
+        <div className={`cursor-pointer ${className}`}>{trigger}</div>
       </PopoverTrigger>
 
       <PopoverContent
@@ -98,7 +98,7 @@ export function PresenceDropdown({
         aria-label="Active users list"
       >
         {/* Header */}
-        <div className="border-b px-3 py-2 flex items-center justify-between">
+        <div className="border-b px-3 py-2 flex items-center justify-between cursor-default">
           <h3 className="text-sm font-semibold text-gray-900">Active Users</h3>
           <span className="inline-flex items-center rounded-md bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
             {users.length}
@@ -125,7 +125,7 @@ export function PresenceDropdown({
               {filteredUsers.map((user) => (
                 <div
                   key={user.userId}
-                  className="flex items-center gap-2 rounded-md px-2 py-2 sm:py-1.5 hover:bg-neutral-50 transition-colors duration-150"
+                  className="flex items-center gap-2 rounded-md px-2 py-2 sm:py-1.5 hover:bg-neutral-50 transition-colors duration-150 cursor-default"
                   title={user.username}
                 >
                   <UserAvatar

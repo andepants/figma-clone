@@ -68,25 +68,25 @@ export function FillSection() {
   return (
     <PropertySection
       title="Fill"
-      icon={<Palette className="w-4 h-4" />}
+      icon={<Palette className="w-3.5 h-3.5" />}
       storageKey="props-fill"
     >
       {/* Color Picker */}
       <div>
-        <Label className="text-xs text-gray-600 mb-2 block">Color</Label>
+        <Label className="text-[11px] text-gray-600 mb-1 block">Color</Label>
         <ColorPicker value={fill} onChange={handleFillChange} />
       </div>
 
       {/* Recent Colors */}
       {colorHistory.length > 0 && (
         <div>
-          <Label className="text-xs text-gray-600 mb-2 block">Recent</Label>
+          <Label className="text-[11px] text-gray-600 mb-1 block">Recent</Label>
           <div className="flex gap-1 flex-wrap">
             {colorHistory.map((color) => (
               <button
                 key={color}
                 onClick={() => handleFillChange(color)}
-                className="w-6 h-6 rounded border-2 border-gray-300 hover:border-blue-500 hover:scale-110 transition-all"
+                className="w-5 h-5 rounded border-2 border-gray-300 hover:border-blue-500 hover:scale-110 transition-all"
                 style={{ backgroundColor: color }}
                 title={color}
               />

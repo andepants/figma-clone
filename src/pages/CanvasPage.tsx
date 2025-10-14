@@ -5,14 +5,21 @@
  * Contains the collaborative canvas and toolbar with real-time Firestore sync.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { MenuButton } from '@/features/navigation/components';
 import { PropertiesPanel } from '@/features/properties-panel';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
-import { useCanvasStore } from '@/stores';
-import { subscribeToCanvasObjects, setOnline, cleanupStaleDragStates, cleanupStaleCursors } from '@/lib/firebase';
+import { useCanvasStore, usePageStore } from '@/stores';
+import {
+  subscribeToCanvasObjects,
+  subscribeToDragStates,
+  subscribeToResizeStates,
+  setOnline,
+  cleanupStaleDragStates,
+  cleanupStaleCursors,
+} from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
@@ -27,6 +34,9 @@ function CanvasPage() {
   // Get canvas store setObjects method
   const { setObjects } = useCanvasStore();
 
+  // Get page settings for background color
+  const { pageSettings } = usePageStore();
+
   // Get current user for presence
   const { currentUser } = useAuth();
 
@@ -35,6 +45,86 @@ function CanvasPage() {
 
   // Track sync status for sync indicator
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+
+  /**
+   * Comprehensive prevention of browser back/forward navigation on swipe gestures
+   * Multi-layered approach:
+   * 1. Block all horizontal wheel events (trackpad two-finger swipe)
+   * 2. Block horizontal touch gestures at screen edges (macOS swipe-back)
+   * 3. CSS overscroll-behavior (defined in globals.css)
+   *
+   * Canvas panning is handled separately by Konva Stage and remains fully functional
+   */
+  useEffect(() => {
+    // 1. Prevent horizontal wheel events (trackpad scroll)
+    const preventWheelNavigation = (e: WheelEvent) => {
+      // Aggressively prevent ALL horizontal wheel events
+      // Canvas panning is handled by Konva's onWheel handler, not browser wheel events
+      if (Math.abs(e.deltaX) > 0) {
+        e.preventDefault();
+      }
+    };
+
+    // 2. Prevent horizontal touch/swipe gestures that trigger browser navigation
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    const preventTouchNavigation = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    };
+
+    const preventTouchMoveNavigation = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        const touchCurrentX = e.touches[0].clientX;
+        const touchCurrentY = e.touches[0].clientY;
+        const deltaX = touchCurrentX - touchStartX;
+        const deltaY = touchCurrentY - touchStartY;
+
+        // If horizontal swipe is dominant and starts near screen edge, prevent it
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          const isEdgeSwipe = touchStartX < 50 || touchStartX > window.innerWidth - 50;
+          if (isEdgeSwipe) {
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    // Add event listeners with passive: false to allow preventDefault
+    document.addEventListener('wheel', preventWheelNavigation, { passive: false, capture: true });
+    document.addEventListener('touchstart', preventTouchNavigation, { passive: false });
+    document.addEventListener('touchmove', preventTouchMoveNavigation, { passive: false });
+
+    return () => {
+      document.removeEventListener('wheel', preventWheelNavigation, { capture: true } as EventListenerOptions);
+      document.removeEventListener('touchstart', preventTouchNavigation);
+      document.removeEventListener('touchmove', preventTouchMoveNavigation);
+    };
+  }, []);
+
+  /**
+   * Additional safety net: Prevent browser back navigation via history manipulation
+   * Pushes a dummy history state and intercepts popstate events
+   */
+  useEffect(() => {
+    // Push a dummy state so back button doesn't leave the app
+    window.history.pushState(null, '', window.location.href);
+
+    const handlePopState = (e: PopStateEvent) => {
+      // Prevent navigation by immediately pushing state back
+      window.history.pushState(null, '', window.location.href);
+      e.preventDefault();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   /**
    * Monitor online/offline status
@@ -99,32 +189,113 @@ function CanvasPage() {
   }, [currentUser]);
 
   /**
+   * Track objects being actively manipulated by current user
+   * Used to prevent remote updates from overwriting local optimistic updates during drag/resize
+   *
+   * Key = objectId, Value = true if currently being manipulated
+   */
+  const activeManipulationsRef = useRef<Set<string>>(new Set());
+
+  /**
+   * Subscribe to drag states to track which objects current user is dragging
+   * This prevents remote updates from causing handle jump during drag
+   */
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribe = subscribeToDragStates('main', (dragStates) => {
+      // Track which objects the current user is actively dragging
+      Object.entries(dragStates).forEach(([objectId, dragState]) => {
+        if (dragState.userId === currentUser.uid) {
+          activeManipulationsRef.current.add(objectId);
+        } else {
+          activeManipulationsRef.current.delete(objectId);
+        }
+      });
+    });
+
+    return unsubscribe;
+  }, [currentUser]);
+
+  /**
+   * Subscribe to resize states to track which objects current user is resizing
+   * This prevents remote updates from causing handle jump during resize
+   */
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribe = subscribeToResizeStates('main', (resizeStates) => {
+      // Track which objects the current user is actively resizing
+      Object.entries(resizeStates).forEach(([objectId, resizeState]) => {
+        if (resizeState.userId === currentUser.uid) {
+          activeManipulationsRef.current.add(objectId);
+        } else {
+          activeManipulationsRef.current.delete(objectId);
+        }
+      });
+    });
+
+    return unsubscribe;
+  }, [currentUser]);
+
+  /**
    * Subscribe to Realtime Database for real-time canvas updates
    * Cleanup subscription on unmount
    *
-   * Note: Migrated from Firestore to RTDB to eliminate race conditions
-   * and flash-back bugs during collaborative editing.
+   * CRITICAL FIX: Uses selective merge to avoid overwriting objects being
+   * actively manipulated by the current user. This prevents the "jumping handles"
+   * bug where remote updates would overwrite local optimistic updates during drag/resize.
    */
   useEffect(() => {
     let isFirstLoad = true;
 
     try {
       // Subscribe to 'main' canvas objects in RTDB
-      const unsubscribe = subscribeToCanvasObjects('main', (objects) => {
-        // Update local store with RTDB data
-        // No need for complex merge logic - RTDB is now the single source of truth
-        setObjects(objects);
-
-        // Mark loading as complete after first data received
+      const unsubscribe = subscribeToCanvasObjects('main', (remoteObjects) => {
+        // On first load, accept all remote objects
         if (isFirstLoad) {
+          setObjects(remoteObjects);
           setIsLoading(false);
           isFirstLoad = false;
-        } else {
-          // Show brief "synced" indicator when data updates
-          // (only if we're online - don't show during offline mode)
-          if (navigator.onLine) {
-            setSyncStatus('synced');
+          return;
+        }
+
+        // For subsequent updates, perform selective merge
+        // Skip objects that the current user is actively manipulating to prevent handle jumping
+        const { objects: localObjects } = useCanvasStore.getState();
+
+        // Build a map of local objects for quick lookup
+        const localObjectsMap = new Map(localObjects.map(obj => [obj.id, obj]));
+
+        // Merge: Keep local version of actively manipulated objects, use remote for others
+        const mergedObjects = remoteObjects.map(remoteObj => {
+          // If current user is actively manipulating this object, keep local version
+          if (activeManipulationsRef.current.has(remoteObj.id)) {
+            const localObj = localObjectsMap.get(remoteObj.id);
+            // If we have a local version, use it; otherwise fall back to remote
+            return localObj || remoteObj;
           }
+
+          // Otherwise, use remote version
+          return remoteObj;
+        });
+
+        // Also include any local objects that don't exist remotely yet
+        // (e.g., objects that were just created locally and haven't synced yet)
+        localObjects.forEach(localObj => {
+          const existsRemotely = remoteObjects.some(remoteObj => remoteObj.id === localObj.id);
+          if (!existsRemotely && activeManipulationsRef.current.has(localObj.id)) {
+            mergedObjects.push(localObj);
+          }
+        });
+
+        // Update store with merged objects
+        setObjects(mergedObjects);
+
+        // Show brief "synced" indicator when data updates
+        // (only if we're online - don't show during offline mode)
+        if (navigator.onLine) {
+          setSyncStatus('synced');
         }
       });
 
@@ -141,10 +312,27 @@ function CanvasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Calculate background color with opacity
+  const backgroundColor = pageSettings.backgroundColor;
+  const opacity = pageSettings.opacity / 100;
+
+  // Convert hex to rgba
+  const hexToRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  const bgColorWithOpacity = hexToRgba(backgroundColor, opacity);
+
   // Show loading indicator during initial load
   if (isLoading) {
     return (
-      <div className="relative h-screen w-screen overflow-hidden bg-neutral-50">
+      <div
+        className="relative h-screen w-screen overflow-hidden"
+        style={{ backgroundColor: bgColorWithOpacity }}
+      >
         {/* Loading skeleton for toolbar */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
           <Skeleton className="h-12 w-80 rounded-lg" />
@@ -172,15 +360,18 @@ function CanvasPage() {
 
   try {
     return (
-      <div className="relative h-screen w-screen overflow-hidden">
+      <div
+        className="relative h-screen w-screen overflow-hidden"
+        style={{ backgroundColor: bgColorWithOpacity }}
+      >
         <Toolbar onShowShortcuts={() => setIsShortcutsOpen(true)} />
         <div className="absolute top-4 left-4 z-10">
           <MenuButton />
         </div>
-        {/* Sync Indicator - shows online/offline and sync status */}
-        <SyncIndicator status={syncStatus} className="!top-4" />
+        {/* Sync Indicator - shows online/offline and sync status (positioned left of properties panel) */}
+        <SyncIndicator status={syncStatus} className="!top-4 !right-[316px]" />
         {/* Canvas Stage - adjusted for properties panel (300px right margin) */}
-        <div className="absolute top-16 left-0 right-[300px] bottom-0">
+        <div className="absolute top-0 left-0 right-[300px] bottom-0">
           <CanvasStage />
         </div>
         {/* Properties Panel - fixed right sidebar with integrated presence */}

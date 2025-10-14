@@ -17,11 +17,11 @@ import {
   startResizing,
   throttledUpdateResizePosition,
   endResizing,
+  updateCanvasObject,
+  throttledUpdateCanvasObject,
 } from '@/lib/firebase';
-import { updateCanvasObject } from '@/lib/firebase';
 import type { ResizeHandle, ResizeAnchor } from '@/types';
 import { getUserColor } from '@/features/collaboration/utils';
-import { toast } from 'sonner';
 
 /**
  * Bounds interface for objects
@@ -124,7 +124,7 @@ export function useResize(): UseResizeReturn {
   const handleResizeStart = useCallback(
     async (objectId: string, handle: ResizeHandle, bounds: Bounds) => {
       if (!currentUser) {
-        toast.error('You must be logged in to resize objects');
+        console.log('You must be logged in to resize objects');
         return;
       }
 
@@ -159,7 +159,6 @@ export function useResize(): UseResizeReturn {
         );
       } catch (error) {
         console.error('Failed to start resize in Firebase:', error);
-        toast.error('Failed to start resize');
 
         // Reset state on error (both refs and React state)
         isResizingRef.current = false;
@@ -185,7 +184,7 @@ export function useResize(): UseResizeReturn {
       if (!isResizingRef.current || !activeHandleRef.current || !anchorRef.current || !startBoundsRef.current) return;
 
       let currentAnchor = anchorRef.current;
-      let pointer = { x: currentPointerX, y: currentPointerY };
+      const pointer = { x: currentPointerX, y: currentPointerY };
 
       // Alt key: Resize from center (anchor becomes center point)
       if (isAltPressed && startBoundsRef.current) {
@@ -309,13 +308,13 @@ export function useResize(): UseResizeReturn {
           radius,
         };
       } else if (object.type === 'text') {
-        // Text: Update x, y, and width (height comes from fontSize)
-        // Text uses top-left corner like rectangles, but only width is resizable
+        // Text: Update x, y, width, and height
+        // Text boxes are fixed-dimension containers like rectangles
         shapeUpdates = {
           x: newBounds.x,
           y: newBounds.y,
-          width: newBounds.width, // Update width for text box
-          // Height is not stored - it's calculated from fontSize
+          width: newBounds.width,
+          height: newBounds.height,
         };
       } else {
         // Default fallback
@@ -326,7 +325,9 @@ export function useResize(): UseResizeReturn {
       updateObject(objectId, shapeUpdates);
 
       // Sync to Firebase (throttled to 50ms)
+      // Update BOTH resize state AND object position to keep them in perfect sync
       throttledUpdateResizePosition('main', objectId, newBounds);
+      throttledUpdateCanvasObject('main', objectId, shapeUpdates); // ← CRITICAL: Keep object current!
     },
     [isShiftPressed, isAltPressed, updateObject]
   );
@@ -368,11 +369,12 @@ export function useResize(): UseResizeReturn {
             radius: object.radius,
           };
         } else {
-          // Text: x, y, width (height is derived from fontSize)
+          // Text: x, y, width, height (fixed dimensions like rectangles)
           finalUpdates = {
             x: object.x,
             y: object.y,
-            width: object.width || 200, // Use stored width or default
+            width: object.width,
+            height: object.height,
           };
         }
 
@@ -386,7 +388,6 @@ export function useResize(): UseResizeReturn {
           await endResizing('main', objectId);
         } catch (error) {
           console.error('Failed to end resize in Firebase:', error);
-          toast.error('Failed to complete resize');
         }
       }
 

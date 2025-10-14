@@ -20,7 +20,6 @@ import {
 import { useAuth } from '@/features/auth/hooks';
 import { getUserColor } from '@/features/collaboration/utils';
 import { screenToCanvasCoords } from '../utils';
-import { toast } from 'sonner';
 import { ResizeHandles } from '../components';
 import { useResize } from '../hooks';
 
@@ -152,9 +151,7 @@ export const Rectangle = memo(function Rectangle({
 
     if (!canDrag) {
       // Another user is dragging this object
-      toast.error('Another user is editing this object', {
-        duration: 2000,
-      });
+      console.log('Another user is editing this object');
 
       // Cancel the drag
       e.target.stopDrag();
@@ -173,7 +170,11 @@ export const Rectangle = memo(function Rectangle({
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>) {
     const node = e.target;
     const stage = node.getStage();
-    const position = { x: node.x(), y: node.y() };
+    // With offset, node.x() returns CENTER position, subtract offset to get top-left
+    const position = {
+      x: node.x() - rectangle.width / 2,
+      y: node.y() - rectangle.height / 2
+    };
 
     // Update local store immediately (optimistic update)
     updateObject(rectangle.id, position);
@@ -208,7 +209,11 @@ export const Rectangle = memo(function Rectangle({
     e.cancelBubble = true;
 
     const node = e.target;
-    const position = { x: node.x(), y: node.y() };
+    // With offset, node.x() returns CENTER position, subtract offset to get top-left
+    const position = {
+      x: node.x() - rectangle.width / 2,
+      y: node.y() - rectangle.height / 2
+    };
 
     // Update local store (optimistic update)
     updateObject(rectangle.id, position);
@@ -299,8 +304,10 @@ export const Rectangle = memo(function Rectangle({
     <Fragment>
       <Rect
         ref={shapeRef}
-        x={displayX}
-        y={displayY}
+        // Position adjusted for center-based offset: x,y in data model represents top-left,
+        // but with offset we need to position at center, so add half dimensions
+        x={displayX + rectangle.width / 2}
+        y={displayY + rectangle.height / 2}
         width={rectangle.width}
         height={rectangle.height}
         fill={rectangle.fill}
@@ -311,6 +318,9 @@ export const Rectangle = memo(function Rectangle({
         scaleY={rectangle.scaleY ?? 1}
         skewX={rectangle.skewX ?? 0}
         skewY={rectangle.skewY ?? 0}
+        // Offset for center-based rotation (shapes rotate around their center, not top-left)
+        offsetX={rectangle.width / 2}
+        offsetY={rectangle.height / 2}
         // Shape-specific properties
         cornerRadius={rectangle.cornerRadius ?? 0}
         // Stroke properties (with state-based overrides for selection/hover)

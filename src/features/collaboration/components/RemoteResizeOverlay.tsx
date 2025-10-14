@@ -4,12 +4,14 @@
  * Visual overlay shown when another user is resizing an object in real-time.
  * Shows the object's current resize bounds with a dashed border in the user's color,
  * resize handles at each corner, and a username badge.
+ * Follows object transforms (rotation, scale, skew) for accurate visual representation.
  */
 
 import { memo } from 'react';
 import { Rect, Group, Text } from 'react-konva';
 import type { ResizeState } from '@/types';
 import { RESIZE_HANDLE_SIZE, RESIZE_HANDLE_OFFSET } from '@/constants';
+import { useCanvasStore } from '@/stores';
 
 /**
  * RemoteResizeOverlay component props
@@ -82,16 +84,36 @@ function arePropsEqual(prevProps: RemoteResizeOverlayProps, nextProps: RemoteRes
 export const RemoteResizeOverlay = memo(function RemoteResizeOverlay({
   resizeState,
 }: RemoteResizeOverlayProps) {
+  // Get the actual object to access its transform properties
+  const { objects } = useCanvasStore();
+  const object = objects.find(obj => obj.id === resizeState.objectId);
+
   // Defensive checks: provide fallback values if data is incomplete
   const { currentBounds, username = 'Anonymous', color = '#666666' } = resizeState;
 
-  // Early return if critical bounds data is missing
+  // Early return if critical bounds data is missing or object not found
   if (!currentBounds || currentBounds.x === undefined || currentBounds.y === undefined) {
     console.warn('RemoteResizeOverlay: Missing bounds data', resizeState);
     return null;
   }
 
+  if (!object) {
+    // Object might not be loaded yet or was deleted
+    return null;
+  }
+
   const { x, y, width, height } = currentBounds;
+
+  // Extract transform properties from object (to match its visual appearance)
+  const rotation = object.rotation ?? 0;
+  const scaleX = object.scaleX ?? 1;
+  const scaleY = object.scaleY ?? 1;
+  const skewX = object.skewX ?? 0;
+  const skewY = object.skewY ?? 0;
+
+  // Calculate center position for Group positioning
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
 
   // Badge dimensions
   const badgePadding = 8;
@@ -99,22 +121,38 @@ export const RemoteResizeOverlay = memo(function RemoteResizeOverlay({
   const badgeText = `${username} is resizing`;
   const textWidth = badgeText.length * 7 + badgePadding * 2; // Approximate width
 
-  // Handle positions at each corner
+  // Handle positions at each corner (in local coordinates relative to center)
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
   const handles = [
-    { x: x - RESIZE_HANDLE_OFFSET, y: y - RESIZE_HANDLE_OFFSET }, // NW
-    { x: x + width + RESIZE_HANDLE_OFFSET, y: y - RESIZE_HANDLE_OFFSET }, // NE
-    { x: x - RESIZE_HANDLE_OFFSET, y: y + height + RESIZE_HANDLE_OFFSET }, // SW
-    { x: x + width + RESIZE_HANDLE_OFFSET, y: y + height + RESIZE_HANDLE_OFFSET }, // SE
+    { x: -halfWidth - RESIZE_HANDLE_OFFSET, y: -halfHeight - RESIZE_HANDLE_OFFSET }, // NW
+    { x: halfWidth + RESIZE_HANDLE_OFFSET, y: -halfHeight - RESIZE_HANDLE_OFFSET }, // NE
+    { x: -halfWidth - RESIZE_HANDLE_OFFSET, y: halfHeight + RESIZE_HANDLE_OFFSET }, // SW
+    { x: halfWidth + RESIZE_HANDLE_OFFSET, y: halfHeight + RESIZE_HANDLE_OFFSET }, // SE
   ];
 
   return (
-    <Group listening={false}>
+    <Group
+      // Position at center for proper rotation pivot
+      x={centerX}
+      y={centerY}
+      // Apply same transforms as the object
+      rotation={rotation}
+      scaleX={scaleX}
+      scaleY={scaleY}
+      skewX={skewX}
+      skewY={skewY}
+      listening={false}
+    >
       {/* Resize preview border - dashed to distinguish from selection */}
       <Rect
-        x={x}
-        y={y}
+        // Use offset to rotate around center (local coordinates relative to center)
+        x={0}
+        y={0}
         width={width}
         height={height}
+        offsetX={halfWidth}
+        offsetY={halfHeight}
         stroke={color}
         strokeWidth={2}
         dash={[5, 5]} // Dashed border
@@ -141,7 +179,7 @@ export const RemoteResizeOverlay = memo(function RemoteResizeOverlay({
       ))}
 
       {/* Username badge - positioned above the object */}
-      <Group x={x} y={y - badgeHeight - 8}>
+      <Group x={0} y={-halfHeight - badgeHeight - 8}>
         {/* Badge background */}
         <Rect
           width={textWidth}
@@ -167,10 +205,12 @@ export const RemoteResizeOverlay = memo(function RemoteResizeOverlay({
 
       {/* Subtle glow effect around the bounds (optional - creates depth) */}
       <Rect
-        x={x - 2}
-        y={y - 2}
+        x={0}
+        y={0}
         width={width + 4}
         height={height + 4}
+        offsetX={halfWidth + 2}
+        offsetY={halfHeight + 2}
         stroke={color}
         strokeWidth={4}
         opacity={0.15}

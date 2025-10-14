@@ -89,17 +89,8 @@ export const ResizeHandle = memo(function ResizeHandle({
   const [isHovered, setIsHovered] = useState(false);
   const handleRef = useRef<Konva.Rect>(null);
 
-  // Store current position in ref so dragBoundFunc always uses latest values
-  // This fixes the bug where handle gets stuck at starting position during resize
-  const positionRef = useRef({ x, y });
-
-  /**
-   * Update position ref when props change
-   * This ensures dragBoundFunc always returns the current correct position
-   */
-  useEffect(() => {
-    positionRef.current = { x, y };
-  }, [x, y]);
+  // Track whether this handle is currently being dragged
+  const isDraggingRef = useRef(false);
 
   /**
    * Animate scale on hover state change
@@ -149,6 +140,7 @@ export const ResizeHandle = memo(function ResizeHandle({
   function handleDragStart(e: Konva.KonvaEventObject<DragEvent>) {
     // Prevent event from bubbling to parent objects
     e.cancelBubble = true;
+    isDraggingRef.current = true;
     onResizeStart(handle);
   }
 
@@ -172,11 +164,18 @@ export const ResizeHandle = memo(function ResizeHandle({
 
   /**
    * Handle drag end
-   * Completes resize operation
+   * Completes resize operation and resets handle to calculated position
    */
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {
     // Prevent event from bubbling to parent objects
     e.cancelBubble = true;
+    isDraggingRef.current = false;
+
+    // Snap handle back to calculated position (from props)
+    if (handleRef.current) {
+      handleRef.current.position({ x, y });
+    }
+
     onResizeEnd();
   }
 
@@ -204,9 +203,8 @@ export const ResizeHandle = memo(function ResizeHandle({
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
-        // CRITICAL: Read position from ref (not closure) so handle follows corner during resize
-        // This ensures the handle stays synchronized with the object corner as bounds change
-        dragBoundFunc={() => positionRef.current}
+        // Allow handle to move freely with mouse during drag
+        // After drag ends, it snaps back to calculated position
         // Set offset to center for scale animation around center point
         offsetX={RESIZE_HANDLE_SIZE / 2}
         offsetY={RESIZE_HANDLE_SIZE / 2}

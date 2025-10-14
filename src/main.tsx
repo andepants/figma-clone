@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Application entry point.
+ * Initializes React root with auth provider and strict mode.
+ */
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/globals.css'

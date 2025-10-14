@@ -6,6 +6,13 @@
  */
 
 /**
+ * Default dimensions for text boxes
+ * Text boxes are fixed-size containers (like rectangles) that hold text
+ */
+export const DEFAULT_TEXT_WIDTH = 200;
+export const DEFAULT_TEXT_HEIGHT = 100;
+
+/**
  * Default values for all text properties
  * Applied when creating new text objects or when properties are undefined
  */
@@ -23,6 +30,8 @@ export const TEXT_DEFAULTS = {
   textTransform: 'none' as const,
   opacity: 1,
   rotation: 0,
+  width: DEFAULT_TEXT_WIDTH,
+  height: DEFAULT_TEXT_HEIGHT,
 } as const;
 
 /**

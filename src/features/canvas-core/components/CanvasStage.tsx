@@ -10,7 +10,7 @@ import { Stage, Layer, Rect, Circle as KonvaCircle } from 'react-konva';
 import type Konva from 'konva';
 import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures } from '../hooks';
 import { Rectangle, Circle, TextShape } from '../shapes';
-import { useToolStore, useCanvasStore } from '@/stores';
+import { useToolStore, useCanvasStore, usePageStore } from '@/stores';
 import type { Rectangle as RectangleType, Circle as CircleType, Text as TextType } from '@/types';
 import { useCursors, useDragStates, useRemoteSelections, useRemoteResizes } from '@/features/collaboration/hooks';
 import { Cursor, SelectionOverlay, RemoteResizeOverlay } from '@/features/collaboration/components';
@@ -41,6 +41,9 @@ export function CanvasStage() {
 
   // Get canvas objects, selection, zoom and pan from store
   const { objects, selectedId, selectObject, clearSelection, zoom, panX, panY, setZoom, setPan } = useCanvasStore();
+
+  // Get page settings for background color
+  const { pageSettings } = usePageStore();
 
   // Shape creation handlers
   const { previewShape, handleMouseDown, handleMouseMove, handleMouseUp } =
@@ -248,6 +251,25 @@ export function CanvasStage() {
     cursorStyle = isPanning ? 'grabbing' : 'grab';
   }
 
+  // Calculate background color with opacity from page settings
+  const backgroundColor = pageSettings.backgroundColor;
+  const opacity = pageSettings.opacity / 100;
+
+  /**
+   * Convert hex color to rgba format
+   * @param {string} hex - Hex color string (e.g., '#FFFFFF')
+   * @param {number} alpha - Alpha value (0-1)
+   * @returns {string} RGBA color string
+   */
+  function hexToRgba(hex: string, alpha: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  const bgColorWithOpacity = hexToRgba(backgroundColor, opacity);
+
   return (
     <Stage
       ref={stageRef}
@@ -283,7 +305,7 @@ export function CanvasStage() {
           y={-10000}
           width={20000}
           height={20000}
-          fill="#f5f5f5"
+          fill={bgColorWithOpacity}
         />
       </Layer>
 

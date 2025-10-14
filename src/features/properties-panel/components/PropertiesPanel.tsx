@@ -6,7 +6,7 @@
  * Displays active users presence at the top.
  */
 
-import { Square, Circle as CircleIcon, Type, Layers } from 'lucide-react';
+import { Square, Circle as CircleIcon, Type } from 'lucide-react';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { getSectionVisibility } from '../utils/section-visibility';
 import { PositionSection } from './PositionSection';
@@ -15,6 +15,8 @@ import { LayoutSection } from './LayoutSection';
 import { TypographySection } from './TypographySection';
 import { AppearanceSection } from './AppearanceSection';
 import { FillSection } from './FillSection';
+import { PageSection } from './PageSection';
+import { ZoomDropdown } from './ZoomDropdown';
 import { AvatarStack, PresenceDropdown, type PresenceUser } from '@/features/collaboration/components';
 import { usePresence } from '@/features/collaboration/hooks';
 import { useAuth } from '@/features/auth/hooks';
@@ -51,10 +53,10 @@ export function PropertiesPanel() {
   // Empty state - no selection
   if (!shape) {
     return (
-      <div className="fixed right-0 top-16 bottom-0 w-[300px] bg-white border-l border-gray-200 flex flex-col">
+      <div className="fixed right-0 top-0 bottom-0 w-[240px] bg-white border-l border-gray-200 flex flex-col">
         {/* Presence Section */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-2.5 z-20 flex items-center justify-between">
-          <span className="text-xs text-gray-500">Active</span>
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-3 py-2 z-20 flex items-center justify-between">
+          <span className="text-[11px] text-gray-500">Active</span>
           {presenceUsers.length > 0 && (
             <PresenceDropdown
               users={presenceUsers}
@@ -63,13 +65,17 @@ export function PropertiesPanel() {
           )}
         </div>
 
-        {/* Empty state message */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-gray-400 px-4">
-            <Layers className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Select a shape to view properties</p>
-          </div>
+        {/* Zoom Section */}
+        <div className="border-b border-gray-200 px-3 py-2 flex items-center justify-between">
+          <span className="text-[11px] text-gray-500">Zoom</span>
+          <ZoomDropdown />
         </div>
+
+        {/* Page Section */}
+        <PageSection />
+
+        {/* Spacer to push content to top */}
+        <div className="flex-1" />
       </div>
     );
   }
@@ -79,21 +85,21 @@ export function PropertiesPanel() {
     if (!shape) return null;
     switch (shape.type) {
       case 'rectangle':
-        return <Square className="w-4 h-4 text-gray-600" />;
+        return <Square className="w-3.5 h-3.5 text-gray-600" />;
       case 'circle':
-        return <CircleIcon className="w-4 h-4 text-gray-600" />;
+        return <CircleIcon className="w-3.5 h-3.5 text-gray-600" />;
       case 'text':
-        return <Type className="w-4 h-4 text-gray-600" />;
+        return <Type className="w-3.5 h-3.5 text-gray-600" />;
       default:
         return null;
     }
   }
 
   return (
-    <div className="fixed right-0 top-16 bottom-0 w-[300px] bg-white border-l border-gray-200 overflow-y-auto">
+    <div className="fixed right-0 top-0 bottom-0 w-[240px] bg-white border-l border-gray-200 overflow-y-auto">
       {/* Presence Section - Always visible at top */}
-      <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-2.5 z-20 flex items-center justify-between">
-        <span className="text-xs text-gray-500">Active</span>
+      <div className="sticky top-0 bg-white border-b border-gray-200 px-3 py-2 z-20 flex items-center justify-between">
+        <span className="text-[11px] text-gray-500">Active</span>
         {presenceUsers.length > 0 && (
           <PresenceDropdown
             users={presenceUsers}
@@ -103,10 +109,10 @@ export function PropertiesPanel() {
       </div>
 
       {/* Shape Header - Sticks below presence */}
-      <div className="sticky top-[48px] bg-white border-b border-gray-200 px-4 py-3 z-10">
-        <div className="flex items-center gap-2">
+      <div className="sticky top-[40px] bg-white border-b border-gray-200 px-3 py-2 z-10">
+        <div className="flex items-center gap-1.5">
           {getShapeIcon()}
-          <span className="font-medium text-sm capitalize">{shape.type}</span>
+          <span className="font-medium text-xs capitalize">{shape.type}</span>
         </div>
       </div>
 

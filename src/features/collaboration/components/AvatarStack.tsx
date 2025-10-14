@@ -90,7 +90,7 @@ export function AvatarStack({
           <Tooltip key={user.userId}>
             <TooltipTrigger asChild>
               <div
-                className="relative hover:scale-110 hover:z-50 transition-transform duration-200 ease-out"
+                className="relative hover:scale-110 hover:z-50 transition-transform duration-200 ease-out cursor-pointer"
                 style={{
                   zIndex: index,
                   animationDelay: `${index * 100}ms`,

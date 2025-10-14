@@ -77,6 +77,27 @@ interface CanvasActions {
   setZoom: (zoom: number) => void;
 
   /**
+   * Zoom in by 10%
+   */
+  zoomIn: () => void;
+
+  /**
+   * Zoom out by 10%
+   */
+  zoomOut: () => void;
+
+  /**
+   * Zoom to specific percentage
+   * @param {number} percentage - Target zoom percentage (e.g., 100 for 100%)
+   */
+  zoomTo: (percentage: number) => void;
+
+  /**
+   * Zoom to fit all objects in viewport
+   */
+  zoomToFit: () => void;
+
+  /**
    * Set pan position
    * @param {number} x - Pan X position
    * @param {number} y - Pan Y position
@@ -159,6 +180,72 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     set(() => ({
       zoom: Math.max(0.1, Math.min(5.0, zoom)),
     })),
+
+  zoomIn: () =>
+    set((state) => ({
+      zoom: Math.max(0.1, Math.min(5.0, state.zoom * 1.1)),
+    })),
+
+  zoomOut: () =>
+    set((state) => ({
+      zoom: Math.max(0.1, Math.min(5.0, state.zoom / 1.1)),
+    })),
+
+  zoomTo: (percentage) =>
+    set(() => ({
+      zoom: Math.max(0.1, Math.min(5.0, percentage / 100)),
+    })),
+
+  zoomToFit: () =>
+    set((state) => {
+      // If no objects, reset to 100%
+      if (state.objects.length === 0) {
+        return { zoom: 1.0, panX: 0, panY: 0 };
+      }
+
+      // Calculate bounding box of all objects
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      state.objects.forEach((obj) => {
+        if (obj.type === 'rectangle') {
+          minX = Math.min(minX, obj.x);
+          minY = Math.min(minY, obj.y);
+          maxX = Math.max(maxX, obj.x + obj.width);
+          maxY = Math.max(maxY, obj.y + obj.height);
+        } else if (obj.type === 'circle') {
+          minX = Math.min(minX, obj.x - obj.radius);
+          minY = Math.min(minY, obj.y - obj.radius);
+          maxX = Math.max(maxX, obj.x + obj.radius);
+          maxY = Math.max(maxY, obj.y + obj.radius);
+        } else if (obj.type === 'text') {
+          minX = Math.min(minX, obj.x);
+          minY = Math.min(minY, obj.y);
+          maxX = Math.max(maxX, obj.x + obj.width);
+          maxY = Math.max(maxY, obj.y + obj.height);
+        }
+      });
+
+      // Add padding (20% of viewport)
+      const padding = 0.2;
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      // Calculate zoom to fit (assuming standard viewport ~1200x800)
+      const viewportWidth = 1200;
+      const viewportHeight = 800;
+      const scaleX = (viewportWidth * (1 - padding)) / width;
+      const scaleY = (viewportHeight * (1 - padding)) / height;
+      const newZoom = Math.max(0.1, Math.min(5.0, Math.min(scaleX, scaleY)));
+
+      return {
+        zoom: newZoom,
+        panX: 0,
+        panY: 0,
+      };
+    }),
 
   setPan: (x, y) =>
     set(() => ({

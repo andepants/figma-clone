@@ -125,9 +125,15 @@ export function calculateResizedBounds(
  * Calculates where to position a handle component based on the corner
  * and object bounds. Accounts for handle size and offset from edge.
  *
+ * COORDINATE SYSTEM:
+ * Returns positions in LOCAL coordinates (before any transforms are applied).
+ * When handles are rendered inside a transformed Group (with rotation/scale),
+ * Konva automatically applies the transform to these local positions.
+ * This ensures handles follow the shape's rotation and flips correctly.
+ *
  * @param handle - Which corner handle to position
- * @param bounds - Current object bounds
- * @returns Center coordinates for the handle (x, y)
+ * @param bounds - Current object bounds in LOCAL coordinates (untransformed)
+ * @returns Center coordinates for the handle in LOCAL coordinates (x, y)
  *
  * @example
  * // Get position for NW (top-left) handle

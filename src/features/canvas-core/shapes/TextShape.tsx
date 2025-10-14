@@ -2,6 +2,7 @@
  * TextShape Component
  *
  * Renders a text shape on the canvas with selection and drag capabilities.
+ * Text boxes are fixed-dimension containers (like rectangles) where text wraps/clips within bounds.
  * Note: Text positioning uses (x, y) as TOP-LEFT point (same as Rectangle).
  */
 
@@ -21,7 +22,6 @@ import {
 import { useAuth } from '@/features/auth/hooks';
 import { getUserColor } from '@/features/collaboration/utils';
 import { screenToCanvasCoords } from '../utils';
-import { toast } from 'sonner';
 import { ResizeHandles } from '../components';
 import { useResize } from '../hooks';
 
@@ -86,6 +86,10 @@ export const TextShape = memo(function TextShape({
   // Use drag state position if available, otherwise use persisted position
   const displayX = remoteDragState?.x ?? text.x;
   const displayY = remoteDragState?.y ?? text.y;
+
+  // Text boxes have fixed dimensions (width and height)
+  const textWidth = text.width;
+  const textHeight = text.height;
 
   /**
    * Animate selection changes
@@ -155,9 +159,7 @@ export const TextShape = memo(function TextShape({
 
     if (!canDrag) {
       // Another user is dragging this object
-      toast.error('Another user is editing this object', {
-        duration: 2000,
-      });
+      console.log('Another user is editing this object');
 
       // Cancel the drag
       e.target.stopDrag();
@@ -176,7 +178,11 @@ export const TextShape = memo(function TextShape({
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>) {
     const node = e.target;
     const stage = node.getStage();
-    const position = { x: node.x(), y: node.y() };
+    // With offset, node.x() returns CENTER position, subtract offset to get top-left
+    const position = {
+      x: node.x() - textWidth / 2,
+      y: node.y() - textHeight / 2
+    };
 
     // Update local store immediately (optimistic update)
     updateObject(text.id, position);
@@ -211,7 +217,11 @@ export const TextShape = memo(function TextShape({
     e.cancelBubble = true;
 
     const node = e.target;
-    const position = { x: node.x(), y: node.y() };
+    // With offset, node.x() returns CENTER position, subtract offset to get top-left
+    const position = {
+      x: node.x() - textWidth / 2,
+      y: node.y() - textHeight / 2
+    };
 
     // Update local store (optimistic update)
     updateObject(text.id, position);
@@ -272,7 +282,7 @@ export const TextShape = memo(function TextShape({
 
   const getOpacity = () => {
     if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
-    return 1; // Default: fully opaque
+    return text.opacity ?? 1; // Use shape opacity, default to fully opaque
   };
 
   const getShadow = () => {
@@ -287,9 +297,14 @@ export const TextShape = memo(function TextShape({
         shadowEnabled: true,
       };
     }
-    // No shadow for unselected text
+    // Use shape's own shadow properties when not selected
     return {
-      shadowEnabled: false,
+      shadowColor: text.shadowColor,
+      shadowBlur: text.shadowBlur ?? 0,
+      shadowOffsetX: text.shadowOffsetX ?? 0,
+      shadowOffsetY: text.shadowOffsetY ?? 0,
+      shadowOpacity: text.shadowOpacity ?? 1,
+      shadowEnabled: text.shadowEnabled ?? false,
     };
   };
 
@@ -333,26 +348,34 @@ export const TextShape = memo(function TextShape({
     <Fragment>
       <KonvaText
         ref={shapeRef}
-        x={displayX}
-        y={displayY}
+        // Position adjusted for center-based offset: x,y in data model represents top-left,
+        // but with offset we need to position at center, so add half dimensions
+        x={displayX + textWidth / 2}
+        y={displayY + textHeight / 2}
         text={getTransformedText()}
         fontSize={text.fontSize}
         fontFamily={text.fontFamily}
         fontStyle={getFontStyle()}
         fill={text.fill}
-        opacity={getOpacity()}
+        opacity={(text.opacity ?? 1) * (isRemoteDragging ? 0.85 : 1)} // Combine shape opacity with state opacity
         // Typography properties
         textDecoration={text.textDecoration || ''}
         lineHeight={text.lineHeight || 1.2}
         letterSpacing={text.letterSpacing || 0}
-        // Optional text properties
-        width={text.width}
+        // Fixed dimensions - text wraps/clips within bounds
+        width={textWidth}
+        height={textHeight}
         align={text.align || text.textAlign}
         verticalAlign={text.verticalAlign}
-        wrap={text.wrap}
-        // Dynamic stroke based on state
-        stroke={getStroke()}
-        strokeWidth={getStrokeWidth()}
+        wrap={text.wrap || 'word'} // Enable wrapping by default
+        ellipsis={true} // Show ellipsis if text overflows
+        // Offset for center-based rotation (shapes rotate around their center, not top-left)
+        offsetX={textWidth / 2}
+        offsetY={textHeight / 2}
+        // Stroke properties (with state-based overrides for selection/hover)
+        stroke={getStroke() ?? text.stroke}
+        strokeWidth={getStrokeWidth() ?? text.strokeWidth ?? 0}
+        strokeEnabled={text.strokeEnabled ?? true}
         // Shadow properties (with selection glow override)
         {...getShadow()}
         // Interaction
@@ -367,7 +390,7 @@ export const TextShape = memo(function TextShape({
       />
 
       {/* Resize Handles - only visible when selected */}
-      {/* Note: For text, horizontal resize changes width, vertical resize changes height (for multi-line) */}
+      {/* Text boxes have fixed dimensions that can be resized in both width and height */}
       <ResizeHandles
         object={text}
         isSelected={isSelected && activeTool === 'move'}
@@ -376,9 +399,8 @@ export const TextShape = memo(function TextShape({
           handleResizeStart(text.id, handleType, {
             x: text.x,
             y: text.y,
-            // For auto-width text, use a default width of 200px for resize calculations
-            width: text.width || 200,
-            height: text.fontSize * 1.2, // Approximate height based on font size
+            width: textWidth,
+            height: textHeight,
           })
         }
         onResizeMove={(_handleType, x, y) => handleResizeMove(text.id, x, y)}

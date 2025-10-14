@@ -21,7 +21,6 @@ import {
 import { useAuth } from '@/features/auth/hooks';
 import { getUserColor } from '@/features/collaboration/utils';
 import { screenToCanvasCoords } from '../utils';
-import { toast } from 'sonner';
 import { ResizeHandles } from '../components';
 import { useResize } from '../hooks';
 
@@ -155,9 +154,7 @@ export const Circle = memo(function Circle({
 
     if (!canDrag) {
       // Another user is dragging this object
-      toast.error('Another user is editing this object', {
-        duration: 2000,
-      });
+      console.log('Another user is editing this object');
 
       // Cancel the drag
       e.target.stopDrag();
@@ -272,7 +269,7 @@ export const Circle = memo(function Circle({
 
   const getOpacity = () => {
     if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
-    return 1; // Default: fully opaque
+    return circle.opacity ?? 1; // Use shape opacity, default to fully opaque
   };
 
   const getShadow = () => {
@@ -287,9 +284,14 @@ export const Circle = memo(function Circle({
         shadowEnabled: true,
       };
     }
-    // No shadow for unselected circles (circles typically don't have shadows)
+    // Use shape's own shadow properties when not selected
     return {
-      shadowEnabled: false,
+      shadowColor: circle.shadowColor,
+      shadowBlur: circle.shadowBlur ?? 0,
+      shadowOffsetX: circle.shadowOffsetX ?? 0,
+      shadowOffsetY: circle.shadowOffsetY ?? 0,
+      shadowOpacity: circle.shadowOpacity ?? 1,
+      shadowEnabled: circle.shadowEnabled ?? false,
     };
   };
 
@@ -301,10 +303,18 @@ export const Circle = memo(function Circle({
         y={displayY}
         radius={circle.radius}
         fill={circle.fill}
-        opacity={getOpacity()}
-        // Dynamic stroke based on state
-        stroke={getStroke()}
-        strokeWidth={getStrokeWidth()}
+        // Transform properties (rotation, scale, skew)
+        // Circles naturally rotate around center since (x,y) is already center point
+        rotation={circle.rotation ?? 0}
+        scaleX={circle.scaleX ?? 1}
+        scaleY={circle.scaleY ?? 1}
+        skewX={circle.skewX ?? 0}
+        skewY={circle.skewY ?? 0}
+        opacity={(circle.opacity ?? 1) * (isRemoteDragging ? 0.85 : 1)} // Combine shape opacity with state opacity
+        // Stroke properties (with state-based overrides for selection/hover)
+        stroke={getStroke() ?? circle.stroke}
+        strokeWidth={getStrokeWidth() ?? circle.strokeWidth ?? 0}
+        strokeEnabled={circle.strokeEnabled ?? true}
         dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
         // Shadow properties (with selection glow override)
         {...getShadow()}

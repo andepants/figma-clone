@@ -1,12 +1,12 @@
 /**
  * Rotation Section Component
  *
- * Displays and edits rotation angle and flip controls for the selected shape.
+ * Displays and edits rotation angle for the selected shape.
  */
 
-import { RotateCw, FlipHorizontal, FlipVertical } from 'lucide-react';
+import { RotateCw } from 'lucide-react';
 import { PropertySection } from './PropertySection';
-import { NumberInput, Label, Button } from '@/components/ui';
+import { NumberInput, Label } from '@/components/ui';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { usePropertyUpdate } from '../hooks/usePropertyUpdate';
 import { normalizeRotation } from '@/lib/utils';
@@ -14,9 +14,8 @@ import { normalizeRotation } from '@/lib/utils';
 /**
  * RotationSection Component
  *
- * Shows rotation angle input and flip horizontal/vertical buttons.
+ * Shows rotation angle input for the selected shape.
  * Rotation is normalized to 0-360 degrees.
- * Flip is achieved using negative scale values.
  *
  * @example
  * ```tsx
@@ -30,8 +29,6 @@ export function RotationSection() {
   if (!shape) return null;
 
   const rotation = shape.rotation ?? 0;
-  const scaleX = shape.scaleX ?? 1;
-  const scaleY = shape.scaleY ?? 1;
 
   function handleRotationChange(degrees: number) {
     if (!shape) return;
@@ -39,25 +36,15 @@ export function RotationSection() {
     updateShapeProperty(shape.id, { rotation: normalized });
   }
 
-  function handleFlipHorizontal() {
-    if (!shape) return;
-    updateShapeProperty(shape.id, { scaleX: -scaleX });
-  }
-
-  function handleFlipVertical() {
-    if (!shape) return;
-    updateShapeProperty(shape.id, { scaleY: -scaleY });
-  }
-
   return (
     <PropertySection
       title="Rotation"
-      icon={<RotateCw className="w-4 h-4" />}
+      icon={<RotateCw className="w-3.5 h-3.5" />}
       storageKey="props-rotation"
     >
       {/* Rotation Angle */}
       <div>
-        <Label className="text-xs text-gray-600 mb-1 block">Angle</Label>
+        <Label className="text-[11px] text-gray-600 mb-0.5 block">Angle</Label>
         <NumberInput
           value={rotation}
           onChange={handleRotationChange}
@@ -67,28 +54,6 @@ export function RotationSection() {
           precision={1}
           unit="°"
         />
-      </div>
-
-      {/* Flip Controls */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleFlipHorizontal}
-          className="flex-1"
-        >
-          <FlipHorizontal className="w-4 h-4 mr-1" />
-          Flip H
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleFlipVertical}
-          className="flex-1"
-        >
-          <FlipVertical className="w-4 h-4 mr-1" />
-          Flip V
-        </Button>
       </div>
     </PropertySection>
   );

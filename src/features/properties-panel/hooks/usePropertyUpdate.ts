@@ -3,15 +3,14 @@
  *
  * Centralized hook for updating shape properties with:
  * - Optimistic local updates
- * - Debounced Firebase sync
+ * - Throttled Firebase sync (50ms - same as cursors/drag for real-time feel)
  * - Property validation
  */
 
 import { useState, useMemo, useCallback } from 'react';
 import { useCanvasStore } from '@/stores';
 import { updateCanvasObject } from '@/lib/firebase';
-import { debounce } from '@/lib/utils';
-import { toast } from 'sonner';
+import { throttle } from '@/lib/utils';
 import type { CanvasObject } from '@/types';
 
 export interface UsePropertyUpdateReturn {
@@ -26,7 +25,8 @@ export interface UsePropertyUpdateReturn {
 /**
  * Hook for updating shape properties
  *
- * Handles optimistic updates locally and syncs to Firebase with debouncing.
+ * Handles optimistic updates locally and syncs to Firebase with throttling.
+ * Uses 50ms throttle (same as cursors/drag) for real-time collaborative feel.
  * All updates go through validation before being applied.
  *
  * @returns Object with update functions and state
@@ -49,10 +49,10 @@ export function usePropertyUpdate(): UsePropertyUpdateReturn {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // Debounced Firebase update (500ms)
-  const debouncedFirebaseUpdate = useMemo(
+  // Throttled Firebase update (50ms - matches cursor/drag frequency for real-time sync)
+  const throttledFirebaseUpdate = useMemo(
     () =>
-      debounce(async (id: string, updates: Partial<CanvasObject>) => {
+      throttle(async (id: string, updates: Partial<CanvasObject>) => {
         try {
           setIsUpdating(true);
           await updateCanvasObject('main', id, updates);
@@ -61,11 +61,10 @@ export function usePropertyUpdate(): UsePropertyUpdateReturn {
           const error = err as Error;
           setError(error);
           console.error('Failed to sync property changes:', error);
-          toast.error('Failed to sync changes');
         } finally {
           setIsUpdating(false);
         }
-      }, 500),
+      }, 50),
     []
   );
 
@@ -78,10 +77,10 @@ export function usePropertyUpdate(): UsePropertyUpdateReturn {
       // Optimistic local update (immediate)
       updateObject(id, updates);
 
-      // Debounced Firebase sync (500ms)
-      debouncedFirebaseUpdate(id, updates);
+      // Throttled Firebase sync (50ms - real-time!)
+      throttledFirebaseUpdate(id, updates);
     },
-    [updateObject, debouncedFirebaseUpdate]
+    [updateObject, throttledFirebaseUpdate]
   );
 
   return {

@@ -38,11 +38,11 @@ export function PositionSection() {
   }
 
   return (
-    <PropertySection title="Position" icon={<Move className="w-4 h-4" />} storageKey="props-position">
+    <PropertySection title="Position" icon={<Move className="w-3.5 h-3.5" />} storageKey="props-position">
       {/* X, Y Position */}
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         <div className="flex-1">
-          <Label className="text-xs text-gray-600 mb-1 block">X</Label>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">X</Label>
           <NumberInput
             value={Math.round(shape.x)}
             onChange={handleXChange}
@@ -51,7 +51,7 @@ export function PositionSection() {
           />
         </div>
         <div className="flex-1">
-          <Label className="text-xs text-gray-600 mb-1 block">Y</Label>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">Y</Label>
           <NumberInput
             value={Math.round(shape.y)}
             onChange={handleYChange}

@@ -52,14 +52,14 @@ export function AppearanceSection() {
   return (
     <PropertySection
       title="Appearance"
-      icon={<Eye className="w-4 h-4" />}
+      icon={<Eye className="w-3.5 h-3.5" />}
       storageKey="props-appearance"
     >
       {/* Opacity Slider */}
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <Label className="text-xs text-gray-600">Opacity</Label>
-          <span className="text-xs text-gray-500 font-mono">
+        <div className="flex items-center justify-between mb-0.5">
+          <Label className="text-[11px] text-gray-600">Opacity</Label>
+          <span className="text-[11px] text-gray-500 font-mono">
             {Math.round(opacity)}%
           </span>
         </div>
@@ -69,14 +69,14 @@ export function AppearanceSection() {
           max={100}
           value={opacity}
           onChange={(e) => handleOpacityChange(Number(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
         />
       </div>
 
       {/* Corner Radius (rectangles only) */}
       {hasCornerRadius(shape) && (
         <div>
-          <Label className="text-xs text-gray-600 mb-1 block">
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">
             Corner radius
           </Label>
           <NumberInput

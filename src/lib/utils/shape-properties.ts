@@ -18,7 +18,7 @@ import {
  * Get normalized dimensions for any shape type
  * Returns { width, height } or null if shape doesn't have dimensions
  *
- * - Rectangle/Text: Returns width and height directly
+ * - Rectangle/Text: Returns width and height directly (both have fixed dimensions)
  * - Circle: Returns diameter as both width and height
  */
 export function getNormalizedDimensions(shape: CanvasObject): {
@@ -26,22 +26,7 @@ export function getNormalizedDimensions(shape: CanvasObject): {
   height: number;
 } | null {
   if (hasDimensions(shape)) {
-    // Text shapes: handle auto-width and calculate height properly
-    if (isTextShape(shape)) {
-      const lineHeight = shape.lineHeight ?? 1.2;
-      const calculatedHeight = shape.fontSize * lineHeight;
-
-      if (!shape.width) {
-        // Auto-width: estimate based on content
-        const estimatedWidth = shape.text.length * shape.fontSize * 0.6;
-        return { width: estimatedWidth, height: calculatedHeight };
-      }
-
-      // Fixed width: use actual width and calculated height
-      return { width: shape.width, height: calculatedHeight };
-    }
-
-    // Rectangle shapes: use width and height directly
+    // Text and Rectangle shapes: both have width and height properties
     return { width: shape.width, height: shape.height };
   }
 
@@ -97,7 +82,8 @@ export function getShapeSpecificProperties(shape: CanvasObject): Record<string, 
         content: shape.text,
         fontSize: shape.fontSize,
         fontFamily: shape.fontFamily,
-        width: shape.width ?? null, // null = auto-width
+        width: shape.width,
+        height: shape.height,
         fontWeight: shape.fontWeight ?? 400,
         fontStyle: shape.fontStyle ?? 'normal',
         textAlign: shape.textAlign ?? 'left',

@@ -81,7 +81,7 @@ export function PropertySection({
       <button
         onClick={handleToggle}
         className={cn(
-          'flex items-center justify-between w-full px-3 py-2',
+          'flex items-center justify-between w-full px-2.5 py-1.5',
           'hover:bg-gray-50 active:bg-gray-100',
           'transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'
@@ -89,15 +89,15 @@ export function PropertySection({
         aria-expanded={isOpen}
         aria-controls={storageKey ? `${storageKey}-content` : undefined}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {icon && <span className="text-gray-600">{icon}</span>}
-          <span className="text-sm font-medium text-gray-900">{title}</span>
+          <span className="text-xs font-medium text-gray-900">{title}</span>
         </div>
 
         {/* Chevron indicator */}
         <ChevronDown
           className={cn(
-            'w-4 h-4 text-gray-500 transition-transform duration-200',
+            'w-3 h-3 text-gray-500 transition-transform duration-200',
             isOpen && 'rotate-180'
           )}
         />
@@ -107,7 +107,7 @@ export function PropertySection({
       {isOpen && (
         <div
           id={storageKey ? `${storageKey}-content` : undefined}
-          className="px-3 py-3 space-y-3 bg-white"
+          className="px-2.5 py-2 space-y-2 bg-white"
         >
           {children}
         </div>

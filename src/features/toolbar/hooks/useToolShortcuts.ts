@@ -6,7 +6,6 @@
  */
 
 import { useEffect } from 'react';
-import { toast } from 'sonner';
 import { useToolStore } from '@/stores';
 import { useCanvasStore } from '@/stores';
 import { removeCanvasObject, addCanvasObject } from '@/lib/firebase';
@@ -60,7 +59,7 @@ function isInputFocused(): boolean {
  */
 export function useToolShortcuts(onShowShortcuts?: () => void) {
   const { setActiveTool } = useToolStore();
-  const { clearSelection, selectedId, removeObject, objects, addObject, selectObject, resetView, setZoom, setPan, zoom } = useCanvasStore();
+  const { clearSelection, selectedId, removeObject, objects, addObject, selectObject, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo } = useCanvasStore();
 
   useEffect(() => {
     /**
@@ -90,22 +89,32 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
 
             // Sync to Realtime Database
             addCanvasObject('main', duplicate)
-              .then(() => {
-                toast.success('Object duplicated');
-              })
               .catch((error) => {
                 console.error('Failed to sync duplicate to RTDB:', error);
-                toast.error('Failed to duplicate object');
               });
           }
         }
         return;
       }
 
+      // Handle Cmd/Ctrl+Plus for zoom in
+      if ((event.metaKey || event.ctrlKey) && (key === '+' || key === '=')) {
+        event.preventDefault(); // Prevent browser zoom
+        zoomIn();
+        return;
+      }
+
+      // Handle Cmd/Ctrl+Minus for zoom out
+      if ((event.metaKey || event.ctrlKey) && key === '-') {
+        event.preventDefault(); // Prevent browser zoom
+        zoomOut();
+        return;
+      }
+
       // Handle Cmd/Ctrl+0 for reset zoom (100%)
       if ((event.metaKey || event.ctrlKey) && key === '0') {
         event.preventDefault(); // Prevent browser zoom
-        resetView();
+        zoomTo(100);
         return;
       }
 
@@ -174,7 +183,6 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
         event.preventDefault();
 
         if (!selectedId) {
-          toast.info('No object selected');
           return;
         }
 
@@ -262,12 +270,8 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
 
             // Sync to Realtime Database
             removeCanvasObject('main', selectedId)
-              .then(() => {
-                toast.success('Object deleted');
-              })
               .catch((error) => {
                 console.error('Failed to sync deletion to RTDB:', error);
-                toast.error('Failed to delete object');
               });
           }
           break;
@@ -287,5 +291,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, clearSelection, selectedId, removeObject, objects, addObject, selectObject, resetView, setZoom, setPan, zoom, onShowShortcuts]);
+  }, [setActiveTool, clearSelection, selectedId, removeObject, objects, addObject, selectObject, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, onShowShortcuts]);
 }
