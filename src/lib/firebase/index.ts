@@ -48,18 +48,24 @@ export {
   type DatabaseReference,
 } from './realtimedb'
 
-// Export Canvas Service
+// Export Realtime Canvas Service (migrated from Firestore)
 export {
-  subscribeToCanvas,
-  updateCanvasObjects,
-  debouncedUpdateCanvas,
-} from './canvasService'
+  subscribeToCanvasObjects,
+  addCanvasObject,
+  updateCanvasObject,
+  throttledUpdateCanvasObject,
+  removeCanvasObject,
+  clearAllCanvasObjects,
+  getAllCanvasObjects,
+} from './realtimeCanvasService'
 
 // Export Cursor Service
 export {
   updateCursor,
+  removeCursor,
   subscribeToCursors,
   throttledUpdateCursor,
+  cleanupStaleCursors,
   type CursorData,
   type CursorWithUser,
 } from './cursorService'

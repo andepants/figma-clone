@@ -13,7 +13,7 @@ import { Rectangle } from '../shapes';
 import { useToolStore, useCanvasStore } from '@/stores';
 import type { Rectangle as RectangleType } from '@/types';
 import { useCursors, useDragStates, useRemoteSelections } from '@/features/collaboration/hooks';
-import { Cursor, DragIndicator, SelectionOverlay } from '@/features/collaboration/components';
+import { Cursor, SelectionOverlay } from '@/features/collaboration/components';
 import { getUserColor } from '@/features/collaboration/utils';
 import { throttledUpdateCursor, updateSelection } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
@@ -328,14 +328,20 @@ export function CanvasStage() {
         {/* Render persisted rectangles from store */}
         {objects
           .filter((obj) => obj.type === 'rectangle')
-          .map((obj) => (
-            <Rectangle
-              key={obj.id}
-              rectangle={obj as RectangleType}
-              isSelected={selectedId === obj.id}
-              onSelect={() => selectObject(obj.id)}
-            />
-          ))}
+          .map((obj) => {
+            // Find if this object is being dragged by another user
+            const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
+
+            return (
+              <Rectangle
+                key={obj.id}
+                rectangle={obj as RectangleType}
+                isSelected={selectedId === obj.id}
+                onSelect={() => selectObject(obj.id)}
+                remoteDragState={remoteDragState}
+              />
+            );
+          })}
 
         {/* Render remote selection overlays */}
         {remoteSelections.map((selection) => {
@@ -348,20 +354,6 @@ export function CanvasStage() {
               object={object}
               selection={selection}
               showBadge={false} // Can enable on hover if needed
-            />
-          );
-        })}
-
-        {/* Render drag indicators for objects being dragged by other users */}
-        {dragStates.map((dragState) => {
-          const object = objects.find((obj) => obj.id === dragState.objectId);
-          if (!object || object.type !== 'rectangle') return null;
-
-          return (
-            <DragIndicator
-              key={`drag-${dragState.objectId}`}
-              object={object as RectangleType}
-              dragState={dragState}
             />
           );
         })}

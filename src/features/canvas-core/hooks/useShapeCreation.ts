@@ -9,7 +9,7 @@ import { useState, useCallback, useRef } from 'react';
 import type Konva from 'konva';
 import { useCanvasStore, useToolStore } from '@/stores';
 import { useAuth } from '@/features/auth/hooks';
-import { debouncedUpdateCanvas } from '@/lib/firebase';
+import { addCanvasObject } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../utils/coordinates';
 import type { CanvasObject, Rectangle } from '@/types';
 
@@ -70,7 +70,7 @@ const DEFAULT_FILL = '#3b82f6'; // blue-500
  */
 export function useShapeCreation(): UseShapeCreationReturn {
   const { activeTool } = useToolStore();
-  const { addObject } = useCanvasStore();
+  const { addObject, clearSelection } = useCanvasStore();
   const { currentUser } = useAuth();
 
   const [previewShape, setPreviewShape] = useState<CanvasObject | null>(null);
@@ -101,11 +101,14 @@ export function useShapeCreation(): UseShapeCreationReturn {
       // Convert to canvas coordinates
       const canvasPos = screenToCanvasCoords(stage, pointerPos);
 
+      // Clear any existing selection before starting shape creation
+      clearSelection();
+
       // Start creating
       setStartPoint(canvasPos);
       setIsCreating(true);
     },
-    [activeTool]
+    [activeTool, clearSelection]
   );
 
   /**
@@ -157,8 +160,10 @@ export function useShapeCreation(): UseShapeCreationReturn {
   /**
    * Handle mouse up - finalize shape creation
    * Enforces minimum size and adds to canvas store
+   *
+   * Note: Migrated from Firestore to RTDB for atomic object creation
    */
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback(async () => {
     // Only finalize if we were creating
     if (!isCreating || !previewShape) {
       setIsCreating(false);
@@ -183,11 +188,17 @@ export function useShapeCreation(): UseShapeCreationReturn {
     // Add to canvas store (optimistic update)
     addObject(newShape);
 
-    // Sync to Firestore (debounced 500ms)
-    // Zustand updates are synchronous, so we can get the state immediately
-    const currentObjects = useCanvasStore.getState().objects;
-    console.log('Syncing to Firestore:', currentObjects.length, 'objects');
-    debouncedUpdateCanvas('main', currentObjects);
+    // Sync to Realtime Database (atomic add)
+    // RTDB updates are fast - no need for debouncing
+    console.log('Syncing to RTDB:', newShape.id);
+    try {
+      await addCanvasObject('main', newShape);
+    } catch (error) {
+      console.error('Failed to add object to RTDB:', error);
+      // Rollback optimistic update on error
+      const { removeObject } = useCanvasStore.getState();
+      removeObject(newShape.id);
+    }
 
     // Reset state
     setIsCreating(false);
