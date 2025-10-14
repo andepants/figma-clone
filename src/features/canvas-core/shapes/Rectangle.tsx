@@ -4,12 +4,20 @@
  * Renders a rectangle shape on the canvas with selection and drag capabilities.
  */
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Rect } from 'react-konva';
 import type Konva from 'konva';
 import type { Rectangle as RectangleType } from '@/types';
 import { useToolStore, useCanvasStore } from '@/stores';
-import { debouncedUpdateCanvas } from '@/lib/firebase';
+import {
+  debouncedUpdateCanvas,
+  startDragging,
+  throttledUpdateDragPosition,
+  endDragging,
+} from '@/lib/firebase';
+import { useAuth } from '@/features/auth/hooks';
+import { getUserColor } from '@/features/collaboration/utils';
+import { toast } from 'sonner';
 
 /**
  * Rectangle component props
@@ -28,6 +36,7 @@ interface RectangleProps {
  *
  * Renders a Konva rectangle with selection, drag, and interaction support.
  * Only allows selection and dragging when the select tool is active.
+ * Optimized with React.memo to prevent unnecessary re-renders.
  *
  * @param {RectangleProps} props - Component props
  * @returns {JSX.Element} Rectangle component
@@ -41,9 +50,10 @@ interface RectangleProps {
  * />
  * ```
  */
-export function Rectangle({ rectangle, isSelected, onSelect }: RectangleProps) {
+export const Rectangle = memo(function Rectangle({ rectangle, isSelected, onSelect }: RectangleProps) {
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
+  const { currentUser } = useAuth();
 
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
@@ -60,18 +70,64 @@ export function Rectangle({ rectangle, isSelected, onSelect }: RectangleProps) {
 
   /**
    * Handle drag start
-   * Prevents stage from dragging when dragging a shape
+   * Checks for drag lock and prevents stage from dragging when dragging a shape
    */
-  function handleDragStart(e: Konva.KonvaEventObject<DragEvent>) {
+  async function handleDragStart(e: Konva.KonvaEventObject<DragEvent>) {
     // Prevent event from bubbling to stage (prevents stage drag)
     e.cancelBubble = true;
+
+    if (!currentUser) return;
+
+    // Attempt to acquire drag lock
+    const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
+    const color = getUserColor(currentUser.uid);
+
+    const canDrag = await startDragging(
+      'main',
+      rectangle.id,
+      currentUser.uid,
+      { x: rectangle.x, y: rectangle.y },
+      username,
+      color
+    );
+
+    if (!canDrag) {
+      // Another user is dragging this object
+      toast.error('Another user is editing this object', {
+        duration: 2000,
+      });
+
+      // Cancel the drag
+      e.target.stopDrag();
+      return;
+    }
+  }
+
+  /**
+   * Handle drag move
+   * Emits throttled position updates to Realtime DB for real-time sync
+   */
+  function handleDragMove(e: Konva.KonvaEventObject<DragEvent>) {
+    const node = e.target;
+
+    // Update local store immediately (optimistic update)
+    updateObject(rectangle.id, {
+      x: node.x(),
+      y: node.y(),
+    });
+
+    // Emit throttled position update to Realtime DB (50ms)
+    throttledUpdateDragPosition('main', rectangle.id, {
+      x: node.x(),
+      y: node.y(),
+    });
   }
 
   /**
    * Handle drag end
    * Updates rectangle position in store and syncs to Firestore
    */
-  function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {
+  async function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {
     // Prevent event from bubbling to stage (prevents stage drag)
     e.cancelBubble = true;
 
@@ -82,6 +138,9 @@ export function Rectangle({ rectangle, isSelected, onSelect }: RectangleProps) {
       x: node.x(),
       y: node.y(),
     });
+
+    // Clear drag state from Realtime DB
+    await endDragging('main', rectangle.id);
 
     // Sync to Firestore (debounced 500ms)
     const currentObjects = useCanvasStore.getState().objects;
@@ -146,9 +205,10 @@ export function Rectangle({ rectangle, isSelected, onSelect }: RectangleProps) {
       onTap={handleClick} // Mobile support
       draggable={(isSelected || isHovered) && activeTool === 'select'}
       onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     />
   );
-}
+});

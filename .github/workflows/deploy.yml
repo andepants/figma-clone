@@ -11,6 +11,11 @@ jobs:
     name: Build and Deploy
     runs-on: ubuntu-latest
 
+    # Permissions needed for Firebase Hosting action
+    permissions:
+      checks: write          # Create check runs with deployment status
+      contents: read         # Checkout repository code
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

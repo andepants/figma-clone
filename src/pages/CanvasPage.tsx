@@ -11,7 +11,7 @@ import { Toolbar } from '@/features/toolbar/components';
 import { ActiveUsers } from '@/features/collaboration/components';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore } from '@/stores';
-import { subscribeToCanvas, setOnline } from '@/lib/firebase';
+import { subscribeToCanvas, setOnline, cleanupStaleDragStates } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 
 function CanvasPage() {
@@ -28,6 +28,7 @@ function CanvasPage() {
 
   /**
    * Set user as online with automatic disconnect handling
+   * Also cleans up any stale drag states from previous sessions
    * Firebase onDisconnect() will mark user offline on:
    * - Browser close/crash
    * - Network disconnect
@@ -38,7 +39,7 @@ function CanvasPage() {
 
     console.log('Setting user online with presence tracking...');
 
-    const username = currentUser.email || 'Anonymous';
+    const username = currentUser.username || currentUser.email || 'Anonymous';
 
     // Set user online (includes automatic onDisconnect cleanup)
     setOnline('main', currentUser.uid, username)
@@ -47,6 +48,17 @@ function CanvasPage() {
       })
       .catch((error) => {
         console.error('Failed to set user online:', error);
+      });
+
+    // Clean up any stale drag states from previous sessions
+    cleanupStaleDragStates('main')
+      .then((count) => {
+        if (count > 0) {
+          console.log(`Cleaned up ${count} stale drag states`);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to cleanup stale drag states:', error);
       });
 
     // Note: No explicit cleanup needed - onDisconnect() handles it

@@ -12,10 +12,10 @@ import { useShapeCreation } from '../hooks';
 import { Rectangle } from '../shapes';
 import { useToolStore, useCanvasStore } from '@/stores';
 import type { Rectangle as RectangleType } from '@/types';
-import { useCursors } from '@/features/collaboration/hooks';
-import { Cursor } from '@/features/collaboration/components';
+import { useCursors, useDragStates, useRemoteSelections } from '@/features/collaboration/hooks';
+import { Cursor, DragIndicator, SelectionOverlay } from '@/features/collaboration/components';
 import { getUserColor } from '@/features/collaboration/utils';
-import { throttledUpdateCursor } from '@/lib/firebase';
+import { throttledUpdateCursor, updateSelection } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 import { screenToCanvasCoords } from '../utils';
 
@@ -57,9 +57,11 @@ export function CanvasStage() {
   const { previewShape, handleMouseDown, handleMouseMove, handleMouseUp } =
     useShapeCreation();
 
-  // Auth and cursor collaboration
+  // Auth and collaboration
   const { currentUser } = useAuth();
   const cursors = useCursors('main');
+  const dragStates = useDragStates('main');
+  const remoteSelections = useRemoteSelections('main');
 
   // Canvas dimensions (full window size)
   const [dimensions, setDimensions] = useState<Dimensions>({
@@ -143,6 +145,17 @@ export function CanvasStage() {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [isSpacePressed]);
+
+  /**
+   * Sync local selection to Realtime DB
+   * Emits selection changes so other users can see what's selected
+   */
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Update selection in Realtime DB
+    updateSelection('main', currentUser.uid, selectedId);
+  }, [selectedId, currentUser]);
 
   /**
    * Handle mouse wheel for panning and zooming
@@ -259,8 +272,8 @@ export function CanvasStage() {
     const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
 
     // Update cursor position in Realtime DB (throttled to 50ms)
-    // Use email as fallback if displayName isn't set
-    const username = (currentUser.email || 'Anonymous') as string;
+    // Use username (displayName) with fallback to email if not set
+    const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
     const color = getUserColor(currentUser.uid);
 
     throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
@@ -323,6 +336,35 @@ export function CanvasStage() {
               onSelect={() => selectObject(obj.id)}
             />
           ))}
+
+        {/* Render remote selection overlays */}
+        {remoteSelections.map((selection) => {
+          const object = objects.find((obj) => obj.id === selection.objectId);
+          if (!object) return null;
+
+          return (
+            <SelectionOverlay
+              key={`selection-${selection.userId}-${selection.objectId}`}
+              object={object}
+              selection={selection}
+              showBadge={false} // Can enable on hover if needed
+            />
+          );
+        })}
+
+        {/* Render drag indicators for objects being dragged by other users */}
+        {dragStates.map((dragState) => {
+          const object = objects.find((obj) => obj.id === dragState.objectId);
+          if (!object || object.type !== 'rectangle') return null;
+
+          return (
+            <DragIndicator
+              key={`drag-${dragState.objectId}`}
+              object={object as RectangleType}
+              dragState={dragState}
+            />
+          );
+        })}
 
         {/* Preview shape (while creating) */}
         {previewShape && previewShape.type === 'rectangle' && (

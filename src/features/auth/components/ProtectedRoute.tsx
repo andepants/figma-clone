@@ -8,6 +8,7 @@
 import * as React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { Loading } from '@/components/common';
 
 /**
  * Props for ProtectedRoute component
@@ -29,15 +30,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Show loading spinner while determining auth state
   // This prevents flash of content before redirect
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-neutral-50">
-        <div className="flex flex-col items-center gap-4">
-          {/* Simple animated spinner */}
-          <div className="w-8 h-8 border-4 border-neutral-200 border-t-primary-500 rounded-full animate-spin" />
-          <p className="text-sm text-neutral-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <Loading message="Checking authentication..." fullScreen />;
   }
 
   // Redirect to home if not authenticated

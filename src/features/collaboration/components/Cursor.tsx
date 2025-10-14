@@ -5,6 +5,7 @@
  * Uses SVG for crisp rendering at any zoom level.
  */
 
+import { memo } from 'react';
 import { Group, Path, Text as KonvaText, Tag, Label } from 'react-konva'
 
 interface CursorProps {
@@ -16,10 +17,11 @@ interface CursorProps {
 
 /**
  * Cursor component for displaying other users' cursor positions
+ * Optimized with React.memo to prevent unnecessary re-renders.
  *
  * @param props - Cursor position, username, and color
  */
-export function Cursor({ x, y, username, color }: CursorProps) {
+export const Cursor = memo(function Cursor({ x, y, username, color }: CursorProps) {
   // SVG path for cursor arrow shape
   // M0,0 L0,16 L4,12 L8,16 L12,12 L8,8 Z
   const cursorPath = 'M0,0 L0,16 L4,12 L8,16 L12,12 L8,8 Z'
@@ -51,4 +53,4 @@ export function Cursor({ x, y, username, color }: CursorProps) {
       </Label>
     </Group>
   )
-}
+});
