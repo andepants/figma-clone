@@ -169,7 +169,7 @@ Before starting execution, verify your plan has:
 Once created:
 ````bash
 # In Claude Code terminal
-/execute-plan @_docs/plan/your-plan.md
+/execute-plan @_docs/plans/your-plan.md
 ````
 
 The plan-coordinator will:

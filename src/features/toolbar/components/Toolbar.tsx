@@ -5,8 +5,8 @@
  * Displays available tools with icons and handles tool switching.
  */
 
-import { MousePointer2, Square, Circle as CircleIcon, Type, Minus, Trash2, Copy, HelpCircle, Sparkles } from 'lucide-react';
-import { useToolStore, useCanvasStore, useAIStore } from '@/stores';
+import { MousePointer2, Square, Circle as CircleIcon, Type, Minus, Trash2, Copy, HelpCircle } from 'lucide-react';
+import { useToolStore, useCanvasStore } from '@/stores';
 import { clearAllCanvasObjects, removeCanvasObject, addCanvasObject } from '@/lib/firebase';
 import { duplicateObject } from '@/features/canvas-core/utils';
 import { ToolButton, ToolbarDivider } from './';
@@ -70,7 +70,6 @@ interface ToolbarProps {
 export function Toolbar({ onShowShortcuts }: ToolbarProps) {
   const { activeTool, setActiveTool } = useToolStore();
   const { clearObjects, selectedIds, removeObject, selectObjects, objects, addObject } = useCanvasStore();
-  const { isInputVisible, toggleInputVisibility } = useAIStore();
 
   /**
    * Handle tool button click
@@ -183,17 +182,6 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
           tooltip="Delete Del"
           onClick={handleDelete}
           disabled={selectedIds.length === 0}
-        />
-
-        <ToolbarDivider />
-
-        {/* AI Agent toggle button */}
-        <ToolButton
-          icon={Sparkles}
-          label="AI Agent"
-          tooltip="AI Agent (⌘K)"
-          onClick={toggleInputVisibility}
-          isActive={isInputVisible}
         />
 
         <ToolbarDivider />

@@ -21,6 +21,8 @@ The AI Canvas Agent allows you to create and manipulate canvas objects using nat
 4. **Collaboration**
    - AI-created objects sync instantly to all collaborators
    - Works seamlessly with manual editing
+   - **Last Write Wins**: If multiple users modify the same object simultaneously (AI or manual), the most recent change is applied
+   - Best practice: Coordinate with collaborators or work on different objects to avoid conflicts
 
 ## Example Commands
 
@@ -239,6 +241,16 @@ The command was ambiguous. Provide the missing details:
 - Verify you're authenticated
 - Try rephrasing the command
 - Break complex commands into simpler steps
+
+### Changes overwritten by another user
+
+CollabCanvas uses a **"last write wins"** strategy for all operations (AI and manual):
+- If multiple users modify the same object simultaneously, the last change received by the server wins
+- This applies to both AI commands and manual editing (dragging, resizing, property changes)
+- To avoid conflicts:
+  - Communicate with collaborators about what you're working on
+  - Work on different objects or areas of the canvas
+  - Use object locking to prevent others from editing specific objects
 
 ## Privacy & Costs
 

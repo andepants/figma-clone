@@ -244,6 +244,24 @@ canvases/
 
 All connected clients receive real-time updates via Firebase RTDB listeners.
 
+**Concurrency Model: Last Write Wins**
+
+CollabCanvas uses a "last write wins" strategy for all canvas operations:
+- No optimistic locking or version numbers
+- No transactions for object updates
+- The most recent write to Firebase RTDB is the final state
+- Applies equally to AI-generated and manual operations
+
+This approach prioritizes:
+- **Simplicity**: No complex conflict resolution logic
+- **Performance**: No overhead from transactions or versioning
+- **Real-time speed**: Immediate updates without waiting for locks
+
+Trade-offs:
+- Simultaneous edits to the same object may result in lost updates
+- Works well when users coordinate or work on different objects
+- Similar to Google Docs/Figma's operational transform approach
+
 ## Adding New Tools
 
 ### 1. Create Tool File
@@ -462,6 +480,32 @@ logger.info('AI chain completed', {
 - 10 commands per minute per user
 - RTDB-based (works across multiple function instances)
 - Prevents abuse and cost overruns
+
+### Multi-User Concurrency
+
+**Last Write Wins Strategy:**
+- AI commands read canvas state at invocation time
+- Multiple users can issue AI commands simultaneously (10 function instances max)
+- If two users modify the same object concurrently, the last write wins
+- No distributed locking or transactions
+- Rate limiting is per-user (doesn't block other users)
+
+**Example Scenario:**
+```
+User A: "move rectangle right 50px" (reads x=100)
+User B: "move rectangle down 50px" (reads x=100)
+
+User A writes: x=150, y=100
+User B writes: x=100, y=150  ← Last write wins
+
+Final result: x=100, y=150 (User A's change is lost)
+```
+
+**Best Practices:**
+- Works well when users work on different objects
+- Use object naming/selection for targeted AI commands
+- Communicate with collaborators about active work areas
+- Consider manual object locking for critical elements
 
 ### Input Validation
 

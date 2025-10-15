@@ -4,5 +4,9 @@
  * Export all AI agent UI components.
  */
 
-export { AIInput } from './AIInput';
-export { CommandHistory } from './CommandHistory';
+// New chat panel components
+export { AIChatPanel } from './AIChatPanel';
+export { ChatPanel } from './ChatPanel';
+export { ChatMessages } from './ChatMessages';
+export { ChatMessage } from './ChatMessage';
+export { ChatInput } from './ChatInput';

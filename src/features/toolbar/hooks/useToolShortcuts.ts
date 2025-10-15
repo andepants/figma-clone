@@ -6,7 +6,7 @@
  */
 
 import { useEffect } from 'react';
-import { useToolStore } from '@/stores';
+import { useToolStore, useAIStore } from '@/stores';
 import { useCanvasStore } from '@/stores';
 import { removeCanvasObject, addCanvasObject } from '@/lib/firebase';
 import { duplicateObject } from '@/features/canvas-core/utils';
@@ -37,6 +37,7 @@ function isInputFocused(): boolean {
  * - C: Circle tool
  * - L: Line tool
  * - T: Text tool
+ * - Cmd/Ctrl+K: Toggle AI chat panel
  * - Cmd/Ctrl+D: Duplicate selected objects (supports multi-select)
  * - Cmd/Ctrl+0: Reset zoom to 100%
  * - Cmd/Ctrl+1: Fit all objects in view
@@ -44,6 +45,8 @@ function isInputFocused(): boolean {
  * - Delete/Backspace: Delete selected objects (supports multi-select)
  * - Escape: Clear selection
  * - ?: Show keyboard shortcuts modal
+ *
+ * Note: Arrow key panning is handled separately by useArrowKeyPan hook
  *
  * Shortcuts are disabled when user is typing in an input/textarea.
  *
@@ -60,6 +63,7 @@ function isInputFocused(): boolean {
  */
 export function useToolShortcuts(onShowShortcuts?: () => void) {
   const { setActiveTool } = useToolStore();
+  const { toggleChatPanel } = useAIStore();
   const { clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo } = useCanvasStore();
 
   useEffect(() => {
@@ -73,6 +77,13 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
       }
 
       const key = event.key.toLowerCase();
+
+      // Handle Cmd/Ctrl+K for AI chat panel toggle
+      if ((event.metaKey || event.ctrlKey) && key === 'k') {
+        event.preventDefault(); // Prevent browser "Search" behavior
+        toggleChatPanel();
+        return;
+      }
 
       // Handle Cmd/Ctrl+D for duplicate (supports multi-select)
       if ((event.metaKey || event.ctrlKey) && key === 'd') {
@@ -340,5 +351,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, onShowShortcuts]);
+  }, [setActiveTool, toggleChatPanel, clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, onShowShortcuts]);
 }

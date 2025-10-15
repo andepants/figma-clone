@@ -270,10 +270,10 @@ You'll know it's working when:
 
 ## Support
 
-- **Full setup guide:** `_docs/setup/api-keys-setup.md`
+- **Full setup guide:** `_docs/setup/api-keys.md`
 - **User guide:** `_docs/features/ai-canvas-agent.md`
 - **Developer docs:** `_docs/architecture/ai-system.md`
-- **Implementation summary:** `_docs/plan/IMPLEMENTATION_COMPLETE.md`
+- **Implementation summary:** `_docs/archive/completed-plans/IMPLEMENTATION_COMPLETE.md`
 
 ---
 

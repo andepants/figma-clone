@@ -309,7 +309,7 @@ If you encounter unexpected behavior:
 ## Contact
 
 **Plan Coordinator:** Claude Code
-**Plan Document:** `/Users/andre/coding/figma-clone/_docs/plan/left-sidebar-enhancements.md`
+**Plan Document:** `/Users/andre/coding/figma-clone/_docs/archive/completed-plans/left-sidebar-enhancements.md`
 **Current Phase:** Phase 6 - Testing & Polish
 
 ---

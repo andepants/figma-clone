@@ -11,7 +11,7 @@ import { Toolbar } from '@/features/toolbar/components';
 import { MenuButton } from '@/features/navigation/components';
 import { PropertiesPanel } from '@/features/properties-panel';
 import { LayersPanel } from '@/features/layers-panel';
-import { AIInput, CommandHistory } from '@/features/ai-agent/components';
+import { AIChatPanel } from '@/features/ai-agent/components';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore, usePageStore, useUIStore } from '@/stores';
 import { markManipulated, unmarkManipulated, isManipulated } from '@/stores/manipulationTracker';
@@ -430,9 +430,8 @@ function CanvasPage() {
           {/* Properties Panel - fixed right sidebar with integrated presence */}
           <PropertiesPanel />
 
-          {/* AI Agent Components */}
-          <AIInput />
-          <CommandHistory />
+          {/* AI Chat Panel - bottom-right */}
+          <AIChatPanel />
         </div>
 
         {/* Keyboard Shortcuts Modal */}

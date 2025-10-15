@@ -3189,4 +3189,4 @@ const [showTooltip, setShowTooltip] = useState(() => {
 
 **End of Implementation Plan**
 
-This plan is ready for execution with `/execute-plan @_docs/plan/ai-canvas-agent-integration.md` or manual implementation following the task-by-task structure.
+This plan is ready for execution with `/execute-plan @_docs/plans/ai-canvas-agent-integration.md` or manual implementation following the task-by-task structure.

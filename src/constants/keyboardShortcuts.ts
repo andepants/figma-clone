@@ -31,6 +31,8 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
 
   // Canvas Navigation
   { key: 'Space+Drag', action: 'Pan canvas', category: 'Canvas' },
+  { key: 'Arrow Keys', action: 'Pan canvas (when nothing selected)', category: 'Canvas' },
+  { key: 'Shift+Arrow Keys', action: 'Pan canvas faster', category: 'Canvas' },
   { key: 'Mouse Wheel', action: 'Zoom in/out', category: 'Canvas' },
 
   // Help

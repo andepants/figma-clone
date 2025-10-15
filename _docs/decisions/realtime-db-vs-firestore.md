@@ -410,7 +410,7 @@ If we need to scale beyond Realtime DB limits (200k connections or 1k writes/sec
 - [Firebase Realtime Database vs Firestore Latency Benchmarks](https://medium.com/@d8schreiber/firebase-performance-firestore-and-realtime-database-latency-13effcade26d)
 - [Firebase Official: Choose a Database](https://firebase.google.com/docs/database/rtdb-vs-firestore)
 - [Firestore Scaling Limits Removed (Oct 2022)](https://firebase.blog/posts/2022/10/firestore-database-limits-removed/)
-- CollabCanvas: `_docs/architecture.md`
+- CollabCanvas: `_docs/architecture/overview.md`
 - CollabCanvas: `src/lib/firebase/realtimeCanvasService.ts` (implementation)
 
 ---
