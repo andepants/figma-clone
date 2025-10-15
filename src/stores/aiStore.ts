@@ -33,8 +33,6 @@ export interface AICommand {
  * @property {string | null} currentCommand - Currently processing command text
  * @property {AICommand[]} commandHistory - History of commands (max 50, newest first)
  * @property {string | null} error - Current error message
- * @property {boolean} isInputVisible - Whether AI input panel is visible (deprecated, use isChatPanelOpen)
- * @property {boolean} isChatPanelOpen - Whether AI chat panel is open
  * @property {boolean} showFullHistory - Whether to show all history or just recent messages
  */
 interface AIState {
@@ -42,8 +40,6 @@ interface AIState {
   currentCommand: string | null;
   commandHistory: AICommand[];
   error: string | null;
-  isInputVisible: boolean; // Deprecated: kept for backwards compatibility during migration
-  isChatPanelOpen: boolean;
   showFullHistory: boolean;
 }
 
@@ -95,28 +91,6 @@ interface AIActions {
   clearHistory: () => void;
 
   /**
-   * Toggle AI input panel visibility (deprecated, use toggleChatPanel)
-   */
-  toggleInputVisibility: () => void;
-
-  /**
-   * Set AI input panel visibility (deprecated, use setChatPanelOpen)
-   * @param {boolean} visible - Whether panel should be visible
-   */
-  setInputVisibility: (visible: boolean) => void;
-
-  /**
-   * Toggle AI chat panel open/closed state
-   */
-  toggleChatPanel: () => void;
-
-  /**
-   * Set AI chat panel open state
-   * @param {boolean} open - Whether chat panel should be open
-   */
-  setChatPanelOpen: (open: boolean) => void;
-
-  /**
    * Toggle full history view (show all vs recent messages)
    */
   toggleFullHistory: () => void;
@@ -144,8 +118,6 @@ export const useAIStore = create<AIStore>((set) => ({
   currentCommand: null,
   commandHistory: [],
   error: null,
-  isInputVisible: false, // Deprecated: kept for backwards compatibility
-  isChatPanelOpen: false,
   showFullHistory: false,
 
   // Actions
@@ -175,30 +147,6 @@ export const useAIStore = create<AIStore>((set) => ({
 
   clearHistory: () =>
     set({ commandHistory: [] }),
-
-  toggleInputVisibility: () =>
-    set((state) => ({
-      isInputVisible: !state.isInputVisible,
-      isChatPanelOpen: !state.isInputVisible // Sync with new state during migration
-    })),
-
-  setInputVisibility: (visible) =>
-    set({
-      isInputVisible: visible,
-      isChatPanelOpen: visible // Sync with new state during migration
-    }),
-
-  toggleChatPanel: () =>
-    set((state) => ({
-      isChatPanelOpen: !state.isChatPanelOpen,
-      isInputVisible: !state.isChatPanelOpen // Sync with old state during migration
-    })),
-
-  setChatPanelOpen: (open) =>
-    set({
-      isChatPanelOpen: open,
-      isInputVisible: open // Sync with old state during migration
-    }),
 
   toggleFullHistory: () =>
     set((state) => ({ showFullHistory: !state.showFullHistory })),

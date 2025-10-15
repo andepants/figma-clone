@@ -9,9 +9,8 @@ import { useEffect, useState } from 'react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { MenuButton } from '@/features/navigation/components';
-import { PropertiesPanel } from '@/features/properties-panel';
+import { RightSidebar } from '@/features/right-sidebar';
 import { LayersPanel } from '@/features/layers-panel';
-import { AIChatPanel } from '@/features/ai-agent/components';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore, usePageStore, useUIStore } from '@/stores';
 import { markManipulated, unmarkManipulated, isManipulated } from '@/stores/manipulationTracker';
@@ -383,8 +382,8 @@ function CanvasPage() {
             </div>
           </div>
 
-          {/* Loading skeleton for properties panel */}
-          <div className="absolute top-0 right-0 w-[300px] h-full bg-white border-l border-neutral-200">
+          {/* Loading skeleton for right sidebar */}
+          <div className="absolute top-0 right-0 w-[240px] h-full bg-white border-l border-neutral-200">
             <div className="p-4 space-y-4">
               <Skeleton className="h-6 w-32" />
               <Skeleton className="h-10 w-full" />
@@ -421,17 +420,14 @@ function CanvasPage() {
           >
             <MenuButton />
           </div>
-          {/* Sync Indicator - shows online/offline and sync status (positioned left of properties panel) */}
-          <SyncIndicator status={syncStatus} className="!top-4 !right-[316px]" />
-          {/* Canvas Stage - adjusted for properties panel (300px right margin) */}
-          <div className="absolute top-0 left-0 right-[300px] bottom-0">
+          {/* Sync Indicator - shows online/offline and sync status (positioned left of right sidebar) */}
+          <SyncIndicator status={syncStatus} className="!top-4 !right-[256px]" />
+          {/* Canvas Stage - adjusted for right sidebar (240px right margin) */}
+          <div className="absolute top-0 left-0 right-[240px] bottom-0">
             <CanvasStage />
           </div>
-          {/* Properties Panel - fixed right sidebar with integrated presence */}
-          <PropertiesPanel />
-
-          {/* AI Chat Panel - bottom-right */}
-          <AIChatPanel />
+          {/* Right Sidebar - unified properties + AI chat */}
+          <RightSidebar />
         </div>
 
         {/* Keyboard Shortcuts Modal */}

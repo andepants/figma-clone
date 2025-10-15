@@ -24,7 +24,8 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   { key: 'T', action: 'Text tool', category: 'Tools' },
 
   // Edit Operations
-  { key: 'Cmd/Ctrl+D', action: 'Duplicate selected', category: 'Edit' },
+  { key: 'Cmd/Ctrl+C', action: 'Copy selected', category: 'Edit' },
+  { key: 'Cmd/Ctrl+V', action: 'Paste', category: 'Edit' },
   { key: 'Del / Backspace', action: 'Delete selected', category: 'Edit' },
   { key: 'Shift+Cmd/Ctrl+L', action: 'Lock/unlock selected', category: 'Edit' },
   { key: 'Esc', action: 'Deselect', category: 'Edit' },

@@ -162,6 +162,17 @@ All shapes must respect lock state:
 
 See: `_docs/features/lock-system.md` for full documentation
 
+## AI Assistant
+
+CollabCanvas includes an AI assistant for natural language canvas operations (powered by Firebase AI Logic).
+
+### Key Concepts
+
+- **Chat panel**: Bottom-right floating panel (toggleable)
+- **Command history**: Last 50 commands stored in aiStore
+- **Status tracking**: pending, success, error states for each command
+- **Toggle shortcut**: Cmd+K (Mac) / Ctrl+K (Windows/Linux)
+
 ## UI Patterns
 
 ### Section Headers

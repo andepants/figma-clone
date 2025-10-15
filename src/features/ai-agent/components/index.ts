@@ -4,8 +4,7 @@
  * Export all AI agent UI components.
  */
 
-// New chat panel components
-export { AIChatPanel } from './AIChatPanel';
+// Chat panel components
 export { ChatPanel } from './ChatPanel';
 export { ChatMessages } from './ChatMessages';
 export { ChatMessage } from './ChatMessage';

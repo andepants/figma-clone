@@ -127,6 +127,7 @@ function areObjectArraysEqual(arr1: CanvasObject[], arr2: CanvasObject[]): boole
  * @property {number} zoom - Current zoom level (0.1 to 5.0, default 1.0)
  * @property {number} panX - Pan X position
  * @property {number} panY - Pan Y position
+ * @property {CanvasObject[]} clipboard - Objects copied to clipboard (used for copy/paste)
  */
 interface CanvasState {
   objects: CanvasObject[];
@@ -135,6 +136,7 @@ interface CanvasState {
   zoom: number;
   panX: number;
   panY: number;
+  clipboard: CanvasObject[];
 }
 
 /**
@@ -307,6 +309,29 @@ interface CanvasActions {
    * @param {string} id - Object ID to toggle
    */
   toggleLock: (id: string) => void;
+
+  /**
+   * Copy selected objects to clipboard
+   *
+   * Copies all selected objects and their descendants to clipboard.
+   * Maintains parent-child relationships within the copied set.
+   * Does nothing if no objects are selected.
+   */
+  copyObjects: () => void;
+
+  /**
+   * Paste objects from clipboard
+   *
+   * Creates new objects from clipboard with:
+   * - New unique IDs
+   * - Offset position (+20, +20)
+   * - Preserved parent-child relationships
+   * - Synced to Firebase Realtime Database
+   *
+   * Does nothing if clipboard is empty.
+   * Selects the pasted objects after creation.
+   */
+  pasteObjects: () => void;
 }
 
 /**
@@ -327,6 +352,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   zoom: 1.0,
   panX: 0,
   panY: 0,
+  clipboard: [],
 
   // Actions
   addObject: (object) => {
@@ -654,5 +680,91 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     });
 
     set({ objects: updatedObjects });
+  },
+
+  copyObjects: () => {
+    const state = useCanvasStore.getState();
+    const { selectedIds, objects } = state;
+
+    // Do nothing if no objects selected
+    if (selectedIds.length === 0) return;
+
+    // Helper to get all descendants
+    const getAllDescendantIds = (nodeId: string, objs: CanvasObject[]): string[] => {
+      const descendants: string[] = [];
+      const children = objs.filter((obj) => obj.parentId === nodeId);
+      children.forEach((child) => {
+        descendants.push(child.id);
+        descendants.push(...getAllDescendantIds(child.id, objs));
+      });
+      return descendants;
+    };
+
+    // Get selected objects and all their descendants
+    const allIdsToCheck = new Set<string>(selectedIds);
+    selectedIds.forEach((id) => {
+      const descendants = getAllDescendantIds(id, objects);
+      descendants.forEach((descId) => allIdsToCheck.add(descId));
+    });
+
+    // Get all objects to copy (preserving parent-child relationships)
+    const objectsToCopy = objects.filter((obj) => allIdsToCheck.has(obj.id));
+
+    // Store in clipboard
+    set({ clipboard: objectsToCopy });
+  },
+
+  pasteObjects: () => {
+    const state = useCanvasStore.getState();
+    const { clipboard, addObject } = state;
+
+    // Do nothing if clipboard is empty
+    if (clipboard.length === 0) return;
+
+    // Dynamic import to avoid circular dependency
+    import('@/lib/firebase').then(async ({ addCanvasObject }) => {
+      // Create ID mapping (old ID -> new ID)
+      const idMap = new Map<string, string>();
+      clipboard.forEach((obj) => {
+        idMap.set(obj.id, crypto.randomUUID());
+      });
+
+      // Create new objects with updated IDs and positions
+      const newObjects: CanvasObject[] = clipboard.map((obj) => {
+        const newId = idMap.get(obj.id)!;
+        const newParentId = obj.parentId && idMap.has(obj.parentId)
+          ? idMap.get(obj.parentId)!
+          : obj.parentId; // Keep external parent if exists
+
+        return {
+          ...obj,
+          id: newId,
+          x: obj.x + 20,
+          y: obj.y + 20,
+          parentId: newParentId,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as CanvasObject;
+      });
+
+      // Add all objects to store (optimistic update)
+      const newIds: string[] = [];
+      newObjects.forEach((obj) => {
+        addObject(obj);
+        newIds.push(obj.id);
+      });
+
+      // Sync to Firebase
+      for (const obj of newObjects) {
+        try {
+          await addCanvasObject('main', obj);
+        } catch {
+          // Note: RTDB subscription will restore correct state if sync fails
+        }
+      }
+
+      // Select the pasted objects
+      state.selectObjects(newIds);
+    });
   },
 }));

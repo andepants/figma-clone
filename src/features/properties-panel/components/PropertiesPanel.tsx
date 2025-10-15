@@ -54,7 +54,7 @@ export function PropertiesPanel() {
   // Empty state - no selection
   if (!shape) {
     return (
-      <div className="fixed right-0 top-0 bottom-0 w-[240px] bg-white border-l border-gray-200 flex flex-col">
+      <div className="flex flex-col h-full">
         {/* Presence Section */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-3 py-2 z-20 flex items-center justify-between">
           <span className="text-[11px] text-gray-500">Active</span>
@@ -99,7 +99,7 @@ export function PropertiesPanel() {
   }
 
   return (
-    <div className="fixed right-0 top-0 bottom-0 w-[240px] bg-white border-l border-gray-200 overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto">
       {/* Presence Section - Always visible at top */}
       <div className="sticky top-0 bg-white border-b border-gray-200 px-3 py-2 z-20 flex items-center justify-between">
         <span className="text-[11px] text-gray-500">Active</span>

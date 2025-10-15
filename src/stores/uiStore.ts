@@ -16,6 +16,8 @@ import { persist } from 'zustand/middleware';
  * @property {string | null} hoveredObjectId - ID of currently hovered object for bidirectional sync
  * @property {boolean} layersSectionCollapsed - Whether layers section is collapsed
  * @property {boolean} pagesSectionCollapsed - Whether pages section is collapsed (future use)
+ * @property {number} aiPanelHeight - AI panel height as percentage (0-100) of sidebar
+ * @property {boolean} isAIChatCollapsed - Whether AI chat panel is collapsed
  */
 interface UIState {
   leftSidebarOpen: boolean;
@@ -23,6 +25,8 @@ interface UIState {
   hoveredObjectId: string | null;
   layersSectionCollapsed: boolean;
   pagesSectionCollapsed: boolean;
+  aiPanelHeight: number;
+  isAIChatCollapsed: boolean;
 }
 
 /**
@@ -67,6 +71,17 @@ interface UIActions {
    * Toggle pages section collapsed state (future use)
    */
   togglePagesSection: () => void;
+
+  /**
+   * Set AI panel height as percentage of sidebar
+   * @param {number} height - Height percentage (0-100), will be clamped to valid range
+   */
+  setAIPanelHeight: (height: number) => void;
+
+  /**
+   * Toggle AI chat panel collapsed state
+   */
+  toggleAIChatCollapse: () => void;
 }
 
 /**
@@ -88,6 +103,8 @@ export const useUIStore = create<UIStore>()(
       hoveredObjectId: null,
       layersSectionCollapsed: false,
       pagesSectionCollapsed: false,
+      aiPanelHeight: 40,
+      isAIChatCollapsed: false,
 
       // Actions
       toggleLeftSidebar: () =>
@@ -107,6 +124,15 @@ export const useUIStore = create<UIStore>()(
 
       togglePagesSection: () =>
         set((state) => ({ pagesSectionCollapsed: !state.pagesSectionCollapsed })),
+
+      setAIPanelHeight: (height) => {
+        // Clamp between 0 and 100
+        const clampedHeight = Math.min(100, Math.max(0, height));
+        set({ aiPanelHeight: clampedHeight });
+      },
+
+      toggleAIChatCollapse: () =>
+        set((state) => ({ isAIChatCollapsed: !state.isAIChatCollapsed })),
     }),
     {
       name: 'ui-storage', // localStorage key
@@ -115,6 +141,8 @@ export const useUIStore = create<UIStore>()(
         rightSidebarOpen: state.rightSidebarOpen,
         layersSectionCollapsed: state.layersSectionCollapsed,
         pagesSectionCollapsed: state.pagesSectionCollapsed,
+        aiPanelHeight: state.aiPanelHeight,
+        isAIChatCollapsed: state.isAIChatCollapsed,
       }),
     }
   )

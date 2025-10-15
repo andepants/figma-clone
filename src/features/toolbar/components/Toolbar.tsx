@@ -5,10 +5,8 @@
  * Displays available tools with icons and handles tool switching.
  */
 
-import { MousePointer2, Square, Circle as CircleIcon, Type, Minus, Trash2, Copy, HelpCircle } from 'lucide-react';
-import { useToolStore, useCanvasStore } from '@/stores';
-import { clearAllCanvasObjects, removeCanvasObject, addCanvasObject } from '@/lib/firebase';
-import { duplicateObject } from '@/features/canvas-core/utils';
+import { MousePointer2, Square, Circle as CircleIcon, Type, Minus, HelpCircle } from 'lucide-react';
+import { useToolStore } from '@/stores';
 import { ToolButton, ToolbarDivider } from './';
 import type { Tool, ToolType } from '@/types';
 import { TooltipProvider } from '@/components/ui';
@@ -69,7 +67,6 @@ interface ToolbarProps {
  */
 export function Toolbar({ onShowShortcuts }: ToolbarProps) {
   const { activeTool, setActiveTool } = useToolStore();
-  const { clearObjects, selectedIds, removeObject, selectObjects, objects, addObject } = useCanvasStore();
 
   /**
    * Handle tool button click
@@ -78,76 +75,6 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
     setActiveTool(toolId);
   }
 
-  /**
-   * Handle duplicate selected objects (supports multi-select)
-   * Creates copies of all selected objects with offset position
-   */
-  async function handleDuplicate() {
-    if (selectedIds.length === 0) return;
-
-    const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
-    const newIds: string[] = [];
-
-    // Create duplicates for all selected objects
-    for (const selectedObject of selectedObjects) {
-      const duplicate = duplicateObject(selectedObject);
-
-      // Optimistic update - add to local store immediately
-      addObject(duplicate);
-      newIds.push(duplicate.id);
-
-      // Sync to Realtime Database
-      try {
-        await addCanvasObject('main', duplicate);
-      } catch {
-        // Note: RTDB subscription will restore correct state if sync fails
-      }
-    }
-
-    // Select the duplicates
-    selectObjects(newIds);
-  }
-
-  /**
-   * Handle delete selected objects (supports multi-select)
-   * Removes all selected objects from canvas and syncs to Realtime Database
-   */
-  async function handleDelete() {
-    if (selectedIds.length === 0) return;
-
-    // Optimistic update - remove all from local store immediately
-    selectedIds.forEach(id => removeObject(id));
-    selectObjects([]);
-
-    // Sync to Realtime Database
-    for (const id of selectedIds) {
-      try {
-        await removeCanvasObject('main', id);
-      } catch {
-        // Note: RTDB subscription will restore correct state if sync fails
-      }
-    }
-  }
-
-  /**
-   * Handle clear canvas button click
-   * Clears all objects from canvas and syncs to Realtime Database
-   *
-   * Note: Migrated from Firestore to RTDB for atomic operation
-   */
-  async function handleClearCanvas() {
-    if (window.confirm('Clear all shapes from the canvas?')) {
-      // Optimistic update
-      clearObjects();
-
-      // Sync to Realtime Database (atomic clear operation)
-      try {
-        await clearAllCanvasObjects('main');
-      } catch {
-        // Note: Could add rollback logic here if needed
-      }
-    }
-  }
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -163,37 +90,6 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
             isActive={activeTool === tool.id}
           />
         ))}
-
-        <ToolbarDivider />
-
-        {/* Duplicate selected objects button */}
-        <ToolButton
-          icon={Copy}
-          label="Duplicate selected objects"
-          tooltip="Duplicate ⌘D"
-          onClick={handleDuplicate}
-          disabled={selectedIds.length === 0}
-        />
-
-        {/* Delete selected objects button */}
-        <ToolButton
-          icon={Trash2}
-          label="Delete selected objects"
-          tooltip="Delete Del"
-          onClick={handleDelete}
-          disabled={selectedIds.length === 0}
-        />
-
-        <ToolbarDivider />
-
-        {/* Clear canvas button */}
-        <ToolButton
-          icon={Trash2}
-          label="Clear Canvas"
-          tooltip="Clear Canvas"
-          onClick={handleClearCanvas}
-          variant="danger"
-        />
 
         <ToolbarDivider />
 

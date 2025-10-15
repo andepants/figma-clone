@@ -6,10 +6,9 @@
  */
 
 import { useEffect } from 'react';
-import { useToolStore, useAIStore } from '@/stores';
+import { useToolStore, useUIStore } from '@/stores';
 import { useCanvasStore } from '@/stores';
-import { removeCanvasObject, addCanvasObject } from '@/lib/firebase';
-import { duplicateObject } from '@/features/canvas-core/utils';
+import { removeCanvasObject } from '@/lib/firebase';
 
 /**
  * Check if user is currently typing in an input field
@@ -38,10 +37,12 @@ function isInputFocused(): boolean {
  * - L: Line tool
  * - T: Text tool
  * - Cmd/Ctrl+K: Toggle AI chat panel
- * - Cmd/Ctrl+D: Duplicate selected objects (supports multi-select)
+ * - Cmd/Ctrl+C: Copy selected objects (supports multi-select, preserves hierarchy)
+ * - Cmd/Ctrl+V: Paste copied objects (supports multi-select, preserves hierarchy)
  * - Cmd/Ctrl+0: Reset zoom to 100%
  * - Cmd/Ctrl+1: Fit all objects in view
  * - Cmd/Ctrl+2: Zoom to selection (supports multi-select)
+ * - Shift+Cmd/Ctrl+L: Lock/unlock selected objects
  * - Delete/Backspace: Delete selected objects (supports multi-select)
  * - Escape: Clear selection
  * - ?: Show keyboard shortcuts modal
@@ -63,8 +64,8 @@ function isInputFocused(): boolean {
  */
 export function useToolShortcuts(onShowShortcuts?: () => void) {
   const { setActiveTool } = useToolStore();
-  const { toggleChatPanel } = useAIStore();
-  const { clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo } = useCanvasStore();
+  const { toggleAIChatCollapse } = useUIStore();
+  const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects } = useCanvasStore();
 
   useEffect(() => {
     /**
@@ -81,35 +82,26 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
       // Handle Cmd/Ctrl+K for AI chat panel toggle
       if ((event.metaKey || event.ctrlKey) && key === 'k') {
         event.preventDefault(); // Prevent browser "Search" behavior
-        toggleChatPanel();
+        toggleAIChatCollapse();
         return;
       }
 
-      // Handle Cmd/Ctrl+D for duplicate (supports multi-select)
-      if ((event.metaKey || event.ctrlKey) && key === 'd') {
-        event.preventDefault(); // Prevent browser "Add Bookmark" dialog
+      // Handle Cmd/Ctrl+C for copy (supports multi-select, preserves hierarchy)
+      if ((event.metaKey || event.ctrlKey) && key === 'c') {
+        // Only prevent default if we're not in an input (allow normal copy in inputs)
+        if (!isInputFocused()) {
+          event.preventDefault();
+          copyObjects();
+        }
+        return;
+      }
 
-        if (selectedIds.length > 0) {
-          const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
-          const newIds: string[] = [];
-
-          // Create duplicates for all selected objects
-          for (const selectedObject of selectedObjects) {
-            const duplicate = duplicateObject(selectedObject);
-
-            // Optimistic update
-            addObject(duplicate);
-            newIds.push(duplicate.id);
-
-            // Sync to Realtime Database
-            addCanvasObject('main', duplicate)
-              .catch(() => {
-                // Silently fail - RTDB subscription will restore correct state
-              });
-          }
-
-          // Select the duplicates
-          selectObjects(newIds);
+      // Handle Cmd/Ctrl+V for paste (supports multi-select, preserves hierarchy)
+      if ((event.metaKey || event.ctrlKey) && key === 'v') {
+        // Only prevent default if we're not in an input (allow normal paste in inputs)
+        if (!isInputFocused()) {
+          event.preventDefault();
+          pasteObjects();
         }
         return;
       }
@@ -351,5 +343,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, toggleChatPanel, clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, onShowShortcuts]);
+  }, [setActiveTool, toggleAIChatCollapse, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, onShowShortcuts]);
 }
