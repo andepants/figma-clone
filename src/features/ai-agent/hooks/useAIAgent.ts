@@ -145,7 +145,7 @@ export function useAIAgent(): UseAIAgentReturn {
         // Call Firebase Function
         const result = await processAICommand({
           command,
-          canvasId: 'current-canvas-id', // TODO: Get from URL params or context
+          canvasId: 'main', // Must match the canvas ID in CanvasPage.tsx subscription
           canvasState,
         });
 

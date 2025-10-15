@@ -17,9 +17,31 @@ import * as admin from 'firebase-admin';
 /**
  * Initialize Firebase Admin SDK
  * Only initializes once, safe to import multiple times
+ *
+ * Environment Detection:
+ * - Production: Uses production RTDB (figma-clone-d33e3)
+ * - Local Dev (Emulator): Uses local RTDB emulator on port 9000
+ *
+ * The emulator is automatically detected via FIREBASE_DATABASE_EMULATOR_HOST
+ * environment variable set by Firebase Functions emulator.
  */
 if (!admin.apps.length) {
-  admin.initializeApp();
+  const isEmulator = process.env.FIREBASE_DATABASE_EMULATOR_HOST !== undefined;
+
+  if (isEmulator) {
+    // Running in emulator - use local database
+    console.log('🔧 Firebase Admin: Using RTDB Emulator');
+    admin.initializeApp({
+      projectId: 'figma-clone-d33e3',
+      databaseURL: 'http://127.0.0.1:9000/?ns=figma-clone-d33e3-default-rtdb',
+    });
+  } else {
+    // Production - use real database
+    console.log('🚀 Firebase Admin: Using Production RTDB');
+    admin.initializeApp({
+      databaseURL: 'https://figma-clone-d33e3-default-rtdb.firebaseio.com',
+    });
+  }
 }
 
 /**

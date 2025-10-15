@@ -8,7 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { Stage, Layer, Rect, Circle as KonvaCircle, Line as KonvaLine } from 'react-konva';
 import type Konva from 'konva';
-import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures, useGroupDrag, useDragToSelect } from '../hooks';
+import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures, useGroupDrag, useDragToSelect, useArrowKeyPan } from '../hooks';
 import { Rectangle, Circle, TextShape, Line } from '../shapes';
 import { GroupBoundingBox } from '../components';
 import { useToolStore, useCanvasStore, usePageStore } from '@/stores';
@@ -64,6 +64,9 @@ export function CanvasStage() {
 
   // Spacebar panning state
   const { isSpacePressed, isPanning, setIsPanning } = useSpacebarPan();
+
+  // Arrow key panning
+  useArrowKeyPan();
 
   // Track mouse position to distinguish clicks from drags
   const mouseDownPos = useRef<Position | null>(null);

@@ -26,7 +26,8 @@ A real-time collaborative canvas app (Figma clone) where multiple users can simu
 ```bash
 npm install
 cp .env.example .env  # Add your Firebase config
-npm run dev
+npm run emulators     # Terminal 1: Start Firebase emulators
+npm run dev           # Terminal 2: Start dev server
 ```
 
 See detailed setup instructions in the [Getting Started](#getting-started) section below.
@@ -57,15 +58,23 @@ npm install
 cp .env.example .env
 ```
 
-3. Start dev server:
+3. Start Firebase emulators (Terminal 1):
+```bash
+npm run emulators
+```
+
+4. Start dev server (Terminal 2):
 ```bash
 npm run dev
 ```
+
+**Important**: Always run emulators during development to avoid using production data. See [Development Environment Guide](_docs/setup/development-environment.md) for details.
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
+| `npm run emulators` | Start Firebase emulators (required for dev) |
 | `npm run dev` | Start development server |
 | `npm run build` | Build for production |
 | `npm run deploy` | Deploy to Firebase Hosting |
