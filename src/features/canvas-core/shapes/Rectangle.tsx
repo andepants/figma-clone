@@ -164,6 +164,16 @@ export const Rectangle = memo(function Rectangle({
 
     if (!currentUser) return;
 
+    // Select object when drag starts (if not already selected)
+    // This ensures the dragged object becomes the selected object
+    if (!isSelected) {
+      // Create fake event without shift key to ensure single selection
+      const fakeEvent = {
+        evt: { shiftKey: false },
+      } as Konva.KonvaEventObject<MouseEvent>;
+      onSelect(fakeEvent);
+    }
+
     // Attempt to acquire drag lock
     const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
     const color = getUserColor(currentUser.uid);
