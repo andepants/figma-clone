@@ -5,7 +5,7 @@
  */
 
 import { create } from 'zustand';
-import type { CanvasObject, Rectangle, Circle, Text } from '@/types';
+import type { CanvasObject, Rectangle, Circle, Text, Line } from '@/types';
 
 /**
  * Compare two canvas object arrays for shallow equality
@@ -45,7 +45,6 @@ function areObjectArraysEqual(arr1: CanvasObject[], arr2: CanvasObject[]): boole
       obj1.scaleY !== obj2.scaleY ||
       obj1.skewX !== obj2.skewX ||
       obj1.skewY !== obj2.skewY ||
-      obj1.fill !== obj2.fill ||
       obj1.stroke !== obj2.stroke ||
       obj1.strokeWidth !== obj2.strokeWidth ||
       obj1.strokeEnabled !== obj2.strokeEnabled ||
@@ -57,6 +56,11 @@ function areObjectArraysEqual(arr1: CanvasObject[], arr2: CanvasObject[]): boole
       obj1.shadowEnabled !== obj2.shadowEnabled ||
       obj1.createdBy !== obj2.createdBy
     ) {
+      return false;
+    }
+
+    // Compare fill property (only exists on Rectangle, Circle, Text - not Line)
+    if ('fill' in obj1 && 'fill' in obj2 && obj1.fill !== obj2.fill) {
       return false;
     }
 
@@ -93,6 +97,18 @@ function areObjectArraysEqual(arr1: CanvasObject[], arr2: CanvasObject[]): boole
         text1.lineHeight !== text2.lineHeight ||
         text1.letterSpacing !== text2.letterSpacing ||
         text1.wrap !== text2.wrap
+      ) {
+        return false;
+      }
+    } else if (obj1.type === 'line' && obj2.type === 'line') {
+      const line1 = obj1 as Line;
+      const line2 = obj2 as Line;
+      if (
+        line1.points[0] !== line2.points[0] ||
+        line1.points[1] !== line2.points[1] ||
+        line1.points[2] !== line2.points[2] ||
+        line1.points[3] !== line2.points[3] ||
+        line1.width !== line2.width
       ) {
         return false;
       }
@@ -251,6 +267,46 @@ interface CanvasActions {
    * Reset view to default (zoom 100%, centered)
    */
   resetView: () => void;
+
+  /**
+   * Toggle visibility of an object
+   * @param {string} id - Object ID to toggle
+   */
+  toggleVisibility: (id: string) => void;
+
+  /**
+   * Toggle collapse state of object
+   *
+   * When collapsed, children are hidden in layers panel.
+   * @param {string} id - Object ID to toggle
+   */
+  toggleCollapse: (id: string) => void;
+
+  /**
+   * Set parent of object
+   *
+   * Validates no circular references before updating.
+   * Returns early if circular reference detected.
+   * @param {string} objectId - Object to move
+   * @param {string | null} newParentId - New parent ID (null for root)
+   */
+  setParent: (objectId: string, newParentId: string | null) => void;
+
+  /**
+   * Select object and all descendants
+   *
+   * Used when clicking collapsed parent or selecting entire group.
+   * @param {string} id - Parent object ID
+   */
+  selectWithDescendants: (id: string) => void;
+
+  /**
+   * Toggle lock state of an object
+   *
+   * Locked objects cannot be selected, edited, or deleted on canvas.
+   * @param {string} id - Object ID to toggle
+   */
+  toggleLock: (id: string) => void;
 }
 
 /**
@@ -369,7 +425,21 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       if (areObjectArraysEqual(state.objects, objects)) {
         return state; // No update → no re-render!
       }
-      return { objects };
+
+      // SYNC FIX: Clean up stale selection IDs
+      // When objects are deleted remotely (via Firebase), we need to remove
+      // their IDs from selectedIds to prevent the UI from trying to access
+      // deleted objects. This prevents "Cannot read properties of null" errors.
+      const objectIds = new Set(objects.map(obj => obj.id));
+      const cleanedSelectedIds = state.selectedIds.filter(id => objectIds.has(id));
+
+      // Only update selectedIds if it actually changed (avoid unnecessary re-renders)
+      const selectedIdsChanged = cleanedSelectedIds.length !== state.selectedIds.length;
+
+      return {
+        objects,
+        ...(selectedIdsChanged && { selectedIds: cleanedSelectedIds }),
+      };
     }),
 
   clearObjects: () =>
@@ -427,6 +497,16 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
           minY = Math.min(minY, obj.y);
           maxX = Math.max(maxX, obj.x + obj.width);
           maxY = Math.max(maxY, obj.y + obj.height);
+        } else if (obj.type === 'line') {
+          // Line points are relative to (x, y), so we need to calculate absolute positions
+          const x1 = obj.x + obj.points[0];
+          const y1 = obj.y + obj.points[1];
+          const x2 = obj.x + obj.points[2];
+          const y2 = obj.y + obj.points[3];
+          minX = Math.min(minX, x1, x2);
+          minY = Math.min(minY, y1, y2);
+          maxX = Math.max(maxX, x1, x2);
+          maxY = Math.max(maxY, y1, y2);
         }
       });
 
@@ -479,4 +559,100 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       panX: 0,
       panY: 0,
     })),
+
+  toggleVisibility: (id) => {
+    const state = useCanvasStore.getState();
+    const object = state.objects.find((obj) => obj.id === id);
+    if (object) {
+      const newVisible = !(object.visible ?? true); // Default true
+      state.updateObject(id, { visible: newVisible });
+    }
+  },
+
+  toggleCollapse: (id) => {
+    const state = useCanvasStore.getState();
+    const object = state.objects.find((obj) => obj.id === id);
+    if (object) {
+      state.updateObject(id, { isCollapsed: !object.isCollapsed });
+    }
+  },
+
+  setParent: (objectId, newParentId) => {
+    const state = useCanvasStore.getState();
+    const objects = state.objects;
+
+    // Prevent circular references
+    if (newParentId) {
+      // Import getAllDescendantIds locally to avoid circular import
+      const getAllDescendantIds = (nodeId: string, objs: CanvasObject[]): string[] => {
+        const descendants: string[] = [];
+        const children = objs.filter((obj) => obj.parentId === nodeId);
+        children.forEach((child) => {
+          descendants.push(child.id);
+          descendants.push(...getAllDescendantIds(child.id, objs));
+        });
+        return descendants;
+      };
+
+      const descendants = getAllDescendantIds(objectId, objects);
+      if (descendants.includes(newParentId)) {
+        // Prevent circular reference - silently return
+        return;
+      }
+    }
+
+    // Update parent
+    state.updateObject(objectId, { parentId: newParentId });
+  },
+
+  selectWithDescendants: (id) => {
+    const state = useCanvasStore.getState();
+    const objects = state.objects;
+
+    // Import getAllDescendantIds locally to avoid circular import
+    const getAllDescendantIds = (nodeId: string, objs: CanvasObject[]): string[] => {
+      const descendants: string[] = [];
+      const children = objs.filter((obj) => obj.parentId === nodeId);
+      children.forEach((child) => {
+        descendants.push(child.id);
+        descendants.push(...getAllDescendantIds(child.id, objs));
+      });
+      return descendants;
+    };
+
+    const descendants = getAllDescendantIds(id, objects);
+    state.selectObjects([id, ...descendants]);
+  },
+
+  toggleLock: (id) => {
+    const state = useCanvasStore.getState();
+    const objects = state.objects;
+    const object = objects.find((obj) => obj.id === id);
+    if (!object) return;
+
+    const newLocked = !(object.locked ?? false);
+
+    // Get all descendants
+    const getAllDescendantIds = (nodeId: string, objs: CanvasObject[]): string[] => {
+      const descendants: string[] = [];
+      const children = objs.filter((obj) => obj.parentId === nodeId);
+      children.forEach((child) => {
+        descendants.push(child.id);
+        descendants.push(...getAllDescendantIds(child.id, objs));
+      });
+      return descendants;
+    };
+
+    const descendants = getAllDescendantIds(id, objects);
+
+    // Update object and all descendants
+    const updatedObjects = objects.map((obj) => {
+      if (obj.id === id || descendants.includes(obj.id)) {
+        return { ...obj, locked: newLocked, updatedAt: Date.now() };
+      }
+      return obj;
+    });
+
+    set({ objects: updatedObjects });
+  },
 }));

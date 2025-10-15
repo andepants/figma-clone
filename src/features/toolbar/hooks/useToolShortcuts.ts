@@ -35,6 +35,7 @@ function isInputFocused(): boolean {
  * - V: Move tool
  * - R: Rectangle tool
  * - C: Circle tool
+ * - L: Line tool
  * - T: Text tool
  * - Cmd/Ctrl+D: Duplicate selected objects (supports multi-select)
  * - Cmd/Ctrl+0: Reset zoom to 100%
@@ -244,6 +245,28 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
         return;
       }
 
+      // Handle Shift+Cmd/Ctrl+L for lock/unlock toggle (supports multi-select)
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'l') {
+        event.preventDefault();
+
+        if (selectedIds.length > 0) {
+          const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+
+          // Smart toggle: if any locked, unlock all; otherwise lock all
+          const anyLocked = selectedObjects.some(obj => obj.locked);
+          const toggleLock = useCanvasStore.getState().toggleLock;
+
+          // Toggle lock for all selected objects
+          selectedIds.forEach(id => {
+            const obj = objects.find(o => o.id === id);
+            if (obj && (anyLocked ? obj.locked : !obj.locked)) {
+              toggleLock(id);
+            }
+          });
+        }
+        return;
+      }
+
       // Handle ? key (Shift + /) to show shortcuts modal
       if (event.key === '?' && onShowShortcuts) {
         event.preventDefault();
@@ -264,6 +287,10 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
           setActiveTool('circle');
           event.preventDefault();
           break;
+        case 'l':
+          setActiveTool('line');
+          event.preventDefault();
+          break;
         case 't':
           setActiveTool('text');
           event.preventDefault();
@@ -271,17 +298,29 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
         case 'delete':
         case 'backspace':
           if (selectedIds.length > 0) {
-            // Optimistic update - remove all selected objects
-            selectedIds.forEach(id => removeObject(id));
-            clearSelection();
-            event.preventDefault();
+            // Filter out locked objects (locked objects cannot be deleted)
+            const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+            const unlockedIdsToDelete = selectedObjects
+              .filter(obj => !obj.locked)
+              .map(obj => obj.id);
 
-            // Sync to Realtime Database
-            for (const id of selectedIds) {
-              removeCanvasObject('main', id)
-                .catch(() => {
-                  // Silently fail - RTDB subscription will restore correct state
-                });
+            if (unlockedIdsToDelete.length > 0) {
+              // Optimistic update - remove unlocked selected objects
+              unlockedIdsToDelete.forEach(id => removeObject(id));
+              clearSelection();
+              event.preventDefault();
+
+              // Sync to Realtime Database
+              for (const id of unlockedIdsToDelete) {
+                removeCanvasObject('main', id)
+                  .catch(() => {
+                    // Silently fail - RTDB subscription will restore correct state
+                  });
+              }
+            } else {
+              // All selected objects are locked - just clear selection
+              clearSelection();
+              event.preventDefault();
             }
           }
           break;

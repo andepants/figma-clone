@@ -22,6 +22,8 @@ interface TextSelectionBoxProps {
   isHovered?: boolean;
   /** Color for the selection (blue for user selection, custom for remote) */
   color?: string;
+  /** Dash pattern for the selection box (e.g., [4, 4] for dashed) */
+  dash?: number[];
   /** Reference to the text node for measuring actual text dimensions (future use) */
   textNodeRef?: React.RefObject<Konva.Text | null>;
 }
@@ -42,6 +44,7 @@ export function TextSelectionBox({
   isSelected,
   isHovered = false,
   color = '#0ea5e9',
+  dash,
   textNodeRef,
 }: TextSelectionBoxProps) {
   // Show on either hover or selection
@@ -138,8 +141,8 @@ export function TextSelectionBox({
           width={containerWidth}
           height={containerHeight}
           stroke={boxColor}
-          strokeWidth={2}
-          dash={[5, 5]} // Dashed border to distinguish from solid shapes
+          strokeWidth={dash ? 1.5 : 2} // Thinner border for locked (dashed)
+          dash={dash ?? [5, 5]} // Use provided dash or default dashed border to distinguish from solid shapes
           listening={false} // Don't intercept mouse events
         />
       )}

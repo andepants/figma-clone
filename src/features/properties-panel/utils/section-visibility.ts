@@ -83,6 +83,16 @@ export function getSectionVisibility(shape: CanvasObject | null): SectionVisibil
         text: true,        // Show font, alignment, etc.
       };
 
+    case 'line':
+      return {
+        ...commonSections,
+        layout: true,      // Show width (line length)
+        appearance: true,  // Show opacity only (no corner radius)
+        stroke: true,      // Show stroke color and width
+        text: false,       // No text properties
+        fill: false,       // Lines don't have fill
+      };
+
     default:
       // Unknown shape type - show common sections only
       return {

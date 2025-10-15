@@ -11,8 +11,8 @@
  */
 
 import { memo } from 'react';
-import { Rect, Group, Text, Line } from 'react-konva';
-import type { CanvasObject, Rectangle, Circle, Text as TextType } from '@/types';
+import { Rect, Group, Text, Line as KonvaLine, Circle as KonvaCircle } from 'react-konva';
+import type { CanvasObject, Rectangle, Circle, Text as TextType, Line as LineType } from '@/types';
 import type { RemoteSelection } from '@/types';
 
 /**
@@ -121,7 +121,7 @@ export const SelectionOverlay = memo(function SelectionOverlay({
         />
 
         {/* Underline under text content */}
-        <Line
+        <KonvaLine
           points={[underlineX, underlineY, underlineX + underlineWidth, underlineY]}
           stroke={color}
           strokeWidth={2}
@@ -262,6 +262,80 @@ export const SelectionOverlay = memo(function SelectionOverlay({
               x={badgePadding}
               y={badgeHeight / 2}
               offsetY={5} // Center vertically
+              fontSize={10}
+              fontFamily="Inter, sans-serif"
+              fontStyle="500"
+              fill="white"
+              listening={false}
+            />
+          </Group>
+        )}
+      </Group>
+    );
+  }
+
+  // Handle lines with outlined endpoints
+  if (object.type === 'line') {
+    const line = object as LineType;
+    const [relX1, relY1, relX2, relY2] = line.points;
+
+    // Calculate absolute endpoint positions
+    const x1 = line.x + relX1;
+    const y1 = line.y + relY1;
+    const x2 = line.x + relX2;
+    const y2 = line.y + relY2;
+
+    // Endpoint circle radius for visual feedback
+    const endpointRadius = 4;
+
+    return (
+      <Group listening={false}>
+        {/* Line with user's color */}
+        <KonvaLine
+          x={line.x}
+          y={line.y}
+          points={line.points}
+          stroke={color}
+          strokeWidth={(line.strokeWidth ?? 2) + 2} // Slightly thicker
+          lineCap="round"
+          lineJoin="round"
+          listening={false}
+          opacity={0.6} // Semi-transparent to show underneath
+        />
+
+        {/* Endpoint 1 indicator */}
+        <KonvaCircle
+          x={x1}
+          y={y1}
+          radius={endpointRadius}
+          fill={color}
+          listening={false}
+        />
+
+        {/* Endpoint 2 indicator */}
+        <KonvaCircle
+          x={x2}
+          y={y2}
+          radius={endpointRadius}
+          fill={color}
+          listening={false}
+        />
+
+        {/* Username badge (shown conditionally) */}
+        {showBadge && (
+          <Group x={x1} y={y1 - badgeHeight - 2}>
+            <Rect
+              width={textWidth}
+              height={badgeHeight}
+              fill={color}
+              cornerRadius={3}
+              listening={false}
+            />
+            <Text
+              text={username}
+              x={badgePadding}
+              y={badgeHeight / 2}
+              offsetY={5}
               fontSize={10}
               fontFamily="Inter, sans-serif"
               fontStyle="500"

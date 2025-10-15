@@ -12,8 +12,10 @@ import { useAuth } from '@/features/auth/hooks';
 import { addCanvasObject } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../utils/coordinates';
 import { getUserColor } from '@/features/collaboration/utils';
-import type { CanvasObject, Rectangle, Circle, Text } from '@/types';
+import { generateLayerName } from '@/features/layers-panel/utils';
+import type { CanvasObject, Rectangle, Circle, Text, Line } from '@/types';
 import { TEXT_DEFAULTS, DEFAULT_TEXT_WIDTH, DEFAULT_TEXT_HEIGHT } from '@/constants';
+import { calculateLineProperties } from '../utils/lineHelpers';
 
 /**
  * Point in 2D space
@@ -70,6 +72,16 @@ const DEFAULT_FONT_SIZE = 24;
 const DEFAULT_FONT_FAMILY = 'Inter';
 
 /**
+ * Default stroke color for new lines
+ */
+const DEFAULT_LINE_STROKE = '#000000'; // black
+
+/**
+ * Default stroke width for new lines
+ */
+const DEFAULT_LINE_STROKE_WIDTH = 2;
+
+/**
  * Hook for managing shape creation with click-drag-release
  *
  * Provides handlers for mouse events and preview state.
@@ -107,7 +119,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
    * Prevents orphaned preview shapes when user switches tools mid-creation
    */
   useEffect(() => {
-    if (activeTool !== 'rectangle' && activeTool !== 'circle' && activeTool !== 'text' && isCreating) {
+    if (activeTool !== 'rectangle' && activeTool !== 'circle' && activeTool !== 'text' && activeTool !== 'line' && isCreating) {
       // Clear preview and creation state when switching away from shape tools
       setIsCreating(false);
       setStartPoint(null);
@@ -138,15 +150,15 @@ export function useShapeCreation(): UseShapeCreationReturn {
 
   /**
    * Handle mouse down - start shape creation
-   * Only activates when rectangle, circle, or text tool is selected
+   * Only activates when rectangle, circle, text, or line tool is selected
    *
    * For text tool: Creates text immediately on click (no drag)
-   * For shapes: Starts drag-to-create flow
+   * For shapes/lines: Starts drag-to-create flow
    */
   const handleMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      // Only create shapes when rectangle, circle, or text tool is active
-      if (activeTool !== 'rectangle' && activeTool !== 'circle' && activeTool !== 'text') return;
+      // Only create shapes when rectangle, circle, text, or line tool is active
+      if (activeTool !== 'rectangle' && activeTool !== 'circle' && activeTool !== 'text' && activeTool !== 'line') return;
 
       const stage = e.target.getStage();
       if (!stage) return;
@@ -165,6 +177,9 @@ export function useShapeCreation(): UseShapeCreationReturn {
 
       // For text tool: Create text immediately on click (no drag needed)
       if (activeTool === 'text') {
+        // Generate auto-name for text object
+        const objects = useCanvasStore.getState().objects;
+        const name = generateLayerName('text', objects);
 
         // Create text shape immediately with all default typography properties
         // Text boxes are fixed-size containers (like rectangles) that hold text
@@ -196,6 +211,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
           // Base properties
           opacity: TEXT_DEFAULTS.opacity,
           rotation: TEXT_DEFAULTS.rotation,
+          name, // Auto-generated name (e.g., "Text 1")
           createdBy: currentUser?.uid || 'unknown',
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -252,7 +268,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
         return;
       }
 
-      // For rectangles and circles: Start drag creation flow
+      // For rectangles, circles, and lines: Start drag creation flow
       setStartPoint(canvasPos);
       setIsCreating(true);
     },
@@ -264,6 +280,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
    * Shows dynamic sizing as user drags
    * For rectangles: shows width x height
    * For circles: shows radius from center point
+   * For lines: shows line from start point to current point
    */
   const handleMouseMove = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -322,6 +339,30 @@ export function useShapeCreation(): UseShapeCreationReturn {
           createdAt: Date.now(),
           updatedAt: Date.now(),
         } as Circle;
+      } else if (activeTool === 'line') {
+        // Calculate line properties from start point to current point
+        const { x, y, points, width, rotation } = calculateLineProperties(
+          startPoint.x,
+          startPoint.y,
+          currentPos.x,
+          currentPos.y
+        );
+
+        preview = {
+          id: 'preview', // Temporary ID
+          type: 'line',
+          x,
+          y,
+          points,
+          width,
+          rotation,
+          stroke: DEFAULT_LINE_STROKE,
+          strokeWidth: DEFAULT_LINE_STROKE_WIDTH,
+          visible: true,
+          createdBy: currentUser?.uid || 'unknown',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as Line;
       } else {
         return;
       }
@@ -346,6 +387,9 @@ export function useShapeCreation(): UseShapeCreationReturn {
       return;
     }
 
+    // Get current objects for name generation
+    const objects = useCanvasStore.getState().objects;
+
     // Create final shape with unique ID based on type
     let newShape: CanvasObject;
 
@@ -355,22 +399,82 @@ export function useShapeCreation(): UseShapeCreationReturn {
       const width = Math.max(rectPreview.width, MIN_SIZE);
       const height = Math.max(rectPreview.height, MIN_SIZE);
 
+      // Generate auto-name for rectangle
+      const name = generateLayerName('rectangle', objects);
+
       newShape = {
         ...rectPreview,
         id: `rect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         width,
         height,
+        name, // Auto-generated name (e.g., "Rectangle 1")
       };
     } else if (previewShape.type === 'circle') {
       // Enforce minimum radius for circles (5px = 10px diameter, matching MIN_SIZE)
       const circlePreview = previewShape as Circle;
       const radius = Math.max(circlePreview.radius, MIN_SIZE / 2);
 
+      // Generate auto-name for circle
+      const name = generateLayerName('circle', objects);
+
       newShape = {
         ...circlePreview,
         id: `circle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         radius,
+        name, // Auto-generated name (e.g., "Circle 1")
       };
+    } else if (previewShape.type === 'line') {
+      // Handle line creation
+      const linePreview = previewShape as Line;
+
+      // Generate auto-name for line
+      const name = generateLayerName('line', objects);
+
+      // If line is too short (user clicked without dragging), create a default 10px horizontal line
+      if (linePreview.width < MIN_SIZE) {
+        // Create horizontal line at click point
+        if (!startPoint) {
+          setIsCreating(false);
+          setStartPoint(null);
+          setPreviewShape(null);
+          return;
+        }
+
+        const { x, y, points, width, rotation } = calculateLineProperties(
+          startPoint.x,
+          startPoint.y,
+          startPoint.x + MIN_SIZE,
+          startPoint.y
+        );
+
+        newShape = {
+          id: `line-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'line',
+          x,
+          y,
+          points,
+          width,
+          rotation,
+          stroke: DEFAULT_LINE_STROKE,
+          strokeWidth: DEFAULT_LINE_STROKE_WIDTH,
+          visible: true,
+          name, // Auto-generated name (e.g., "Line 1")
+          createdBy: currentUser?.uid || 'unknown',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as Line;
+      } else {
+        // Use the dragged line with enforced minimum length
+        const width = Math.max(linePreview.width, MIN_SIZE);
+
+        newShape = {
+          ...linePreview,
+          id: `line-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          width,
+          visible: true,
+          name, // Auto-generated name (e.g., "Line 1")
+        };
+      }
     } else {
       // Unknown shape type, abort
       setIsCreating(false);
@@ -400,7 +504,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
     setIsCreating(false);
     setStartPoint(null);
     setPreviewShape(null);
-  }, [isCreating, previewShape, addObject, setActiveTool]);
+  }, [isCreating, previewShape, addObject, setActiveTool, startPoint, currentUser]);
 
   return {
     previewShape,

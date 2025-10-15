@@ -9,13 +9,15 @@ import { PropertySection } from './PropertySection';
 import { NumberInput, Label } from '@/components/ui';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { usePropertyUpdate } from '../hooks/usePropertyUpdate';
-import { normalizeRotation } from '@/lib/utils';
+import { normalizeRotation, normalizeRotationForLines } from '@/lib/utils';
+import { isLineShape } from '@/types/canvas.types';
 
 /**
  * RotationSection Component
  *
  * Shows rotation angle input for the selected shape.
- * Rotation is normalized to 0-360 degrees.
+ * Rotation is normalized to 0-360 degrees for most shapes.
+ * Lines use -179 to 179 range to avoid ambiguity at 180/-180.
  *
  * @example
  * ```tsx
@@ -29,10 +31,11 @@ export function RotationSection() {
   if (!shape) return null;
 
   const rotation = shape.rotation ?? 0;
+  const isLine = isLineShape(shape);
 
   function handleRotationChange(degrees: number) {
     if (!shape) return;
-    const normalized = normalizeRotation(degrees);
+    const normalized = isLine ? normalizeRotationForLines(degrees) : normalizeRotation(degrees);
     updateShapeProperty(shape.id, { rotation: normalized });
   }
 
@@ -48,13 +51,18 @@ export function RotationSection() {
         <NumberInput
           value={rotation}
           onChange={handleRotationChange}
-          min={0}
-          max={360}
+          min={isLine ? -179 : 0}
+          max={isLine ? 179 : 360}
           step={1}
           precision={1}
           unit="°"
         />
       </div>
+      {isLine && (
+        <div className="flex items-center gap-1 text-[11px] text-gray-400 italic">
+          <span>Lines use -179° to 179° range</span>
+        </div>
+      )}
     </PropertySection>
   );
 }

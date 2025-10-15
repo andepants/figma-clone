@@ -12,6 +12,7 @@ import {
   hasCornerRadius,
   supportsAspectRatioLock,
   isTextShape,
+  isLineShape,
 } from '@/types/canvas.types';
 
 /**
@@ -20,10 +21,11 @@ import {
  *
  * - Rectangle/Text: Returns width and height directly (both have fixed dimensions)
  * - Circle: Returns diameter as both width and height
+ * - Line: Returns width (line length) only, no height (1D shape)
  */
 export function getNormalizedDimensions(shape: CanvasObject): {
   width: number;
-  height: number;
+  height?: number;
 } | null {
   if (hasDimensions(shape)) {
     // Text and Rectangle shapes: both have width and height properties
@@ -33,6 +35,11 @@ export function getNormalizedDimensions(shape: CanvasObject): {
   if (hasRadius(shape)) {
     const diameter = shape.radius * 2;
     return { width: diameter, height: diameter };
+  }
+
+  if (isLineShape(shape)) {
+    // Lines have width (length) but no height (1D shape)
+    return { width: shape.width };
   }
 
   return null;
@@ -48,6 +55,9 @@ export function getDimensionLabels(shape: CanvasObject): {
 } {
   if (hasRadius(shape)) {
     return { primary: 'Radius', secondary: 'Diameter' };
+  }
+  if (isLineShape(shape)) {
+    return { primary: 'Width (Length)' };
   }
   if (hasDimensions(shape)) {
     return { primary: 'Width', secondary: 'Height' };
@@ -87,6 +97,14 @@ export function getShapeSpecificProperties(shape: CanvasObject): Record<string, 
         fontWeight: shape.fontWeight ?? 400,
         fontStyle: shape.fontStyle ?? 'normal',
         textAlign: shape.textAlign ?? 'left',
+      };
+
+    case 'line':
+      return {
+        width: shape.width,
+        rotation: shape.rotation,
+        stroke: shape.stroke,
+        strokeWidth: shape.strokeWidth,
       };
 
     default:

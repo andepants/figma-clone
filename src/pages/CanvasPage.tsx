@@ -10,8 +10,10 @@ import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { MenuButton } from '@/features/navigation/components';
 import { PropertiesPanel } from '@/features/properties-panel';
+import { LayersPanel } from '@/features/layers-panel';
+import { AIInput, CommandHistory } from '@/features/ai-agent/components';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
-import { useCanvasStore, usePageStore } from '@/stores';
+import { useCanvasStore, usePageStore, useUIStore } from '@/stores';
 import { markManipulated, unmarkManipulated, isManipulated } from '@/stores/manipulationTracker';
 import {
   subscribeToCanvasObjects,
@@ -48,6 +50,9 @@ function CanvasPage() {
 
   // Get page settings for background color
   const { pageSettings } = usePageStore();
+
+  // Get left sidebar state for layout adjustment
+  const leftSidebarOpen = useUIStore((state) => state.leftSidebarOpen);
 
   // Get current user for presence
   const { currentUser } = useAuth();
@@ -347,25 +352,44 @@ function CanvasPage() {
         className="relative h-screen w-screen overflow-hidden"
         style={{ backgroundColor: bgColorWithOpacity }}
       >
-        {/* Loading skeleton for toolbar */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-          <Skeleton className="h-12 w-80 rounded-lg" />
-        </div>
-
-        {/* Loading indicator in center */}
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <Skeleton className="h-12 w-12 rounded-full mx-auto" />
-            <Skeleton className="h-4 w-32 mx-auto" />
+        {/* Loading skeleton for layers panel */}
+        {leftSidebarOpen && (
+          <div className="absolute top-0 left-0 w-[240px] h-full bg-white border-r border-neutral-200 z-30">
+            <div className="p-4 space-y-4">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Loading skeleton for properties panel */}
-        <div className="absolute top-0 right-0 w-[300px] h-full bg-white border-l border-neutral-200">
-          <div className="p-4 space-y-4">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+        {/* Main content - shifts with sidebar */}
+        <div
+          className={`
+            h-full transition-[margin-left] duration-200
+            ${leftSidebarOpen ? 'ml-[240px]' : 'ml-0'}
+          `}
+        >
+          {/* Loading skeleton for toolbar */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+            <Skeleton className="h-12 w-80 rounded-lg" />
+          </div>
+
+          {/* Loading indicator in center */}
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center space-y-4">
+              <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+              <Skeleton className="h-4 w-32 mx-auto" />
+            </div>
+          </div>
+
+          {/* Loading skeleton for properties panel */}
+          <div className="absolute top-0 right-0 w-[300px] h-full bg-white border-l border-neutral-200">
+            <div className="p-4 space-y-4">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
           </div>
         </div>
       </div>
@@ -378,18 +402,39 @@ function CanvasPage() {
         className="relative h-screen w-screen overflow-hidden"
         style={{ backgroundColor: bgColorWithOpacity }}
       >
-        <Toolbar onShowShortcuts={() => setIsShortcutsOpen(true)} />
-        <div className="absolute top-4 left-4 z-10">
-          <MenuButton />
+        {/* Layers Panel - fixed left sidebar */}
+        <LayersPanel />
+
+        {/* Main canvas container - shifts when left sidebar opens */}
+        <div
+          className={`
+            h-full transition-[margin-left] duration-200
+            ${leftSidebarOpen ? 'ml-[240px]' : 'ml-0'}
+          `}
+        >
+          <Toolbar onShowShortcuts={() => setIsShortcutsOpen(true)} />
+          <div
+            className={`
+              absolute top-4 z-10 transition-[left] duration-200
+              ${leftSidebarOpen ? 'left-4' : 'left-16'}
+            `}
+          >
+            <MenuButton />
+          </div>
+          {/* Sync Indicator - shows online/offline and sync status (positioned left of properties panel) */}
+          <SyncIndicator status={syncStatus} className="!top-4 !right-[316px]" />
+          {/* Canvas Stage - adjusted for properties panel (300px right margin) */}
+          <div className="absolute top-0 left-0 right-[300px] bottom-0">
+            <CanvasStage />
+          </div>
+          {/* Properties Panel - fixed right sidebar with integrated presence */}
+          <PropertiesPanel />
+
+          {/* AI Agent Components */}
+          <AIInput />
+          <CommandHistory />
         </div>
-        {/* Sync Indicator - shows online/offline and sync status (positioned left of properties panel) */}
-        <SyncIndicator status={syncStatus} className="!top-4 !right-[316px]" />
-        {/* Canvas Stage - adjusted for properties panel (300px right margin) */}
-        <div className="absolute top-0 left-0 right-[300px] bottom-0">
-          <CanvasStage />
-        </div>
-        {/* Properties Panel - fixed right sidebar with integrated presence */}
-        <PropertiesPanel />
+
         {/* Keyboard Shortcuts Modal */}
         <ShortcutsModal
           isOpen={isShortcutsOpen}

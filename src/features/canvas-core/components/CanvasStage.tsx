@@ -6,13 +6,13 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { Stage, Layer, Rect, Circle as KonvaCircle } from 'react-konva';
+import { Stage, Layer, Rect, Circle as KonvaCircle, Line as KonvaLine } from 'react-konva';
 import type Konva from 'konva';
 import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures, useGroupDrag, useDragToSelect } from '../hooks';
-import { Rectangle, Circle, TextShape } from '../shapes';
+import { Rectangle, Circle, TextShape, Line } from '../shapes';
 import { GroupBoundingBox } from '../components';
 import { useToolStore, useCanvasStore, usePageStore } from '@/stores';
-import type { Rectangle as RectangleType, Circle as CircleType, Text as TextType } from '@/types';
+import type { Rectangle as RectangleType, Circle as CircleType, Text as TextType, Line as LineType } from '@/types';
 import { useCursors, useDragStates, useRemoteSelections, useRemoteResizes, useEditStates } from '@/features/collaboration/hooks';
 import { Cursor, SelectionOverlay, RemoteResizeOverlay } from '@/features/collaboration/components';
 import { getUserColor } from '@/features/collaboration/utils';
@@ -413,6 +413,31 @@ export function CanvasStage() {
             );
           })}
 
+        {/* Render persisted lines from store */}
+        {objects
+          .filter((obj) => obj.type === 'line')
+          .map((obj) => {
+            // Find if this object is being dragged by another user
+            const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
+
+            return (
+              <Line
+                key={obj.id}
+                line={obj as LineType}
+                isSelected={selectedIds.includes(obj.id)}
+                isInMultiSelect={selectedIds.length > 1 && selectedIds.includes(obj.id)}
+                onSelect={(e: Konva.KonvaEventObject<MouseEvent>) => {
+                  if (e.evt.shiftKey) {
+                    toggleSelection(obj.id);
+                  } else {
+                    selectObjects([obj.id]);
+                  }
+                }}
+                remoteDragState={remoteDragState}
+              />
+            );
+          })}
+
         {/* Render remote selection overlays (supports multi-select) */}
         {remoteSelections.flatMap((selection) => {
           // For each user selection, render overlays for all their selected objects
@@ -474,6 +499,22 @@ export function CanvasStage() {
             strokeWidth={2}
             dash={[5, 5]}
             listening={false}
+          />
+        )}
+
+        {/* Preview line (while creating) */}
+        {previewShape && previewShape.type === 'line' && (
+          <KonvaLine
+            x={previewShape.x}
+            y={previewShape.y}
+            points={previewShape.points}
+            stroke="#0ea5e9"
+            strokeWidth={2}
+            dash={[5, 5]}
+            listening={false}
+            lineCap="round"
+            lineJoin="round"
+            rotation={0} // Always 0 - line direction comes from points array
           />
         )}
 

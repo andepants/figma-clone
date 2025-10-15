@@ -14,8 +14,8 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface NumberInputProps {
-  /** Current numeric value */
-  value: number;
+  /** Current numeric value (null/undefined will be treated as 0) */
+  value: number | null | undefined;
   /** Callback when value changes */
   onChange: (value: number) => void;
   /** Minimum allowed value */
@@ -52,16 +52,19 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     },
     ref
   ) => {
-    const [internalValue, setInternalValue] = React.useState(value.toFixed(precision));
+    // Normalize null/undefined to 0 for display
+    const safeValue = value ?? 0;
+
+    const [internalValue, setInternalValue] = React.useState(safeValue.toFixed(precision));
     const [isFocused, setIsFocused] = React.useState(false);
     const inputRef = React.useRef<HTMLInputElement>(null);
 
     // Sync internal value when external value changes
     React.useEffect(() => {
       if (!isFocused) {
-        setInternalValue(value.toFixed(precision));
+        setInternalValue(safeValue.toFixed(precision));
       }
-    }, [value, precision, isFocused]);
+    }, [safeValue, precision, isFocused]);
 
     /**
      * Validate and clamp a numeric value
@@ -97,7 +100,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
 
       // Handle invalid input - restore original value
       if (isNaN(numValue) || !isFinite(numValue)) {
-        setInternalValue(value.toFixed(precision));
+        setInternalValue(safeValue.toFixed(precision));
         return;
       }
 
@@ -120,7 +123,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
      * Increment value
      */
     function handleIncrement() {
-      const newValue = validateAndClamp(value + step);
+      const newValue = validateAndClamp(safeValue + step);
       onChange(newValue);
     }
 
@@ -128,7 +131,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
      * Decrement value
      */
     function handleDecrement() {
-      const newValue = validateAndClamp(value - step);
+      const newValue = validateAndClamp(safeValue - step);
       onChange(newValue);
     }
 
@@ -144,11 +147,11 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
         handleDecrement();
       } else if (e.key === 'PageUp') {
         e.preventDefault();
-        const newValue = validateAndClamp(value + step * 10);
+        const newValue = validateAndClamp(safeValue + step * 10);
         onChange(newValue);
       } else if (e.key === 'PageDown') {
         e.preventDefault();
-        const newValue = validateAndClamp(value - step * 10);
+        const newValue = validateAndClamp(safeValue - step * 10);
         onChange(newValue);
       } else if (e.key === 'Enter') {
         e.currentTarget.blur();
@@ -171,8 +174,8 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     }
 
     // Check if at boundaries
-    const isAtMin = min !== undefined && value <= min;
-    const isAtMax = max !== undefined && value >= max;
+    const isAtMin = min !== undefined && safeValue <= min;
+    const isAtMax = max !== undefined && safeValue >= max;
 
     return (
       <div className={cn('relative flex items-center', className)}>

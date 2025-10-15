@@ -6,6 +6,7 @@
  * - Authentication
  * - Firestore database
  * - Realtime database
+ * - Cloud Functions
  */
 
 import { initializeApp, type FirebaseApp } from 'firebase/app'
@@ -16,6 +17,7 @@ import {
   enableIndexedDbPersistence,
 } from 'firebase/firestore'
 import { getDatabase, type Database } from 'firebase/database'
+import { getFunctions, type Functions } from 'firebase/functions'
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -49,6 +51,7 @@ export const app: FirebaseApp = initializeApp(firebaseConfig)
 export const auth: Auth = getAuth(app)
 export const firestore: Firestore = getFirestore(app)
 export const realtimeDb: Database = getDatabase(app)
+export const functions: Functions = getFunctions(app)
 
 // Enable offline persistence for Firestore
 // This allows the app to work offline and sync when reconnected

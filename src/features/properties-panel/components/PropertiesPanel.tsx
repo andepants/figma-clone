@@ -6,7 +6,7 @@
  * Displays active users presence at the top.
  */
 
-import { Square, Circle as CircleIcon, Type } from 'lucide-react';
+import { Square, Circle as CircleIcon, Type, Minus } from 'lucide-react';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { getSectionVisibility } from '../utils/section-visibility';
 import { PositionSection } from './PositionSection';
@@ -15,6 +15,7 @@ import { LayoutSection } from './LayoutSection';
 import { TypographySection } from './TypographySection';
 import { AppearanceSection } from './AppearanceSection';
 import { FillSection } from './FillSection';
+import { StrokeSection } from './StrokeSection';
 import { PageSection } from './PageSection';
 import { ZoomDropdown } from './ZoomDropdown';
 import { AvatarStack, PresenceDropdown, type PresenceUser } from '@/features/collaboration/components';
@@ -90,6 +91,8 @@ export function PropertiesPanel() {
         return <CircleIcon className="w-3.5 h-3.5 text-gray-600" />;
       case 'text':
         return <Type className="w-3.5 h-3.5 text-gray-600" />;
+      case 'line':
+        return <Minus className="w-3.5 h-3.5 text-gray-600" />;
       default:
         return null;
     }
@@ -124,6 +127,7 @@ export function PropertiesPanel() {
         {visibility.text && <TypographySection />}
         {visibility.appearance && <AppearanceSection />}
         {visibility.fill && <FillSection />}
+        {visibility.stroke && <StrokeSection />}
       </div>
     </div>
   );

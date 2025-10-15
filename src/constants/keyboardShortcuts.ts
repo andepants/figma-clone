@@ -20,11 +20,13 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   { key: 'V', action: 'Move tool', category: 'Tools' },
   { key: 'R', action: 'Rectangle tool', category: 'Tools' },
   { key: 'C', action: 'Circle tool', category: 'Tools' },
+  { key: 'L', action: 'Line tool', category: 'Tools' },
   { key: 'T', action: 'Text tool', category: 'Tools' },
 
   // Edit Operations
   { key: 'Cmd/Ctrl+D', action: 'Duplicate selected', category: 'Edit' },
   { key: 'Del / Backspace', action: 'Delete selected', category: 'Edit' },
+  { key: 'Shift+Cmd/Ctrl+L', action: 'Lock/unlock selected', category: 'Edit' },
   { key: 'Esc', action: 'Deselect', category: 'Edit' },
 
   // Canvas Navigation

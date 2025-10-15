@@ -347,32 +347,47 @@ export function useResize(): UseResizeReturn {
       if (object) {
         // Extract final shape-specific properties based on object type
         // IMPORTANT: Send only the properties that each shape type actually uses
-        let finalUpdates: Partial<typeof object>;
+        let finalUpdates: Record<string, unknown>;
 
-        if (object.type === 'rectangle') {
-          // Rectangle: x, y, width, height
-          finalUpdates = {
-            x: object.x,
-            y: object.y,
-            width: object.width,
-            height: object.height,
-          };
-        } else if (object.type === 'circle') {
-          // Circle: x (center), y (center), radius
-          // DO NOT send width/height for circles!
-          finalUpdates = {
-            x: object.x,
-            y: object.y,
-            radius: object.radius,
-          };
-        } else {
-          // Text: x, y, width, height (fixed dimensions like rectangles)
-          finalUpdates = {
-            x: object.x,
-            y: object.y,
-            width: object.width,
-            height: object.height,
-          };
+        switch (object.type) {
+          case 'rectangle':
+            // Rectangle: x, y, width, height
+            finalUpdates = {
+              x: object.x,
+              y: object.y,
+              width: object.width,
+              height: object.height,
+            };
+            break;
+          case 'circle':
+            // Circle: x (center), y (center), radius
+            // DO NOT send width/height for circles!
+            finalUpdates = {
+              x: object.x,
+              y: object.y,
+              radius: object.radius,
+            };
+            break;
+          case 'text':
+            // Text: x, y, width, height (fixed dimensions like rectangles)
+            finalUpdates = {
+              x: object.x,
+              y: object.y,
+              width: object.width,
+              height: object.height,
+            };
+            break;
+          case 'line':
+            // Line: x, y, width, points, rotation
+            // Lines don't have height property
+            finalUpdates = {
+              x: object.x,
+              y: object.y,
+              width: object.width,
+              points: object.points,
+              rotation: object.rotation,
+            };
+            break;
         }
 
         try {

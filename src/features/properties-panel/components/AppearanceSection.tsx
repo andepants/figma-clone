@@ -11,7 +11,7 @@ import { PropertySection } from './PropertySection';
 import { NumberInput, Label } from '@/components/ui';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { usePropertyUpdate } from '../hooks/usePropertyUpdate';
-import { hasCornerRadius } from '@/types/canvas.types';
+import { hasCornerRadius, isLineShape } from '@/types/canvas.types';
 import { validateOpacity, validateCornerRadius } from '@/lib/utils';
 
 /**
@@ -73,8 +73,8 @@ export function AppearanceSection() {
         />
       </div>
 
-      {/* Corner Radius (rectangles only) */}
-      {hasCornerRadius(shape) && (
+      {/* Corner Radius (rectangles only - not lines) */}
+      {hasCornerRadius(shape) && !isLineShape(shape) && (
         <div>
           <Label className="text-[11px] text-gray-600 mb-0.5 block">
             Corner radius

@@ -12,7 +12,7 @@
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
             },
             "type": {
-              ".validate": "newData.isString() && (newData.val() == 'rectangle' || newData.val() == 'circle' || newData.val() == 'text')"
+              ".validate": "newData.isString() && (newData.val() == 'rectangle' || newData.val() == 'circle' || newData.val() == 'text' || newData.val() == 'line')"
             },
             "text": {
               ".validate": "newData.isString() && newData.val().length <= 50000"
@@ -40,6 +40,33 @@
             },
             "fontFamily": {
               ".validate": "newData.isString() && newData.val().length <= 100"
+            },
+            "stroke": {
+              ".validate": "newData.isString() && newData.val().length <= 50"
+            },
+            "strokeWidth": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "points": {
+              ".validate": "newData.hasChildren(['0', '1', '2', '3'])",
+              "0": {
+                ".validate": "newData.isNumber()"
+              },
+              "1": {
+                ".validate": "newData.isNumber()"
+              },
+              "2": {
+                ".validate": "newData.isNumber()"
+              },
+              "3": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": "false"
+              }
+            },
+            "rotation": {
+              ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
             },
             "$other": {
               ".validate": "true"
