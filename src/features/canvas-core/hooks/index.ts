@@ -13,3 +13,4 @@ export * from './useTouchGestures';
 export * from './useTextEditor';
 export * from './useGroupDrag';
 export * from './useDragToSelect';
+export * from './useArrowKeyPan';

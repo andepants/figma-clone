@@ -36,7 +36,7 @@ interface ShortcutsModalProps {
  */
 export function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps) {
   // Group shortcuts by category
-  const categories = ['Tools', 'Edit', 'Canvas', 'Help'] as const;
+  const categories = ['Tools', 'Edit', 'Canvas', 'View', 'Help'] as const;
 
   const shortcutsByCategory = categories.map(category => ({
     category,

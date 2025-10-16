@@ -17,3 +17,4 @@ export { LayoutSection } from './LayoutSection';
 export { TypographySection } from './TypographySection';
 export { AppearanceSection } from './AppearanceSection';
 export { FillSection } from './FillSection';
+export { StrokeSection } from './StrokeSection';

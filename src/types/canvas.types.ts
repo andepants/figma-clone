@@ -6,9 +6,9 @@
 
 /**
  * Available shape types on the canvas
- * @typedef {'rectangle' | 'circle' | 'text'} ShapeType
+ * @typedef {'rectangle' | 'circle' | 'text' | 'line'} ShapeType
  */
-export type ShapeType = 'rectangle' | 'circle' | 'text';
+export type ShapeType = 'rectangle' | 'circle' | 'text' | 'line';
 
 /**
  * Base properties shared by all canvas objects
@@ -20,6 +20,11 @@ export type ShapeType = 'rectangle' | 'circle' | 'text';
  * @property {string} createdBy - User ID of creator
  * @property {number} createdAt - Unix timestamp of creation
  * @property {number} updatedAt - Unix timestamp of last update
+ * @property {string} [name] - Optional user-defined name for the object
+ * @property {boolean} [visible] - Visibility state (default: true) - Controls whether object is rendered on canvas
+ * @property {boolean} [locked] - Lock state (default: false) - Locked objects cannot be selected, moved, or edited on canvas
+ * @property {string | null} [parentId] - ID of parent object for hierarchy (null or undefined = root level)
+ * @property {boolean} [isCollapsed] - Collapse state for hierarchy (default: false) - If true, children are hidden in layers panel
  */
 export interface BaseCanvasObject {
   id: string;
@@ -29,6 +34,11 @@ export interface BaseCanvasObject {
   createdBy: string;
   createdAt: number;
   updatedAt: number;
+  name?: string;
+  visible?: boolean;
+  locked?: boolean;
+  parentId?: string | null;
+  isCollapsed?: boolean;
 }
 
 /**
@@ -166,11 +176,58 @@ export interface Text extends BaseCanvasObject, VisualProperties, TextProperties
 }
 
 /**
+ * Line shape object
+ * @interface Line
+ * @extends BaseCanvasObject
+ * @extends VisualProperties
+ * @property {'line'} type - Discriminator for type checking
+ * @property {number} x - X coordinate of lowest point (MIN of both endpoints)
+ * @property {number} y - Y coordinate of lowest point (MIN of both endpoints)
+ * @property {[number, number, number, number]} points - Line endpoints relative to (x, y): [x1, y1, x2, y2]
+ * @property {number} width - Line length/distance calculated from points (Euclidean distance)
+ * @property {number} rotation - Angle in degrees, normalized to range -179 to 179 (never exactly 180)
+ *                                Calculated using Math.atan2(dy, dx) * (180 / Math.PI)
+ *                                If result === 180, normalize to -180
+ * @property {string} stroke - Line color (hex, rgb, or color name) (default: '#000000')
+ * @property {number} strokeWidth - Line thickness in pixels (default: 2)
+ *
+ * @remarks
+ * Lines are 1-dimensional objects with NO height property - only width (length).
+ * The position (x, y) is always the MIN of both endpoints for consistent bounding box behavior.
+ * Points array contains coordinates relative to this position, not absolute canvas coordinates.
+ * Rotation must be in range -179 to 179 degrees to avoid ambiguity at 180/-180.
+ */
+export interface Line extends BaseCanvasObject, VisualProperties {
+  type: 'line';
+  points: [number, number, number, number];
+  width: number;
+  rotation: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+/**
  * Union type of all possible canvas objects
  * Discriminated union using the 'type' property
- * @typedef {Rectangle | Circle | Text} CanvasObject
+ * @typedef {Rectangle | Circle | Text | Line} CanvasObject
  */
-export type CanvasObject = Rectangle | Circle | Text;
+export type CanvasObject = Rectangle | Circle | Text | Line;
+
+/**
+ * Helper type for objects with resolved children
+ * Used in UI layer for rendering hierarchy in layers panel
+ *
+ * Intersection type combining CanvasObject with hierarchy metadata.
+ * Cannot use 'extends' with union types, so we use intersection operator (&).
+ *
+ * @typedef {CanvasObject & HierarchyMetadata} CanvasObjectWithChildren
+ * @property {CanvasObjectWithChildren[]} children - Array of child objects (empty if no children)
+ * @property {number} depth - Hierarchy depth (0 = root, 1 = child, 2 = grandchild, etc.)
+ */
+export type CanvasObjectWithChildren = CanvasObject & {
+  children: CanvasObjectWithChildren[];
+  depth: number;
+};
 
 /**
  * Real-time drag state for collaborative editing
@@ -270,4 +327,11 @@ export function supportsAspectRatioLock(shape: CanvasObject): boolean {
  */
 export function isTextShape(shape: CanvasObject): shape is Text {
   return shape.type === 'text';
+}
+
+/**
+ * Type guard: Check if shape is a line
+ */
+export function isLineShape(shape: CanvasObject): shape is Line {
+  return shape.type === 'line';
 }

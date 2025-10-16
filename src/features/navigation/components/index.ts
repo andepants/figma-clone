@@ -5,3 +5,5 @@
  */
 
 export { MenuButton } from './MenuButton';
+export { SidebarToggleButton } from './SidebarToggleButton';
+export { NavigationHeader } from './NavigationHeader';

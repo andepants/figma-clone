@@ -5,7 +5,7 @@
  * Used primarily for drag-to-select functionality.
  */
 
-import type { CanvasObject } from '@/types';
+import type { CanvasObject, Line } from '@/types';
 
 /**
  * Rectangle (AABB) intersection test
@@ -72,10 +72,130 @@ export function circleRectIntersects(
 }
 
 /**
+ * Line-segment to rectangle intersection test
+ *
+ * Checks if a line segment intersects with or is contained within a rectangle.
+ * Uses the Liang-Barsky algorithm for efficient line-rectangle intersection.
+ *
+ * @param line - Line object with position and points array
+ * @param rect - Rectangle bounds
+ * @returns True if line intersects with rectangle
+ *
+ * @example
+ * ```typescript
+ * const line = { x: 0, y: 0, points: [0, 0, 100, 100] };
+ * const rect = { x: 50, y: 50, width: 100, height: 100 };
+ * const intersects = lineRectIntersects(line, rect);
+ * ```
+ */
+export function lineRectIntersects(
+  line: Line,
+  rect: { x: number; y: number; width: number; height: number }
+): boolean {
+  // Get absolute endpoints from line's position and relative points
+  const [relX1, relY1, relX2, relY2] = line.points;
+  const x1 = line.x + relX1;
+  const y1 = line.y + relY1;
+  const x2 = line.x + relX2;
+  const y2 = line.y + relY2;
+
+  // Check if either endpoint is inside the rectangle
+  if (pointInRect({ x: x1, y: y1 }, rect) || pointInRect({ x: x2, y: y2 }, rect)) {
+    return true;
+  }
+
+  // Check if line intersects any of the four rectangle edges
+  const rectLeft = rect.x;
+  const rectRight = rect.x + rect.width;
+  const rectTop = rect.y;
+  const rectBottom = rect.y + rect.height;
+
+  // Check intersection with all four edges
+  if (
+    lineSegmentsIntersect(x1, y1, x2, y2, rectLeft, rectTop, rectRight, rectTop) || // Top edge
+    lineSegmentsIntersect(x1, y1, x2, y2, rectRight, rectTop, rectRight, rectBottom) || // Right edge
+    lineSegmentsIntersect(x1, y1, x2, y2, rectLeft, rectBottom, rectRight, rectBottom) || // Bottom edge
+    lineSegmentsIntersect(x1, y1, x2, y2, rectLeft, rectTop, rectLeft, rectBottom) // Left edge
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Line segment intersection test
+ *
+ * Checks if two line segments intersect using the orientation method.
+ *
+ * @param x1 - First line start X
+ * @param y1 - First line start Y
+ * @param x2 - First line end X
+ * @param y2 - First line end Y
+ * @param x3 - Second line start X
+ * @param y3 - Second line start Y
+ * @param x4 - Second line end X
+ * @param y4 - Second line end Y
+ * @returns True if segments intersect
+ */
+function lineSegmentsIntersect(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  x4: number,
+  y4: number
+): boolean {
+  // Calculate orientations
+  const o1 = orientation(x1, y1, x2, y2, x3, y3);
+  const o2 = orientation(x1, y1, x2, y2, x4, y4);
+  const o3 = orientation(x3, y3, x4, y4, x1, y1);
+  const o4 = orientation(x3, y3, x4, y4, x2, y2);
+
+  // General case - segments intersect if orientations differ
+  if (o1 !== o2 && o3 !== o4) {
+    return true;
+  }
+
+  // Special cases - collinear points
+  if (o1 === 0 && onSegment(x1, y1, x3, y3, x2, y2)) return true;
+  if (o2 === 0 && onSegment(x1, y1, x4, y4, x2, y2)) return true;
+  if (o3 === 0 && onSegment(x3, y3, x1, y1, x4, y4)) return true;
+  if (o4 === 0 && onSegment(x3, y3, x2, y2, x4, y4)) return true;
+
+  return false;
+}
+
+/**
+ * Calculate orientation of ordered triplet (p, q, r)
+ *
+ * @returns 0 if collinear, 1 if clockwise, -1 if counterclockwise
+ */
+function orientation(px: number, py: number, qx: number, qy: number, rx: number, ry: number): number {
+  const val = (qy - py) * (rx - qx) - (qx - px) * (ry - qy);
+  if (val === 0) return 0; // Collinear
+  return val > 0 ? 1 : -1; // Clockwise or counterclockwise
+}
+
+/**
+ * Check if point q lies on segment pr (assuming they're collinear)
+ */
+function onSegment(px: number, py: number, qx: number, qy: number, rx: number, ry: number): boolean {
+  return (
+    qx <= Math.max(px, rx) &&
+    qx >= Math.min(px, rx) &&
+    qy <= Math.max(py, ry) &&
+    qy >= Math.min(py, ry)
+  );
+}
+
+/**
  * Generic object-rectangle intersection test
  * Routes to appropriate collision function based on object type
  *
- * @param obj - Canvas object (rectangle, circle, or text)
+ * @param obj - Canvas object (rectangle, circle, text, or line)
  * @param rect - Selection rectangle
  * @returns True if object intersects with rectangle
  *
@@ -108,6 +228,10 @@ export function objectIntersectsRect(
 
     case 'circle': {
       return circleRectIntersects({ x: obj.x, y: obj.y, radius: obj.radius }, rect);
+    }
+
+    case 'line': {
+      return lineRectIntersects(obj as Line, rect);
     }
 
     default:

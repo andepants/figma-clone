@@ -253,12 +253,66 @@ graph LR
 
 ---
 
+## Concurrency Model
+
+### Last Write Wins Strategy
+
+CollabCanvas uses a **"last write wins"** approach for all canvas operations - both manual edits and AI-generated changes.
+
+**How It Works:**
+- No optimistic locking or version numbers
+- No distributed transactions for object updates
+- Direct writes to Firebase RTDB
+- Most recent write becomes the final state
+- Applies to all operations: drag, resize, property changes, AI commands
+
+**Benefits:**
+- **Simplicity**: No complex conflict resolution logic
+- **Performance**: No transaction overhead or lock contention
+- **Speed**: Immediate updates without waiting for locks
+- **Consistency**: Same behavior for all operations
+
+**Trade-offs:**
+- Simultaneous edits to the same object may result in lost updates
+- Works well when users coordinate or edit different objects
+- Similar to Google Docs/Figma's operational transform approach
+
+**Example Scenario:**
+```
+Time T0: Rectangle at position (100, 100)
+
+User A (manual drag):  Moves to (150, 100)
+User B (AI command):   Moves to (100, 200)
+
+Both read initial state: { x: 100, y: 100 }
+
+User A writes: { x: 150, y: 100 }  ← Written first
+User B writes: { x: 100, y: 200 }  ← Last write wins
+
+Final result: { x: 100, y: 200 }
+(User A's change is overwritten)
+```
+
+**Best Practices:**
+- Coordinate with collaborators about active work areas
+- Use object locking for critical elements
+- Work on different objects to minimize conflicts
+- AI commands and manual edits are treated identically
+
+**Multi-User AI Concurrency:**
+- Multiple users can invoke AI simultaneously (10 function instances max)
+- Rate limiting is per-user (10 commands/minute)
+- AI reads canvas state at invocation time
+- AI-generated updates follow same last-write-wins rules
+
+---
+
 ## Edge Cases
 
 | Issue | Solution |
 |-------|----------|
 | **Network loss** | Queue updates, sync on reconnect |
-| **Concurrent edits** | Last-write-wins with timestamp |
+| **Concurrent edits** | Last-write-wins (no transactions/locking) |
 | **500+ objects** | Virtual rendering (visible only) |
 | **Memory leaks** | Cleanup in useEffect returns |
 | **Auth expiration** | Auto-refresh every 50 min |
@@ -298,7 +352,7 @@ graph LR
 | **AD-003** | Realtime DB Only | Optimal for collaborative editing, atomic updates, lower latency | Limited to 200k connections per DB, requires client-side filtering |
 | **AD-004** | Konva.js | React integration, performance | Learning curve |
 | **AD-005** | Optimistic Updates | Instant UX | Rollback complexity |
-| **AD-006** | Last-Write-Wins | Simple, predictable | Overwrites possible |
+| **AD-006** | Last-Write-Wins (All Ops) | Simple, predictable, fast | Concurrent edits may conflict |
 | **AD-007** | 50ms Cursor Throttle | Smooth + performant | Total latency ~100-150ms (network adds 50-100ms) |
 | **AD-008** | 50ms Object Throttle | Fast sync + performant | Total latency ~100-150ms (network adds 50-100ms) |
 | **AD-009** | Max 3-5 Layers | Performance | Careful organization |

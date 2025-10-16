@@ -7,8 +7,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
-import { FigmaLogo } from '@/components/ui/figma-logo';
+import { LayoutGrid } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,11 +20,11 @@ import { useAuth } from '@/features/auth/hooks';
 /**
  * Menu button component
  *
- * Renders a button with Figma logo and dropdown menu.
+ * Renders a button with grid icon and dropdown menu (Figma-style).
  * Button states:
- * - Default: Gray text on transparent background
+ * - Default: Transparent background
  * - Hover: Light gray background
- * - Active/Open: Blue background with white text
+ * - Active/Open: Blue background with white icon
  *
  * Dropdown options:
  * - Back to home: Navigate to landing page
@@ -66,7 +65,7 @@ export function MenuButton() {
       <DropdownMenuTrigger asChild>
         <button
           className={`
-            flex items-center gap-1.5 rounded-lg px-3 py-2
+            flex items-center justify-center rounded-lg p-2
             transition-all duration-150
             ${
               isOpen
@@ -76,17 +75,10 @@ export function MenuButton() {
           `}
           aria-label="Menu"
         >
-          <FigmaLogo size={20} />
-          <ChevronDown
-            size={16}
-            className={`
-              transition-transform duration-200
-              ${isOpen ? 'rotate-180' : 'rotate-0'}
-            `}
-          />
+          <LayoutGrid size={20} />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="start" className="w-48">
         <DropdownMenuItem onClick={handleBackToHome}>
           Back to home
         </DropdownMenuItem>

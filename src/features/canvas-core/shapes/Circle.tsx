@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, memo, Fragment } from 'react';
 import { Circle as KonvaCircle } from 'react-konva';
 import type Konva from 'konva';
 import type { Circle as CircleType } from '@/types';
-import { useToolStore, useCanvasStore } from '@/stores';
+import { useToolStore, useCanvasStore, useUIStore } from '@/stores';
 import {
   updateCanvasObject,
   throttledUpdateCanvasObject,
@@ -68,9 +68,19 @@ export const Circle = memo(function Circle({
   onSelect,
   remoteDragState,
 }: CircleProps) {
+  // Don't render if hidden
+  if (circle.visible === false) {
+    return null;
+  }
+
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
+  const setHoveredObject = useUIStore((state) => state.setHoveredObject);
+  const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
+
+  // Check if object is locked
+  const isLocked = circle.locked === true;
 
   // Resize hook
   const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
@@ -84,6 +94,9 @@ export const Circle = memo(function Circle({
 
   // Determine if this object is being dragged by a remote user
   const isRemoteDragging = !!remoteDragState;
+
+  // Check if this object is hovered in the sidebar (but not selected)
+  const isHoveredFromSidebar = hoveredObjectId === circle.id && !isSelected;
 
   // Use drag state position if available, otherwise use persisted position
   const displayX = remoteDragState?.x ?? circle.x;
@@ -125,9 +138,15 @@ export const Circle = memo(function Circle({
   /**
    * Handle click on circle
    * Only triggers selection when move tool is active
+   * Ignores clicks on locked objects
    * Passes event to parent for shift-click multi-select detection
    */
   function handleClick(e: Konva.KonvaEventObject<MouseEvent>) {
+    // Ignore clicks on locked objects
+    if (isLocked) {
+      return;
+    }
+
     if (activeTool === 'move') {
       onSelect(e);
     }
@@ -143,6 +162,16 @@ export const Circle = memo(function Circle({
     e.cancelBubble = true;
 
     if (!currentUser) return;
+
+    // Select object when drag starts (if not already selected)
+    // This ensures the dragged object becomes the selected object
+    if (!isSelected) {
+      // Create fake event without shift key to ensure single selection
+      const fakeEvent = {
+        evt: { shiftKey: false },
+      } as Konva.KonvaEventObject<MouseEvent>;
+      onSelect(fakeEvent);
+    }
 
     // Attempt to acquire drag lock
     const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
@@ -228,6 +257,7 @@ export const Circle = memo(function Circle({
   /**
    * Handle mouse enter
    * Changes cursor and sets hover state
+   * Syncs hover state to UI store for bidirectional sidebar sync
    */
   function handleMouseEnter(e: Konva.KonvaEventObject<MouseEvent>) {
     const stage = e.target.getStage();
@@ -237,12 +267,15 @@ export const Circle = memo(function Circle({
     if (activeTool === 'move') {
       setIsHovered(true);
       stage.container().style.cursor = 'move';
+      // Sync to UI store for sidebar hover highlighting
+      setHoveredObject(circle.id);
     }
   }
 
   /**
    * Handle mouse leave
    * Resets cursor and hover state
+   * Clears UI store hover state if this object is still hovered (prevents race conditions)
    */
   function handleMouseLeave(e: Konva.KonvaEventObject<MouseEvent>) {
     const stage = e.target.getStage();
@@ -253,10 +286,18 @@ export const Circle = memo(function Circle({
 
     // Reset cursor based on active tool
     stage.container().style.cursor = activeTool === 'move' ? 'pointer' : 'crosshair';
+
+    // Clear UI store hover only if this object is still the hovered one
+    // This prevents race conditions when quickly moving between objects
+    const current = useUIStore.getState().hoveredObjectId;
+    if (current === circle.id) {
+      setHoveredObject(null);
+    }
   }
 
   // Determine stroke styling based on state
   const getStroke = () => {
+    if (isLocked && isSelected) return '#0ea5e9'; // Locked + Selected: blue (same as normal selection)
     if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
     if (isInMultiSelect) return '#38bdf8'; // Multi-select: lighter blue
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
@@ -265,6 +306,7 @@ export const Circle = memo(function Circle({
   };
 
   const getStrokeWidth = () => {
+    if (isLocked && isSelected) return 3; // Locked + Selected: same as normal selection
     if (isRemoteDragging) return 2; // Remote drag: medium border
     if (isSelected) return 3; // Selected: thick border
     if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
@@ -318,9 +360,10 @@ export const Circle = memo(function Circle({
         // Shadow properties (with selection glow override)
         {...getShadow()}
         // Interaction
+        listening={!isLocked} // Locked objects don't respond to events
         onClick={handleClick}
         onTap={handleClick} // Mobile support
-        draggable={(isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isInMultiSelect} // Disable drag if remotely dragging or in multi-select
+        draggable={!isLocked && (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isInMultiSelect} // Disable drag if locked, remotely dragging, or in multi-select
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -328,29 +371,52 @@ export const Circle = memo(function Circle({
         onMouseLeave={handleMouseLeave}
       />
 
-      {/* Resize Handles - only visible when selected */}
-      {/* Note: For circles, resize handles should maintain circular shape (uniform scaling) */}
-      <ResizeHandles
-        object={circle}
-        isSelected={isSelected && activeTool === 'move'}
-        isResizing={isResizing}
-        onResizeStart={(handleType) => {
-          const bounds = {
-            // IMPORTANT: Pass bounding box top-left corner, NOT circle center
-            // This ensures anchor point is calculated at the correct bounding box corner
-            x: circle.x - circle.radius, // Top-left x of bounding box
-            y: circle.y - circle.radius, // Top-left y of bounding box
-            width: circle.radius * 2, // Bounding box width
-            height: circle.radius * 2, // Bounding box height
-          };
-          handleResizeStart(circle.id, handleType, bounds);
-        }}
-        onResizeMove={(_handleType, x, y) => handleResizeMove(circle.id, x, y)}
-        onResizeEnd={() => handleResizeEnd(circle.id)}
-      />
+      {/* Hover outline from sidebar (only when hovered in panel, not selected) */}
+      {isHoveredFromSidebar && (
+        <KonvaCircle
+          x={displayX}
+          y={displayY}
+          radius={circle.radius}
+          stroke="#9ca3af"
+          strokeWidth={1.5}
+          dash={[4, 4]}
+          fill="transparent"
+          listening={false}
+          rotation={circle.rotation ?? 0}
+          scaleX={circle.scaleX ?? 1}
+          scaleY={circle.scaleY ?? 1}
+          skewX={circle.skewX ?? 0}
+          skewY={circle.skewY ?? 0}
+        />
+      )}
 
-      {/* Dimension Label - shows width × height when selected */}
-      <DimensionLabel object={circle} visible={isSelected && activeTool === 'move'} />
+      {/* Resize Handles - only visible when selected and not locked */}
+      {/* Note: For circles, resize handles should maintain circular shape (uniform scaling) */}
+      {!isLocked && (
+        <ResizeHandles
+          object={circle}
+          isSelected={isSelected && activeTool === 'move'}
+          isResizing={isResizing}
+          onResizeStart={(handleType) => {
+            const bounds = {
+              // IMPORTANT: Pass bounding box top-left corner, NOT circle center
+              // This ensures anchor point is calculated at the correct bounding box corner
+              x: circle.x - circle.radius, // Top-left x of bounding box
+              y: circle.y - circle.radius, // Top-left y of bounding box
+              width: circle.radius * 2, // Bounding box width
+              height: circle.radius * 2, // Bounding box height
+            };
+            handleResizeStart(circle.id, handleType, bounds);
+          }}
+          onResizeMove={(_handleType, x, y) => handleResizeMove(circle.id, x, y)}
+          onResizeEnd={() => handleResizeEnd(circle.id)}
+        />
+      )}
+
+      {/* Dimension Label - shows width × height when selected and not locked */}
+      {!isLocked && (
+        <DimensionLabel object={circle} visible={isSelected && activeTool === 'move'} />
+      )}
     </Fragment>
   );
 });

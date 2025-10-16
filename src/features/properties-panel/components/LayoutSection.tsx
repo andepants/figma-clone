@@ -12,7 +12,7 @@ import { PropertySection } from './PropertySection';
 import { NumberInput, Label, Button } from '@/components/ui';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { useShapeDimensions } from '../hooks/useShapeDimensions';
-import { hasRadius, isTextShape } from '@/types/canvas.types';
+import { hasRadius, isTextShape, isLineShape } from '@/types/canvas.types';
 
 /**
  * LayoutSection Component
@@ -32,6 +32,36 @@ export function LayoutSection() {
   const dimensions = useShapeDimensions(shape);
 
   if (!shape) return null;
+
+  // Render for lines - width (length) only
+  if (isLineShape(shape)) {
+    return (
+      <PropertySection
+        title="Layout"
+        icon={<Maximize2 className="w-3.5 h-3.5" />}
+        storageKey="props-layout"
+      >
+        {/* Width (Line Length) - Read Only */}
+        <div>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">Width (Length)</Label>
+          <NumberInput
+            value={Math.round(shape.width)}
+            onChange={() => {}} // Read-only for now
+            min={1}
+            step={1}
+            precision={0}
+            unit="px"
+            disabled
+          />
+        </div>
+
+        {/* Info: Lines have no height */}
+        <div className="flex items-center gap-1 text-[11px] text-gray-400 italic">
+          <span>Lines are 1D shapes with no height</span>
+        </div>
+      </PropertySection>
+    );
+  }
 
   // Render for circles - radius-based
   if (hasRadius(shape)) {

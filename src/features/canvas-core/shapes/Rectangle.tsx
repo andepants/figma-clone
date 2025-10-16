@@ -8,7 +8,7 @@ import { useState, useEffect, useRef, memo, Fragment } from 'react';
 import { Rect } from 'react-konva';
 import type Konva from 'konva';
 import type { Rectangle as RectangleType } from '@/types';
-import { useToolStore, useCanvasStore } from '@/stores';
+import { useToolStore, useCanvasStore, useUIStore } from '@/stores';
 import {
   updateCanvasObject,
   throttledUpdateCanvasObject,
@@ -65,9 +65,19 @@ export const Rectangle = memo(function Rectangle({
   onSelect,
   remoteDragState,
 }: RectangleProps) {
+  // Don't render if hidden
+  if (rectangle.visible === false) {
+    return null;
+  }
+
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
+  const setHoveredObject = useUIStore((state) => state.setHoveredObject);
+  const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
+
+  // Check if object is locked
+  const isLocked = rectangle.locked === true;
 
   // Resize hook
   const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
@@ -81,6 +91,9 @@ export const Rectangle = memo(function Rectangle({
 
   // Determine if this object is being dragged by a remote user
   const isRemoteDragging = !!remoteDragState;
+
+  // Check if this object is hovered in the sidebar (but not selected)
+  const isHoveredFromSidebar = hoveredObjectId === rectangle.id && !isSelected;
 
   // Use drag state position if available, otherwise use persisted position
   const displayX = remoteDragState?.x ?? rectangle.x;
@@ -126,9 +139,15 @@ export const Rectangle = memo(function Rectangle({
   /**
    * Handle click on rectangle
    * Only triggers selection when move tool is active
+   * Ignores clicks on locked objects
    * Passes event to parent for shift-click multi-select detection
    */
   function handleClick(e: Konva.KonvaEventObject<MouseEvent>) {
+    // Ignore clicks on locked objects
+    if (isLocked) {
+      return;
+    }
+
     if (activeTool === 'move') {
       onSelect(e);
     }
@@ -144,6 +163,16 @@ export const Rectangle = memo(function Rectangle({
     e.cancelBubble = true;
 
     if (!currentUser) return;
+
+    // Select object when drag starts (if not already selected)
+    // This ensures the dragged object becomes the selected object
+    if (!isSelected) {
+      // Create fake event without shift key to ensure single selection
+      const fakeEvent = {
+        evt: { shiftKey: false },
+      } as Konva.KonvaEventObject<MouseEvent>;
+      onSelect(fakeEvent);
+    }
 
     // Attempt to acquire drag lock
     const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
@@ -237,6 +266,7 @@ export const Rectangle = memo(function Rectangle({
   /**
    * Handle mouse enter
    * Changes cursor and sets hover state
+   * Syncs hover state to UI store for bidirectional sidebar sync
    */
   function handleMouseEnter(e: Konva.KonvaEventObject<MouseEvent>) {
     const stage = e.target.getStage();
@@ -246,12 +276,15 @@ export const Rectangle = memo(function Rectangle({
     if (activeTool === 'move') {
       setIsHovered(true);
       stage.container().style.cursor = 'move';
+      // Sync to UI store for sidebar hover highlighting
+      setHoveredObject(rectangle.id);
     }
   }
 
   /**
    * Handle mouse leave
    * Resets cursor and hover state
+   * Clears UI store hover state if this object is still hovered (prevents race conditions)
    */
   function handleMouseLeave(e: Konva.KonvaEventObject<MouseEvent>) {
     const stage = e.target.getStage();
@@ -262,10 +295,18 @@ export const Rectangle = memo(function Rectangle({
 
     // Reset cursor based on active tool
     stage.container().style.cursor = activeTool === 'move' ? 'pointer' : 'crosshair';
+
+    // Clear UI store hover only if this object is still the hovered one
+    // This prevents race conditions when quickly moving between objects
+    const current = useUIStore.getState().hoveredObjectId;
+    if (current === rectangle.id) {
+      setHoveredObject(null);
+    }
   }
 
   // Determine stroke styling based on state
   const getStroke = () => {
+    if (isLocked && isSelected) return '#0ea5e9'; // Locked + Selected: blue (same as normal selection)
     if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
     if (isInMultiSelect) return '#38bdf8'; // Multi-select: lighter blue
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
@@ -274,6 +315,7 @@ export const Rectangle = memo(function Rectangle({
   };
 
   const getStrokeWidth = () => {
+    if (isLocked && isSelected) return 3; // Locked + Selected: same as normal selection
     if (isRemoteDragging) return 2; // Remote drag: medium border
     if (isSelected) return 3; // Selected: thick border
     if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
@@ -339,9 +381,10 @@ export const Rectangle = memo(function Rectangle({
         // Shadow properties (with selection glow override)
         {...getShadow()}
         // Interaction
+        listening={!isLocked} // Locked objects don't respond to events
         onClick={handleClick}
         onTap={handleClick} // Mobile support
-        draggable={(isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isInMultiSelect} // Disable drag if remotely dragging or in multi-select
+        draggable={!isLocked && (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isInMultiSelect} // Disable drag if locked, remotely dragging, or in multi-select
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -349,25 +392,52 @@ export const Rectangle = memo(function Rectangle({
         onMouseLeave={handleMouseLeave}
       />
 
-      {/* Resize Handles - only visible when selected */}
-      <ResizeHandles
-        object={rectangle}
-        isSelected={isSelected && activeTool === 'move'}
-        isResizing={isResizing}
-        onResizeStart={(handleType) =>
-          handleResizeStart(rectangle.id, handleType, {
-            x: rectangle.x,
-            y: rectangle.y,
-            width: width,
-            height: height,
-          })
-        }
-        onResizeMove={(_handleType, x, y) => handleResizeMove(rectangle.id, x, y)}
-        onResizeEnd={() => handleResizeEnd(rectangle.id)}
-      />
+      {/* Hover outline from sidebar (only when hovered in panel, not selected) */}
+      {isHoveredFromSidebar && (
+        <Rect
+          x={displayX + width / 2}
+          y={displayY + height / 2}
+          width={width}
+          height={height}
+          stroke="#9ca3af"
+          strokeWidth={1.5}
+          dash={[4, 4]}
+          fill="transparent"
+          listening={false}
+          rotation={rectangle.rotation ?? 0}
+          scaleX={rectangle.scaleX ?? 1}
+          scaleY={rectangle.scaleY ?? 1}
+          skewX={rectangle.skewX ?? 0}
+          skewY={rectangle.skewY ?? 0}
+          offsetX={width / 2}
+          offsetY={height / 2}
+          cornerRadius={rectangle.cornerRadius ?? 0}
+        />
+      )}
 
-      {/* Dimension Label - shows width × height when selected */}
-      <DimensionLabel object={rectangle} visible={isSelected && activeTool === 'move'} />
+      {/* Resize Handles - only visible when selected and not locked */}
+      {!isLocked && (
+        <ResizeHandles
+          object={rectangle}
+          isSelected={isSelected && activeTool === 'move'}
+          isResizing={isResizing}
+          onResizeStart={(handleType) =>
+            handleResizeStart(rectangle.id, handleType, {
+              x: rectangle.x,
+              y: rectangle.y,
+              width: width,
+              height: height,
+            })
+          }
+          onResizeMove={(_handleType, x, y) => handleResizeMove(rectangle.id, x, y)}
+          onResizeEnd={() => handleResizeEnd(rectangle.id)}
+        />
+      )}
+
+      {/* Dimension Label - shows width × height when selected and not locked */}
+      {!isLocked && (
+        <DimensionLabel object={rectangle} visible={isSelected && activeTool === 'move'} />
+      )}
     </Fragment>
   );
 });

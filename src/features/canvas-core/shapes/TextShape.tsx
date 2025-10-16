@@ -10,7 +10,7 @@ import { useState, useEffect, useRef, memo, Fragment, useCallback } from 'react'
 import { Text as KonvaText, Label, Tag, Text as KonvaTextLabel } from 'react-konva';
 import type Konva from 'konva';
 import type { Text as TextType } from '@/types';
-import { useToolStore, useCanvasStore } from '@/stores';
+import { useToolStore, useCanvasStore, useUIStore } from '@/stores';
 import {
   updateCanvasObject,
   throttledUpdateCanvasObject,
@@ -76,9 +76,19 @@ export const TextShape = memo(function TextShape({
   editState,
   isInMultiSelect = false,
 }: TextShapeProps) {
+  // Don't render if hidden
+  if (text.visible === false) {
+    return null;
+  }
+
   const { activeTool, setActiveTool } = useToolStore();
   const { updateObject, removeObject, editingTextId, setEditingText } = useCanvasStore();
   const { currentUser } = useAuth();
+  const setHoveredObject = useUIStore((state) => state.setHoveredObject);
+  const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
+
+  // Check if object is locked
+  const isLocked = text.locked === true;
 
   // Resize hook
   const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
@@ -96,6 +106,9 @@ export const TextShape = memo(function TextShape({
 
   // Determine if this object is being dragged by a remote user
   const isRemoteDragging = !!remoteDragState;
+
+  // Check if this object is hovered in the sidebar (but not selected)
+  const isHoveredFromSidebar = hoveredObjectId === text.id && !isSelected;
 
   // Use drag state position if available, otherwise use persisted position
   const displayX = remoteDragState?.x ?? text.x;
@@ -237,9 +250,15 @@ export const TextShape = memo(function TextShape({
   /**
    * Handle click on text
    * Only triggers selection when move tool is active
+   * Ignores clicks on locked objects
    * Supports shift-click for multi-select
    */
   function handleClick(e: Konva.KonvaEventObject<MouseEvent>) {
+    // Ignore clicks on locked objects
+    if (isLocked) {
+      return;
+    }
+
     if (activeTool === 'move') {
       onSelect(e);
     }
@@ -250,6 +269,11 @@ export const TextShape = memo(function TextShape({
    * Enters edit mode if move tool is active and text is not locked
    */
   async function handleDoubleClick() {
+    // Can't edit locked objects
+    if (isLocked) {
+      return;
+    }
+
     // Only allow editing in move tool mode
     if (activeTool !== 'move') {
       return;
@@ -308,6 +332,16 @@ export const TextShape = memo(function TextShape({
     e.cancelBubble = true;
 
     if (!currentUser) return;
+
+    // Select object when drag starts (if not already selected)
+    // This ensures the dragged object becomes the selected object
+    if (!isSelected) {
+      // Create fake event without shift key to ensure single selection
+      const fakeEvent = {
+        evt: { shiftKey: false },
+      } as Konva.KonvaEventObject<MouseEvent>;
+      onSelect(fakeEvent);
+    }
 
     // Attempt to acquire drag lock
     const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
@@ -401,6 +435,7 @@ export const TextShape = memo(function TextShape({
   /**
    * Handle mouse enter
    * Changes cursor and sets hover state
+   * Syncs hover state to UI store for bidirectional sidebar sync
    */
   function handleMouseEnter(e: Konva.KonvaEventObject<MouseEvent>) {
     const stage = e.target.getStage();
@@ -410,12 +445,15 @@ export const TextShape = memo(function TextShape({
     if (activeTool === 'move') {
       setIsHovered(true);
       stage.container().style.cursor = 'move';
+      // Sync to UI store for sidebar hover highlighting
+      setHoveredObject(text.id);
     }
   }
 
   /**
    * Handle mouse leave
    * Resets cursor and hover state
+   * Clears UI store hover state if this object is still hovered (prevents race conditions)
    */
   function handleMouseLeave(e: Konva.KonvaEventObject<MouseEvent>) {
     const stage = e.target.getStage();
@@ -426,6 +464,13 @@ export const TextShape = memo(function TextShape({
 
     // Reset cursor based on active tool
     stage.container().style.cursor = activeTool === 'move' ? 'pointer' : 'crosshair';
+
+    // Clear UI store hover only if this object is still the hovered one
+    // This prevents race conditions when quickly moving between objects
+    const current = useUIStore.getState().hoveredObjectId;
+    if (current === text.id) {
+      setHoveredObject(null);
+    }
   }
 
   // Determine stroke styling based on state
@@ -465,7 +510,7 @@ export const TextShape = memo(function TextShape({
   };
 
   // Calculate final draggable state
-  const isDraggable = (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isEditing && !isInMultiSelect;
+  const isDraggable = !isLocked && (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isEditing && !isInMultiSelect;
 
   return (
     <Fragment>
@@ -508,11 +553,12 @@ export const TextShape = memo(function TextShape({
         // Visibility - hide when editing
         visible={!isEditing}
         // Interaction
+        listening={!isLocked} // Locked objects don't respond to events
         onClick={handleClick}
         onTap={handleClick} // Mobile support
         onDblClick={handleDoubleClick}
         onDblTap={handleDoubleClick} // Mobile support
-        draggable={isDraggable} // Disable drag if editing, remotely dragging, or in multi-select
+        draggable={isDraggable} // Disable drag if locked, editing, remotely dragging, or in multi-select
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -525,8 +571,9 @@ export const TextShape = memo(function TextShape({
       <TextSelectionBox
         text={text}
         isSelected={isSelected && !isEditing}
-        isHovered={isHovered && activeTool === 'move' && !isSelected && !isEditing}
-        color={isInMultiSelect ? '#38bdf8' : '#0ea5e9'}
+        isHovered={(isHovered || isHoveredFromSidebar) && activeTool === 'move' && !isSelected && !isEditing}
+        color={isLocked && isSelected ? '#0ea5e9' : isInMultiSelect ? '#38bdf8' : '#0ea5e9'}
+        dash={undefined}
         textNodeRef={shapeRef}
       />
 
@@ -565,26 +612,30 @@ export const TextShape = memo(function TextShape({
         </>
       )}
 
-      {/* Resize Handles - only visible when selected and not editing */}
+      {/* Resize Handles - only visible when selected, not editing, and not locked */}
       {/* Text boxes have fixed dimensions that can be resized in both width and height */}
-      <ResizeHandles
-        object={text}
-        isSelected={isSelected && activeTool === 'move' && !isEditing}
-        isResizing={isResizing}
-        onResizeStart={(handleType) =>
-          handleResizeStart(text.id, handleType, {
-            x: text.x,
-            y: text.y,
-            width: textWidth,
-            height: textHeight,
-          })
-        }
-        onResizeMove={(_, x, y) => handleResizeMove(text.id, x, y)}
-        onResizeEnd={() => handleResizeEnd(text.id)}
-      />
+      {!isLocked && (
+        <ResizeHandles
+          object={text}
+          isSelected={isSelected && activeTool === 'move' && !isEditing}
+          isResizing={isResizing}
+          onResizeStart={(handleType) =>
+            handleResizeStart(text.id, handleType, {
+              x: text.x,
+              y: text.y,
+              width: textWidth,
+              height: textHeight,
+            })
+          }
+          onResizeMove={(_, x, y) => handleResizeMove(text.id, x, y)}
+          onResizeEnd={() => handleResizeEnd(text.id)}
+        />
+      )}
 
-      {/* Dimension Label - shows width × height when selected and not editing */}
-      <DimensionLabel object={text} visible={isSelected && activeTool === 'move' && !isEditing} />
+      {/* Dimension Label - shows width × height when selected, not editing, and not locked */}
+      {!isLocked && (
+        <DimensionLabel object={text} visible={isSelected && activeTool === 'move' && !isEditing} />
+      )}
     </Fragment>
   );
 });

@@ -42,6 +42,36 @@ export function normalizeRotation(degrees: number): number {
 }
 
 /**
+ * Normalize rotation to -179 to 179 range (for lines)
+ * Lines use a different rotation range to avoid ambiguity at 180/-180
+ * @param degrees - Rotation angle in degrees (can be any value)
+ * @returns Normalized rotation between -179 and 179 (never exactly 180)
+ */
+export function normalizeRotationForLines(degrees: number): number {
+  if (!isFinite(degrees)) {
+    return 0;
+  }
+
+  // Use modulo to wrap to -180 to 180 range
+  let normalized = degrees % 360;
+
+  // Handle negative values
+  if (normalized < -180) {
+    normalized += 360;
+  }
+  if (normalized > 180) {
+    normalized -= 360;
+  }
+
+  // Special case: convert 180 to -180 to avoid ambiguity
+  if (normalized === 180) {
+    normalized = -180;
+  }
+
+  return normalized;
+}
+
+/**
  * Validate and clamp opacity (0-1)
  * @param opacity - Opacity value to validate
  * @returns Clamped opacity between 0 and 1

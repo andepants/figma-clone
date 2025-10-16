@@ -6,10 +6,9 @@
  */
 
 import { useEffect } from 'react';
-import { useToolStore } from '@/stores';
+import { useToolStore, useUIStore } from '@/stores';
 import { useCanvasStore } from '@/stores';
-import { removeCanvasObject, addCanvasObject } from '@/lib/firebase';
-import { duplicateObject } from '@/features/canvas-core/utils';
+import { removeCanvasObject } from '@/lib/firebase';
 
 /**
  * Check if user is currently typing in an input field
@@ -35,14 +34,21 @@ function isInputFocused(): boolean {
  * - V: Move tool
  * - R: Rectangle tool
  * - C: Circle tool
+ * - L: Line tool
  * - T: Text tool
- * - Cmd/Ctrl+D: Duplicate selected objects (supports multi-select)
+ * - Cmd/Ctrl+K: Toggle AI chat panel
+ * - Shift+Cmd/Ctrl+\: Toggle left sidebar (Minimize UI)
+ * - Cmd/Ctrl+C: Copy selected objects (supports multi-select, preserves hierarchy)
+ * - Cmd/Ctrl+V: Paste copied objects (supports multi-select, preserves hierarchy)
  * - Cmd/Ctrl+0: Reset zoom to 100%
  * - Cmd/Ctrl+1: Fit all objects in view
  * - Cmd/Ctrl+2: Zoom to selection (supports multi-select)
+ * - Shift+Cmd/Ctrl+L: Lock/unlock selected objects
  * - Delete/Backspace: Delete selected objects (supports multi-select)
  * - Escape: Clear selection
  * - ?: Show keyboard shortcuts modal
+ *
+ * Note: Arrow key panning is handled separately by useArrowKeyPan hook
  *
  * Shortcuts are disabled when user is typing in an input/textarea.
  *
@@ -59,7 +65,8 @@ function isInputFocused(): boolean {
  */
 export function useToolShortcuts(onShowShortcuts?: () => void) {
   const { setActiveTool } = useToolStore();
-  const { clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo } = useCanvasStore();
+  const { toggleAIChatCollapse, toggleLeftSidebar } = useUIStore();
+  const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects } = useCanvasStore();
 
   useEffect(() => {
     /**
@@ -73,31 +80,36 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
 
       const key = event.key.toLowerCase();
 
-      // Handle Cmd/Ctrl+D for duplicate (supports multi-select)
-      if ((event.metaKey || event.ctrlKey) && key === 'd') {
-        event.preventDefault(); // Prevent browser "Add Bookmark" dialog
+      // Handle Cmd/Ctrl+K for AI chat panel toggle
+      if ((event.metaKey || event.ctrlKey) && key === 'k') {
+        event.preventDefault(); // Prevent browser "Search" behavior
+        toggleAIChatCollapse();
+        return;
+      }
 
-        if (selectedIds.length > 0) {
-          const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
-          const newIds: string[] = [];
+      // Handle Shift+Cmd/Ctrl+\ for left sidebar toggle (Minimize UI)
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && key === '\\') {
+        event.preventDefault();
+        toggleLeftSidebar();
+        return;
+      }
 
-          // Create duplicates for all selected objects
-          for (const selectedObject of selectedObjects) {
-            const duplicate = duplicateObject(selectedObject);
+      // Handle Cmd/Ctrl+C for copy (supports multi-select, preserves hierarchy)
+      if ((event.metaKey || event.ctrlKey) && key === 'c') {
+        // Only prevent default if we're not in an input (allow normal copy in inputs)
+        if (!isInputFocused()) {
+          event.preventDefault();
+          copyObjects();
+        }
+        return;
+      }
 
-            // Optimistic update
-            addObject(duplicate);
-            newIds.push(duplicate.id);
-
-            // Sync to Realtime Database
-            addCanvasObject('main', duplicate)
-              .catch(() => {
-                // Silently fail - RTDB subscription will restore correct state
-              });
-          }
-
-          // Select the duplicates
-          selectObjects(newIds);
+      // Handle Cmd/Ctrl+V for paste (supports multi-select, preserves hierarchy)
+      if ((event.metaKey || event.ctrlKey) && key === 'v') {
+        // Only prevent default if we're not in an input (allow normal paste in inputs)
+        if (!isInputFocused()) {
+          event.preventDefault();
+          pasteObjects();
         }
         return;
       }
@@ -244,6 +256,28 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
         return;
       }
 
+      // Handle Shift+Cmd/Ctrl+L for lock/unlock toggle (supports multi-select)
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'l') {
+        event.preventDefault();
+
+        if (selectedIds.length > 0) {
+          const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+
+          // Smart toggle: if any locked, unlock all; otherwise lock all
+          const anyLocked = selectedObjects.some(obj => obj.locked);
+          const toggleLock = useCanvasStore.getState().toggleLock;
+
+          // Toggle lock for all selected objects
+          selectedIds.forEach(id => {
+            const obj = objects.find(o => o.id === id);
+            if (obj && (anyLocked ? obj.locked : !obj.locked)) {
+              toggleLock(id);
+            }
+          });
+        }
+        return;
+      }
+
       // Handle ? key (Shift + /) to show shortcuts modal
       if (event.key === '?' && onShowShortcuts) {
         event.preventDefault();
@@ -264,6 +298,10 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
           setActiveTool('circle');
           event.preventDefault();
           break;
+        case 'l':
+          setActiveTool('line');
+          event.preventDefault();
+          break;
         case 't':
           setActiveTool('text');
           event.preventDefault();
@@ -271,17 +309,29 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
         case 'delete':
         case 'backspace':
           if (selectedIds.length > 0) {
-            // Optimistic update - remove all selected objects
-            selectedIds.forEach(id => removeObject(id));
-            clearSelection();
-            event.preventDefault();
+            // Filter out locked objects (locked objects cannot be deleted)
+            const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+            const unlockedIdsToDelete = selectedObjects
+              .filter(obj => !obj.locked)
+              .map(obj => obj.id);
 
-            // Sync to Realtime Database
-            for (const id of selectedIds) {
-              removeCanvasObject('main', id)
-                .catch(() => {
-                  // Silently fail - RTDB subscription will restore correct state
-                });
+            if (unlockedIdsToDelete.length > 0) {
+              // Optimistic update - remove unlocked selected objects
+              unlockedIdsToDelete.forEach(id => removeObject(id));
+              clearSelection();
+              event.preventDefault();
+
+              // Sync to Realtime Database
+              for (const id of unlockedIdsToDelete) {
+                removeCanvasObject('main', id)
+                  .catch(() => {
+                    // Silently fail - RTDB subscription will restore correct state
+                  });
+              }
+            } else {
+              // All selected objects are locked - just clear selection
+              clearSelection();
+              event.preventDefault();
             }
           }
           break;
@@ -301,5 +351,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, clearSelection, selectedIds, removeObject, objects, addObject, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, onShowShortcuts]);
+  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, onShowShortcuts]);
 }

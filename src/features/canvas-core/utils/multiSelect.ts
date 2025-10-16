@@ -5,7 +5,7 @@
  * selection state checks, bounding box calculations, and object filtering.
  */
 
-import type { CanvasObject } from '@/types';
+import type { CanvasObject, Line } from '@/types';
 
 /**
  * Check if an object is currently selected
@@ -63,7 +63,7 @@ export function getSelectedObjects(
 /**
  * Calculate bounding box containing all selected objects
  *
- * Handles all shape types (rectangles, circles, text) and returns
+ * Handles all shape types (rectangles, circles, text, lines) and returns
  * the minimum bounding box that contains all selected objects.
  * Returns null if no objects are selected.
  *
@@ -111,6 +111,22 @@ export function getSelectionBounds(
       minY = Math.min(minY, obj.y);
       maxX = Math.max(maxX, obj.x + obj.width);
       maxY = Math.max(maxY, obj.y + obj.height);
+    } else if (obj.type === 'line') {
+      // Line: (x, y) is bounding box top-left, endpoints are in points array
+      const line = obj as Line;
+      const [relX1, relY1, relX2, relY2] = line.points;
+
+      // Calculate absolute endpoint positions
+      const x1 = line.x + relX1;
+      const y1 = line.y + relY1;
+      const x2 = line.x + relX2;
+      const y2 = line.y + relY2;
+
+      // Update bounds with both endpoints
+      minX = Math.min(minX, x1, x2);
+      minY = Math.min(minY, y1, y2);
+      maxX = Math.max(maxX, x1, x2);
+      maxY = Math.max(maxY, y1, y2);
     }
   });
 

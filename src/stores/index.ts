@@ -8,3 +8,6 @@
 export { useCanvasStore } from './canvasStore';
 export { useToolStore } from './toolStore';
 export { usePageStore } from './pageStore';
+export { useUIStore } from './uiStore';
+export { useAIStore } from './aiStore';
+export type { AICommand } from './aiStore';
