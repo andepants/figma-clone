@@ -15,6 +15,7 @@
 import { useMemo } from 'react'
 import { usePresence } from '../hooks'
 import { useAuth } from '@/features/auth/hooks'
+import { getUserDisplayName } from '@/lib/utils'
 
 /**
  * Represents an active user with their display information
@@ -56,7 +57,7 @@ export function ActiveUsers() {
     if (currentUser) {
       users.push({
         userId: currentUser.uid,
-        username: currentUser.username || currentUser.email || 'Unknown',
+        username: getUserDisplayName(currentUser.username, currentUser.email),
         color: onlineUsers.find(u => u.userId === currentUser.uid)?.color || '#888',
         isCurrentUser: true,
       })

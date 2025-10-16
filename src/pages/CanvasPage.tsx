@@ -25,7 +25,7 @@ import {
 import { useAuth } from '@/features/auth/hooks';
 import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SyncIndicator, type SyncStatus, ShortcutsModal, EnvironmentIndicator } from '@/components/common';
+import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
 import { hexToRgba, getUserDisplayName } from '@/lib/utils';
 
 function CanvasPage() {
@@ -401,9 +401,6 @@ function CanvasPage() {
         className="relative h-screen w-screen overflow-hidden"
         style={{ backgroundColor: bgColorWithOpacity }}
       >
-        {/* Environment Indicator - shows dev/prod mode (dev only) */}
-        <EnvironmentIndicator />
-
         {/* Layers Panel - fixed left sidebar */}
         <LayersPanel />
 
