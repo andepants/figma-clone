@@ -8,7 +8,7 @@
 export interface KeyboardShortcut {
   key: string;
   action: string;
-  category: 'Tools' | 'Edit' | 'Canvas' | 'Help';
+  category: 'Tools' | 'Edit' | 'Canvas' | 'View' | 'Help';
   disabled?: boolean;
 }
 
@@ -35,6 +35,13 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   { key: 'Arrow Keys', action: 'Pan canvas (when nothing selected)', category: 'Canvas' },
   { key: 'Shift+Arrow Keys', action: 'Pan canvas faster', category: 'Canvas' },
   { key: 'Mouse Wheel', action: 'Zoom in/out', category: 'Canvas' },
+  { key: 'Cmd/Ctrl+0', action: 'Reset zoom to 100%', category: 'Canvas' },
+  { key: 'Cmd/Ctrl+1', action: 'Fit all objects in view', category: 'Canvas' },
+  { key: 'Cmd/Ctrl+2', action: 'Zoom to selection', category: 'Canvas' },
+
+  // View
+  { key: 'Shift+Cmd/Ctrl+\\', action: 'Toggle left sidebar', category: 'View' },
+  { key: 'Cmd/Ctrl+K', action: 'Toggle AI chat', category: 'View' },
 
   // Help
   { key: '?', action: 'Show shortcuts', category: 'Help' },

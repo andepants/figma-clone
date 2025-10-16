@@ -29,10 +29,10 @@
 import { useMemo, useState } from 'react';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { useUIStore } from '@/stores/uiStore';
-import { ChevronLeft, Layers } from 'lucide-react';
 import { LayerItem } from './LayerItem';
 import { SectionHeader } from './SectionHeader';
 import { buildHierarchyTree, flattenHierarchyTree, getAllDescendantIds, moveToParent } from '../utils/hierarchy';
+import { MenuButton, SidebarToggleButton } from '@/features/navigation/components';
 import {
   DndContext,
   closestCenter,
@@ -71,7 +71,6 @@ export function LayersPanel() {
   const selectedIds = useCanvasStore((state) => state.selectedIds);
   const selectObjects = useCanvasStore((state) => state.selectObjects);
   const leftSidebarOpen = useUIStore((state) => state.leftSidebarOpen);
-  const toggleLeftSidebar = useUIStore((state) => state.toggleLeftSidebar);
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
   const setHoveredObject = useUIStore((state) => state.setHoveredObject);
 
@@ -313,23 +312,13 @@ export function LayersPanel() {
 
   return (
     <>
-      {/* Floating Toggle Button (always visible) */}
-      <button
-        onClick={toggleLeftSidebar}
-        className={`
-          fixed top-4 left-4 z-30
-          w-8 h-8 bg-white border border-gray-200 rounded-lg shadow-sm
-          flex items-center justify-center
-          hover:bg-gray-50 transition-colors
-        `}
-        aria-label={leftSidebarOpen ? 'Close layers panel' : 'Open layers panel'}
-      >
-        {leftSidebarOpen ? (
-          <ChevronLeft className="w-4 h-4 text-gray-700" />
-        ) : (
-          <Layers className="w-4 h-4 text-gray-700" />
-        )}
-      </button>
+      {/* Floating buttons when sidebar is closed */}
+      {!leftSidebarOpen && (
+        <div className="fixed left-4 top-4 z-30 flex items-center gap-2">
+          <MenuButton />
+          <SidebarToggleButton />
+        </div>
+      )}
 
       {/* Panel */}
       <aside
@@ -340,18 +329,10 @@ export function LayersPanel() {
           ${leftSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        {/* Header */}
-        <div className="h-10 px-3 flex items-center justify-between border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">
-            Playground Canvas
-          </h2>
-          <button
-            onClick={toggleLeftSidebar}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
-            aria-label="Toggle layers panel"
-          >
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
-          </button>
+        {/* Header with Navigation Icons - separated when sidebar open */}
+        <div className="h-12 px-3 flex items-center justify-between border-b border-gray-200">
+          <MenuButton />
+          <SidebarToggleButton />
         </div>
 
         {/* Layers Section Header */}

@@ -27,6 +27,7 @@ interface UIState {
   pagesSectionCollapsed: boolean;
   aiPanelHeight: number;
   isAIChatCollapsed: boolean;
+  isResizingAIPanel: boolean;
 }
 
 /**
@@ -82,6 +83,12 @@ interface UIActions {
    * Toggle AI chat panel collapsed state
    */
   toggleAIChatCollapse: () => void;
+
+  /**
+   * Set AI panel resizing state (used to disable transitions during drag)
+   * @param {boolean} isResizing - Whether user is actively resizing the panel
+   */
+  setIsResizingAIPanel: (isResizing: boolean) => void;
 }
 
 /**
@@ -105,6 +112,7 @@ export const useUIStore = create<UIStore>()(
       pagesSectionCollapsed: false,
       aiPanelHeight: 40,
       isAIChatCollapsed: false,
+      isResizingAIPanel: false,
 
       // Actions
       toggleLeftSidebar: () =>
@@ -133,6 +141,8 @@ export const useUIStore = create<UIStore>()(
 
       toggleAIChatCollapse: () =>
         set((state) => ({ isAIChatCollapsed: !state.isAIChatCollapsed })),
+
+      setIsResizingAIPanel: (isResizing) => set({ isResizingAIPanel: isResizing }),
     }),
     {
       name: 'ui-storage', // localStorage key

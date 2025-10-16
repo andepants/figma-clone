@@ -8,7 +8,6 @@
 import { useEffect, useState } from 'react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
-import { MenuButton } from '@/features/navigation/components';
 import { RightSidebar } from '@/features/right-sidebar';
 import { LayersPanel } from '@/features/layers-panel';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
@@ -412,14 +411,6 @@ function CanvasPage() {
           `}
         >
           <Toolbar onShowShortcuts={() => setIsShortcutsOpen(true)} />
-          <div
-            className={`
-              absolute top-4 z-10 transition-[left] duration-200
-              ${leftSidebarOpen ? 'left-4' : 'left-16'}
-            `}
-          >
-            <MenuButton />
-          </div>
           {/* Sync Indicator - shows online/offline and sync status (positioned left of right sidebar) */}
           <SyncIndicator status={syncStatus} className="!top-4 !right-[256px]" />
           {/* Canvas Stage - adjusted for right sidebar (240px right margin) */}

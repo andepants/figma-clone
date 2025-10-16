@@ -37,6 +37,7 @@ function isInputFocused(): boolean {
  * - L: Line tool
  * - T: Text tool
  * - Cmd/Ctrl+K: Toggle AI chat panel
+ * - Shift+Cmd/Ctrl+\: Toggle left sidebar (Minimize UI)
  * - Cmd/Ctrl+C: Copy selected objects (supports multi-select, preserves hierarchy)
  * - Cmd/Ctrl+V: Paste copied objects (supports multi-select, preserves hierarchy)
  * - Cmd/Ctrl+0: Reset zoom to 100%
@@ -64,7 +65,7 @@ function isInputFocused(): boolean {
  */
 export function useToolShortcuts(onShowShortcuts?: () => void) {
   const { setActiveTool } = useToolStore();
-  const { toggleAIChatCollapse } = useUIStore();
+  const { toggleAIChatCollapse, toggleLeftSidebar } = useUIStore();
   const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects } = useCanvasStore();
 
   useEffect(() => {
@@ -83,6 +84,13 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
       if ((event.metaKey || event.ctrlKey) && key === 'k') {
         event.preventDefault(); // Prevent browser "Search" behavior
         toggleAIChatCollapse();
+        return;
+      }
+
+      // Handle Shift+Cmd/Ctrl+\ for left sidebar toggle (Minimize UI)
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && key === '\\') {
+        event.preventDefault();
+        toggleLeftSidebar();
         return;
       }
 
@@ -343,5 +351,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, toggleAIChatCollapse, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, onShowShortcuts]);
+  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, onShowShortcuts]);
 }

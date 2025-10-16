@@ -21,11 +21,16 @@ import { cn } from '@/lib/utils';
  */
 export function ResizeHandle() {
   const [isDragging, setIsDragging] = useState(false);
-  const { aiPanelHeight, setAIPanelHeight } = useUIStore();
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragStartPercentage, setDragStartPercentage] = useState(0);
+  const { aiPanelHeight, setAIPanelHeight, setIsResizingAIPanel } = useUIStore();
   const handleRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
+    setIsResizingAIPanel(true);
+    setDragStartY(e.clientY);
+    setDragStartPercentage(aiPanelHeight);
     e.preventDefault();
   };
 
@@ -42,17 +47,21 @@ export function ResizeHandle() {
       if (!sidebar) return;
 
       const rect = sidebar.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      // Calculate percentage from bottom (AI panel height)
-      const percentage = ((rect.height - y) / rect.height) * 100;
+      // Calculate how much the mouse moved from the initial drag position
+      const deltaY = e.clientY - dragStartY;
+      // Convert pixel movement to percentage change (negative because moving up increases AI height)
+      const deltaPercentage = -(deltaY / rect.height) * 100;
+      // Apply the delta to the starting percentage
+      const newPercentage = dragStartPercentage + deltaPercentage;
       // Clamp to 20-80% range
-      const clampedPercentage = Math.min(80, Math.max(20, percentage));
+      const clampedPercentage = Math.min(80, Math.max(20, newPercentage));
 
       setAIPanelHeight(clampedPercentage);
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      setIsResizingAIPanel(false);
     };
 
     // Add global event listeners
@@ -64,7 +73,7 @@ export function ResizeHandle() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, setAIPanelHeight]);
+  }, [isDragging, dragStartY, dragStartPercentage, setAIPanelHeight, setIsResizingAIPanel]);
 
   /**
    * Keyboard handler for arrow key resize
