@@ -25,7 +25,7 @@ import { generateThreadId } from '@/lib/utils/threadId';
 interface ProcessAICommandResponse {
   success: boolean;
   message: string;
-  actions?: any[];
+  actions?: Array<{tool: string; params: Record<string, unknown>; result?: Record<string, unknown>}>;
   error?: string;
 }
 
@@ -180,27 +180,35 @@ export function useAIAgent(): UseAIAgentReturn {
         } else {
           throw new Error(result.data.error || 'Command failed');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('❌ AI command error:', err);
+
+        // Type guard for Firebase error
+        const isFirebaseError = (e: unknown): e is {message?: string; code?: string; details?: unknown; stack?: string} => {
+          return typeof e === 'object' && e !== null;
+        };
+
+        const error = isFirebaseError(err) ? err : {message: String(err)};
+
         console.error('Error details:', {
-          message: err.message,
-          code: err.code,
-          details: err.details,
-          stack: err.stack,
-          fullError: JSON.stringify(err, null, 2),
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          stack: error.stack,
+          fullError: JSON.stringify(error, null, 2),
         });
 
         // Extract detailed error info
-        let errorMessage = err.message || 'Unknown error occurred';
+        let errorMessage = error.message || 'Unknown error occurred';
 
         // Add code if available (e.g., 'internal', 'unauthenticated', etc.)
-        if (err.code) {
-          errorMessage = `[${err.code}] ${errorMessage}`;
+        if (error.code) {
+          errorMessage = `[${error.code}] ${errorMessage}`;
         }
 
         // Add details if available
-        if (err.details) {
-          errorMessage += ` (Details: ${JSON.stringify(err.details)})`;
+        if (error.details) {
+          errorMessage += ` (Details: ${JSON.stringify(error.details)})`;
         }
 
         console.error('Final error message:', errorMessage);

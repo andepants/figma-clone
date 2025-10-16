@@ -11,14 +11,15 @@
 // STEP 1: Add Import at Top of CanvasPage.tsx
 // ============================================================
 
-import { addTestLines, clearTestLines } from '@/features/canvas-core/utils/testLines';
+// Copy this import into CanvasPage.tsx:
+// import { addTestLines, clearTestLines } from '@/features/canvas-core/utils/testLines';
 
 // ============================================================
 // STEP 2: Add State for Test Lines Control (Optional)
 // ============================================================
 
 // Add this with other useState declarations in CanvasPage component
-const [testLinesAdded, setTestLinesAdded] = useState(false);
+// const [testLinesAdded, setTestLinesAdded] = useState(false);
 
 // ============================================================
 // STEP 3: Add Test Lines Effect
@@ -34,7 +35,10 @@ const [testLinesAdded, setTestLinesAdded] = useState(false);
  * - Vertical (90°, -90°)
  * - Diagonal (45°, -45°, 135°, -135°)
  * - Edge cases (slight angle, 180° normalization)
+ *
+ * EXAMPLE CODE - Copy into CanvasPage component:
  */
+/*
 useEffect(() => {
   // Only run if user is authenticated
   if (!currentUser) return;
@@ -69,6 +73,7 @@ useEffect(() => {
     }
   };
 }, [currentUser, isLoading, testLinesAdded]);
+*/
 
 // ============================================================
 // ALTERNATIVE: Manual Test Lines Control (Advanced)

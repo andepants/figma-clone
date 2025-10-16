@@ -54,19 +54,23 @@ export async function exportCanvasToPNG(
   allObjects: CanvasObject[],
   options: ExportOptions = { format: 'png', scale: 2, scope: 'selection' }
 ): Promise<void> {
-  console.log('=== EXPORT START ===');
-  console.log('Export options:', options);
-  console.log('Selected objects count:', selectedObjects.length);
-  console.log('All objects count:', allObjects.length);
+  const isDev = import.meta.env.DEV;
+
+  if (isDev) {
+    console.log('=== EXPORT START ===');
+    console.log('Export options:', options);
+    console.log('Selected objects count:', selectedObjects.length);
+    console.log('All objects count:', allObjects.length);
+  }
 
   // Validate stage ref
   if (!stageRef.current) {
-    console.error('Export failed: Stage ref not available');
+    if (isDev) console.error('Export failed: Stage ref not available');
     throw new Error('Stage ref not available');
   }
 
   const stage = stageRef.current;
-  console.log('Stage found:', stage);
+  if (isDev) console.log('Stage found:', stage);
 
   // Determine what to export based on scope option
   let objectsToExport: CanvasObject[];
@@ -79,11 +83,11 @@ export async function exportCanvasToPNG(
   }
 
   if (objectsToExport.length === 0) {
-    console.error('Export failed: No objects to export');
+    if (isDev) console.error('Export failed: No objects to export');
     throw new Error('No objects to export');
   }
 
-  console.log('Objects to export (before group expansion):', objectsToExport.length);
+  if (isDev) console.log('Objects to export (before group expansion):', objectsToExport.length);
 
   // Expand groups: if a group is selected, include its descendants
   // This ensures exporting a group exports its children
@@ -93,14 +97,14 @@ export async function exportCanvasToPNG(
     if (obj.type === 'group') {
       // Add all descendants of this group
       const descendantIds = getAllDescendantIds(obj.id, allObjects);
-      console.log(`Group ${obj.id} has ${descendantIds.length} descendants`);
+      if (isDev) console.log(`Group ${obj.id} has ${descendantIds.length} descendants`);
       descendantIds.forEach(id => expandedIds.add(id));
     }
   });
 
   // Get all objects to export (including expanded descendants)
   const expandedObjects = allObjects.filter(obj => expandedIds.has(obj.id));
-  console.log('Objects after group expansion:', expandedObjects.length);
+  if (isDev) console.log('Objects after group expansion:', expandedObjects.length);
 
   // Filter out group objects (they have no visual representation)
   // Only export actual shapes with visual properties
@@ -118,21 +122,21 @@ export async function exportCanvasToPNG(
   // - Preserves all design elements
   // - Hidden objects still exist on canvas, just not visible in editor
   const visibleObjects = expandedObjects.filter(obj => obj.type !== 'group');
-  console.log('Visible objects (excluding groups):', visibleObjects.length);
+  if (isDev) console.log('Visible objects (excluding groups):', visibleObjects.length);
 
   if (visibleObjects.length === 0) {
-    console.error('Export failed: No visible objects to export (all objects are groups)');
+    if (isDev) console.error('Export failed: No visible objects to export (all objects are groups)');
     throw new Error('No visible objects to export');
   }
 
   // Calculate bounding box of objects to export
-  console.log('Calculating bounding box...');
+  if (isDev) console.log('Calculating bounding box...');
   const bbox = calculateBoundingBox(visibleObjects, allObjects);
-  console.log('Calculated bbox:', bbox);
+  if (isDev) console.log('Calculated bbox:', bbox);
 
   // Validate bounding box (handle edge case of invalid bounds)
   if (!isFinite(bbox.x) || !isFinite(bbox.y) || bbox.width <= 0 || bbox.height <= 0) {
-    console.error('Export failed: Invalid bounding box', bbox);
+    if (isDev) console.error('Export failed: Invalid bounding box', bbox);
     throw new Error('Invalid bounding box - cannot export');
   }
 
@@ -151,13 +155,15 @@ export async function exportCanvasToPNG(
   // Use configurable quality settings from options.scale
   // PNG format automatically provides transparent background
   // Export only the bounding box without padding (exact screenshot)
-  console.log('Preparing to export with params:', {
-    x: bbox.x,
-    y: bbox.y,
-    width: bbox.width,
-    height: bbox.height,
-    pixelRatio: options.scale,
-  });
+  if (isDev) {
+    console.log('Preparing to export with params:', {
+      x: bbox.x,
+      y: bbox.y,
+      width: bbox.width,
+      height: bbox.height,
+      pixelRatio: options.scale,
+    });
+  }
 
   // CRITICAL FIX: Export from the entire stage, not just one layer
   // This ensures all shape properties (fill, stroke, etc.) are captured correctly.
@@ -170,16 +176,16 @@ export async function exportCanvasToPNG(
   const wasBackgroundVisible = backgroundLayer?.visible() ?? false;
   const wasCursorsVisible = cursorsLayer?.visible() ?? false;
 
-  console.log('Hiding background and cursors layers...');
+  if (isDev) console.log('Hiding background and cursors layers...');
   backgroundLayer?.hide();
   cursorsLayer?.hide();
 
   // Force layer redraw to ensure all shapes are fully rendered
-  console.log('Forcing layer redraw...');
+  if (isDev) console.log('Forcing layer redraw...');
   objectsLayer.batchDraw();
 
   // Export the stage (now only includes objects layer)
-  console.log('Calling stage.toDataURL()...');
+  if (isDev) console.log('Calling stage.toDataURL()...');
   const dataURL = stage.toDataURL({
     x: bbox.x,
     y: bbox.y,
@@ -189,10 +195,10 @@ export async function exportCanvasToPNG(
     mimeType: 'image/png',
   });
 
-  console.log('toDataURL() successful, data URL length:', dataURL.length);
+  if (isDev) console.log('toDataURL() successful, data URL length:', dataURL.length);
 
   // Restore layer visibility
-  console.log('Restoring layer visibility...');
+  if (isDev) console.log('Restoring layer visibility...');
   if (wasBackgroundVisible) backgroundLayer?.show();
   if (wasCursorsVisible) cursorsLayer?.show();
 
@@ -207,7 +213,7 @@ export async function exportCanvasToPNG(
   const filename = `collabcanvas-${timestamp}.png`;
 
   // Trigger browser download
-  console.log('Triggering download with filename:', filename);
+  if (isDev) console.log('Triggering download with filename:', filename);
   const link = document.createElement('a');
   link.download = filename;
   link.href = dataURL;
@@ -215,10 +221,12 @@ export async function exportCanvasToPNG(
   link.click();
   document.body.removeChild(link);
 
-  console.log('=== EXPORT COMPLETE ===');
-  console.log('Successfully exported', visibleObjects.length, 'objects');
-  console.log('Export scope:', options.scope);
-  console.log('Export scale:', options.scale + 'x');
-  console.log('Filename:', filename);
-  console.log('=======================');
+  if (isDev) {
+    console.log('=== EXPORT COMPLETE ===');
+    console.log('Successfully exported', visibleObjects.length, 'objects');
+    console.log('Export scope:', options.scope);
+    console.log('Export scale:', options.scale + 'x');
+    console.log('Filename:', filename);
+    console.log('=======================');
+  }
 }

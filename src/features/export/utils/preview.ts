@@ -13,18 +13,19 @@ import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
 /**
  * Generate export preview
  *
- * Creates a low-quality preview of what will be exported.
- * Uses same bounding box logic as actual export but with lower quality settings.
+ * Creates a preview of what will be exported.
+ * Uses same bounding box logic as actual export.
  * Returns data URL for immediate display (no download).
  *
  * @param stageRef - React ref to Konva Stage
  * @param objectsToExport - Objects to include in preview
  * @param allObjects - All canvas objects (for group expansion)
+ * @param scale - Optional scale factor (1x, 2x, 3x). Defaults to 1x for performance
  * @returns Data URL of preview image, or null if generation fails
  *
  * @example
  * ```tsx
- * const previewUrl = generateExportPreview(stageRef, selectedObjects, allObjects);
+ * const previewUrl = generateExportPreview(stageRef, selectedObjects, allObjects, 2);
  * if (previewUrl) {
  *   setPreviewUrl(previewUrl);
  * }
@@ -33,7 +34,8 @@ import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
 export function generateExportPreview(
   stageRef: React.RefObject<Konva.Stage | null>,
   objectsToExport: CanvasObject[],
-  allObjects: CanvasObject[]
+  allObjects: CanvasObject[],
+  scale: number = 1
 ): string | null {
   // Validate stage ref
   if (!stageRef.current) {
@@ -75,14 +77,14 @@ export function generateExportPreview(
       return null;
     }
 
-    // Generate preview with low quality settings for speed
-    // Use pixelRatio 0.5 for fast generation (half the screen resolution)
+    // Generate preview with configurable quality
+    // Use scale parameter to match export quality (1x = fast, 2x/3x = accurate)
     const dataURL = stage.toDataURL({
       x: bbox.x,
       y: bbox.y,
       width: bbox.width,
       height: bbox.height,
-      pixelRatio: 0.5, // Low quality for fast preview
+      pixelRatio: scale, // Match export scale for accurate preview
       mimeType: 'image/png',
     });
 

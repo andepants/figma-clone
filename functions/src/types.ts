@@ -98,7 +98,14 @@ export interface CanvasState {
     zoom: number;
   };
   /** Internal field: viewport bounds calculated from viewport data */
-  _viewportBounds?: any;
+  _viewportBounds?: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+    centerX: number;
+    centerY: number;
+  };
 }
 
 /**
@@ -109,10 +116,10 @@ export interface AIAction {
   tool: string;
 
   /** Parameters passed to tool */
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 
   /** Result of tool execution */
-  result?: any;
+  result?: Record<string, unknown>;
 
   /** Error if tool failed */
   error?: string;

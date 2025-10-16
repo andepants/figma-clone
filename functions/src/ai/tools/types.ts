@@ -57,5 +57,5 @@ export interface ToolResult {
   error?: string;
 
   /** Additional data (e.g., new object details) */
-  data?: any;
+  data?: Record<string, unknown>;
 }

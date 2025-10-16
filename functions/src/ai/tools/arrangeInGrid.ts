@@ -9,6 +9,7 @@ import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
 import {getDatabase} from "../../services/firebase-admin";
+import {CanvasObject} from "../../types";
 
 /**
  * Schema for grid arrangement parameters
@@ -99,7 +100,7 @@ export class ArrangeInGridTool extends CanvasTool {
       const maxHeight = this.getMaxDimension(objects, "height");
 
       // Prepare batch update
-      const updates: Record<string, any> = {};
+      const updates: Record<string, number> = {};
 
       // Arrange objects in grid
       for (let i = 0; i < objects.length; i++) {
@@ -152,8 +153,10 @@ export class ArrangeInGridTool extends CanvasTool {
    * @param dimension - 'width' or 'height'
    * @returns Maximum dimension in pixels
    */
-  private getMaxDimension(objects: any[], dimension: "width" | "height"):
-    number {
+  private getMaxDimension(
+    objects: CanvasObject[],
+    dimension: "width" | "height"
+  ): number {
     let max = 0;
 
     for (const obj of objects) {

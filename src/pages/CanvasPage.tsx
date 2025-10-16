@@ -5,7 +5,7 @@
  * Contains the collaborative canvas and toolbar with real-time Firestore sync.
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import type Konva from 'konva';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
@@ -51,6 +51,12 @@ function CanvasPage() {
   // Get canvas store setObjects method
   const { setObjects, objects, selectedIds } = useCanvasStore();
 
+  // Memoize selected objects to prevent unnecessary preview re-generation
+  const selectedObjects = useMemo(
+    () => objects.filter(obj => selectedIds.includes(obj.id)),
+    [objects, selectedIds]
+  );
+
   // Ref to access Konva stage for export
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -75,7 +81,6 @@ function CanvasPage() {
    */
   async function handleExportWithOptions(options: ExportOptions) {
     try {
-      const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
       await exportCanvasToPNG(stageRef, selectedObjects, objects, options);
     } catch (error) {
       // Provide helpful error messages based on error type
@@ -102,12 +107,13 @@ function CanvasPage() {
    * Handle export button click
    * Opens export modal instead of direct export
    */
-  function handleExport() {
+  const handleExport = useCallback(() => {
     setIsExportModalOpen(true);
-  }
+  }, []);
 
   /**
    * Handle export keyboard shortcut (Shift+Cmd/Ctrl+E)
+   * Only triggers if there's a selection
    */
   useEffect(() => {
     function handleExportShortcut(event: KeyboardEvent) {
@@ -121,6 +127,9 @@ function CanvasPage() {
 
         if (isTyping) return;
 
+        // Only export if there's a selection
+        if (selectedIds.length === 0) return;
+
         event.preventDefault();
         handleExport();
       }
@@ -128,7 +137,7 @@ function CanvasPage() {
 
     window.addEventListener('keydown', handleExportShortcut);
     return () => window.removeEventListener('keydown', handleExportShortcut);
-  }, [handleExport]);
+  }, [handleExport, selectedIds]);
 
   /**
    * Comprehensive prevention of browser back/forward navigation on swipe gestures
@@ -488,7 +497,11 @@ function CanvasPage() {
             <CanvasStage stageRef={stageRef} />
           </div>
           {/* Right Sidebar - unified properties + AI chat */}
-          <RightSidebar onExport={handleExport} hasObjects={objects.length > 0} />
+          <RightSidebar
+            onExport={handleExport}
+            hasObjects={objects.length > 0}
+            hasSelection={selectedIds.length > 0}
+          />
         </div>
 
         {/* Keyboard Shortcuts Modal */}
@@ -503,9 +516,8 @@ function CanvasPage() {
           onClose={() => setIsExportModalOpen(false)}
           onExport={handleExportWithOptions}
           hasSelection={selectedIds.length > 0}
-          hasObjects={objects.length > 0}
           stageRef={stageRef}
-          selectedObjects={objects.filter(obj => selectedIds.includes(obj.id))}
+          selectedObjects={selectedObjects}
           allObjects={objects}
         />
       </div>

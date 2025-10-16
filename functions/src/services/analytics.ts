@@ -132,7 +132,8 @@ export async function getUserUsageStats(
 
   const entries = snapshot.val() || {};
   const userEntries = Object.values(entries).filter(
-    (entry: any) => entry.userId === userId
+    (entry): entry is {userId: string; totalTokens?: number; cost?: number; responseTime?: number} =>
+      typeof entry === 'object' && entry !== null && 'userId' in entry && entry.userId === userId
   );
 
   if (userEntries.length === 0) {
@@ -145,17 +146,17 @@ export async function getUserUsageStats(
   }
 
   const totalTokens = userEntries.reduce(
-    (sum: number, e: any) => sum + (e.totalTokens || 0),
+    (sum, e) => sum + (e.totalTokens || 0),
     0
   );
 
   const totalCost = userEntries.reduce(
-    (sum: number, e: any) => sum + (e.cost || 0),
+    (sum, e) => sum + (e.cost || 0),
     0
   );
 
   const totalResponseTime = userEntries.reduce(
-    (sum: number, e: any) => sum + (e.responseTime || 0),
+    (sum, e) => sum + (e.responseTime || 0),
     0
   );
 

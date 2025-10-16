@@ -9,6 +9,7 @@ import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
 import {getDatabase} from "../../services/firebase-admin";
+import {CanvasObject} from "../../types";
 
 /**
  * Schema for column arrangement parameters
@@ -90,7 +91,7 @@ export class ArrangeInColumnTool extends CanvasTool {
                      Math.min(...objects.map(obj => obj.y));
 
       // Prepare batch update
-      const updates: Record<string, any> = {};
+      const updates: Record<string, number> = {};
       let currentY = startY;
 
       // Sort objects by original Y position to maintain order
@@ -139,7 +140,7 @@ export class ArrangeInColumnTool extends CanvasTool {
    * @param obj - Canvas object
    * @returns Height in pixels
    */
-  private getObjectHeight(obj: any): number {
+  private getObjectHeight(obj: CanvasObject): number {
     if (obj.height !== undefined) {
       return obj.height;
     } else if (obj.radius !== undefined) {

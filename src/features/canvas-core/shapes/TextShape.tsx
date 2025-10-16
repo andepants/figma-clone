@@ -76,11 +76,6 @@ export const TextShape = memo(function TextShape({
   editState,
   isInMultiSelect = false,
 }: TextShapeProps) {
-  // Don't render if hidden
-  if (text.visible === false) {
-    return null;
-  }
-
   const { activeTool, setActiveTool } = useToolStore();
   const { updateObject, removeObject, editingTextId, setEditingText } = useCanvasStore();
   const { currentUser } = useAuth();
@@ -511,6 +506,11 @@ export const TextShape = memo(function TextShape({
 
   // Calculate final draggable state
   const isDraggable = !isLocked && (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isEditing && !isInMultiSelect;
+
+  // Don't render if hidden
+  if (text.visible === false) {
+    return null;
+  }
 
   return (
     <Fragment>

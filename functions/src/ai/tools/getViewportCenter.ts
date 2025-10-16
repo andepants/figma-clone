@@ -25,7 +25,7 @@ export class GetViewportCenterTool extends CanvasTool {
     );
   }
 
-  async execute(input: z.infer<typeof GetViewportCenterSchema>): Promise<ToolResult> {
+  async execute(): Promise<ToolResult> {
     try {
       if (!this.context.viewportBounds) {
         // Fallback: No viewport data, use canvas center

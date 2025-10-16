@@ -1,14 +1,19 @@
 /**
  * Export Modal Component
  *
- * Modal for configuring and triggering canvas exports.
- * Provides two clear options: Whole Canvas or Selection Only.
- * Shows side-by-side previews for both export modes.
- * Matches Figma's minimalist export workflow.
+ * Ultra-clean export interface inspired by Figma's design principles.
+ * Focuses exclusively on exporting selected objects with precision.
+ * Shows live preview and minimal, functional controls.
+ *
+ * Design Principles:
+ * - Minimalist: Only essential controls
+ * - Focused: Selection-only export (no full canvas clutter)
+ * - Visual: Large, clear preview of what will be exported
+ * - Fast: Real-time preview updates, keyboard shortcuts
  */
 
-import { useState, useEffect } from 'react';
-import { Download, Loader2, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Download, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -30,8 +35,6 @@ export interface ExportModalProps {
   onExport: (options: ExportOptions) => Promise<void>;
   /** Whether user has objects selected */
   hasSelection: boolean;
-  /** Whether canvas has any objects */
-  hasObjects: boolean;
   /** Stage ref for preview generation */
   stageRef: React.RefObject<Konva.Stage | null>;
   /** Selected objects for preview */
@@ -43,11 +46,8 @@ export interface ExportModalProps {
 /**
  * ExportModal Component
  *
- * Enhanced export modal with two clear options:
- * 1. Whole Canvas - Exports everything on the canvas
- * 2. Selection Only - Exports only selected objects (ultra-precise)
- *
- * Shows side-by-side previews for both options.
+ * Ultra-clean, Figma-inspired export modal.
+ * Only exports selected objects - keeps it simple and precise.
  *
  * @param {ExportModalProps} props - Component props
  * @returns {JSX.Element} Export modal dialog
@@ -71,30 +71,28 @@ export function ExportModal({
   onClose,
   onExport,
   hasSelection,
-  hasObjects,
   stageRef,
   selectedObjects,
   allObjects,
 }: ExportModalProps) {
-  // Export options state
+  // Export options state - always export selection only
   const [options, setOptions] = useState<ExportOptions>({
     format: 'png',
     scale: 2,
-    scope: hasSelection ? 'selection' : 'all',
+    scope: 'selection', // Always selection - no full canvas option
   });
 
   // Loading state during export
   const [isExporting, setIsExporting] = useState(false);
 
-  // Preview state (data URLs for both previews)
-  const [wholeCanvasPreview, setWholeCanvasPreview] = useState<string | null>(null);
-  const [selectionPreview, setSelectionPreview] = useState<string | null>(null);
+  // Preview state (single preview of selection)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   /**
    * Handle export button click
    * Calls onExport with current options, shows loading state
    */
-  async function handleExport() {
+  const handleExport = useCallback(async () => {
     setIsExporting(true);
     try {
       await onExport(options);
@@ -105,7 +103,7 @@ export function ExportModal({
     } finally {
       setIsExporting(false);
     }
-  }
+  }, [options, onExport, onClose]);
 
   /**
    * Reset options when modal opens
@@ -118,55 +116,69 @@ export function ExportModal({
       setOptions({
         format: 'png',
         scale: 2,
-        scope: hasSelection ? 'selection' : 'all',
+        scope: 'selection',
       });
     }
   }
 
   /**
-   * Generate both previews when modal opens
-   * Shows side-by-side previews for whole canvas and selection
+   * Generate preview when modal opens or selection changes
+   * Shows real-time preview of selected objects
+   * Cleans up old preview URLs to prevent memory leaks
    */
   useEffect(() => {
-    if (!isOpen || !hasObjects) {
-      setWholeCanvasPreview(null);
-      setSelectionPreview(null);
+    if (!isOpen || !hasSelection || selectedObjects.length === 0) {
+      // Cleanup: revoke old preview URL to free memory
+      if (previewUrl) {
+        setPreviewUrl(null);
+      }
       return;
     }
 
-    console.log('Generating previews...', {
-      hasSelection,
-      selectedObjectsCount: selectedObjects.length,
-      allObjectsCount: allObjects.length,
-    });
+    const isDev = import.meta.env.DEV;
+
+    if (isDev) {
+      console.log('Generating selection preview...', {
+        selectedObjectsCount: selectedObjects.length,
+      });
+    }
 
     try {
-      // Generate whole canvas preview
-      const wholePreview = generateExportPreview(stageRef, allObjects, allObjects);
-      setWholeCanvasPreview(wholePreview);
-      console.log('Whole canvas preview generated:', wholePreview ? 'success' : 'failed');
+      // Generate selection preview at current export scale
+      // This ensures preview matches final export quality
+      const preview = generateExportPreview(stageRef, selectedObjects, allObjects, options.scale);
 
-      // Generate selection preview (if has selection)
-      if (hasSelection && selectedObjects.length > 0) {
-        const selPreview = generateExportPreview(stageRef, selectedObjects, allObjects);
-        setSelectionPreview(selPreview);
-        console.log('Selection preview generated:', selPreview ? 'success' : 'failed');
-      } else {
-        setSelectionPreview(null);
+      // Cleanup: revoke old preview URL before setting new one
+      if (previewUrl && previewUrl !== preview) {
+        setPreviewUrl(null);
       }
+
+      setPreviewUrl(preview);
+      if (isDev) console.log('Preview generated:', preview ? 'success' : 'failed');
     } catch (error) {
-      console.error('Failed to generate previews:', error);
-      setWholeCanvasPreview(null);
-      setSelectionPreview(null);
+      if (isDev) console.error('Failed to generate preview:', error);
+      setPreviewUrl(null);
     }
-  }, [isOpen, hasObjects, hasSelection, stageRef, selectedObjects, allObjects]);
+  }, [isOpen, hasSelection, selectedObjects, allObjects, stageRef, options.scale, previewUrl]);
+
+  /**
+   * Cleanup preview URL on unmount
+   * Prevents memory leaks from base64 data URLs
+   */
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        setPreviewUrl(null);
+      }
+    };
+  }, [previewUrl]);
 
   /**
    * Handle Enter key to trigger export
-   * Only when modal is open and export is possible
+   * Only when modal is open and has selection
    */
   useEffect(() => {
-    if (!isOpen || !hasObjects || isExporting) return;
+    if (!isOpen || !hasSelection || isExporting) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Enter') {
@@ -177,187 +189,138 @@ export function ExportModal({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, hasObjects, isExporting]);
+  }, [isOpen, hasSelection, isExporting, handleExport]);
+
+  // Empty state when no selection
+  if (!hasSelection) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-medium">Export Selection</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center py-12 px-4">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <Download className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-sm font-medium text-gray-900 mb-1">No selection</h3>
+            <p className="text-xs text-gray-500 text-center max-w-xs">
+              Select objects on the canvas to export them as PNG
+            </p>
+          </div>
+          <DialogFooter>
+            <button
+              onClick={onClose}
+              className="w-full px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Close
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-4xl p-0 gap-0">
+      <DialogContent className="sm:max-w-2xl p-0 gap-0">
+        {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-gray-200">
-          <DialogTitle className="text-base font-semibold">Export Canvas</DialogTitle>
-          <p className="text-xs text-gray-500 mt-1">Choose what to export and configure settings</p>
+          <DialogTitle className="text-sm font-medium">Export Selection</DialogTitle>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {selectedObjects.length} object{selectedObjects.length !== 1 ? 's' : ''} selected
+          </p>
         </DialogHeader>
 
-        <div className="p-6 space-y-6" style={{ opacity: isExporting ? 0.6 : 1 }}>
-          {/* Two-Option Preview Cards */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Whole Canvas Option */}
-            <button
-              onClick={() => setOptions(prev => ({ ...prev, scope: 'all' }))}
-              disabled={isExporting}
-              className={`
-                group relative flex flex-col p-4 rounded-lg border-2 transition-all
-                ${options.scope === 'all'
-                  ? 'border-[#0ea5e9] bg-[#0ea5e9]/5 shadow-md'
-                  : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                }
-                disabled:opacity-50 disabled:cursor-not-allowed
-              `}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className={`w-4 h-4 ${options.scope === 'all' ? 'text-[#0ea5e9]' : 'text-gray-600'}`} />
-                  <span className={`text-sm font-semibold ${options.scope === 'all' ? 'text-[#0ea5e9]' : 'text-gray-900'}`}>
-                    Whole Canvas
-                  </span>
-                </div>
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  options.scope === 'all'
-                    ? 'border-[#0ea5e9] bg-[#0ea5e9]'
-                    : 'border-gray-300'
-                }`}>
-                  {options.scope === 'all' && (
-                    <div className="w-2 h-2 rounded-full bg-white" />
-                  )}
-                </div>
+        {/* Preview Section */}
+        <div className="p-6" style={{ opacity: isExporting ? 0.5 : 1 }} aria-busy={isExporting}>
+          <div className="bg-[#f5f5f5] rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center" style={{ minHeight: '300px', maxHeight: '400px' }}>
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt="Export preview"
+                className="max-w-full max-h-full object-contain p-4"
+                aria-label={`Preview of ${selectedObjects.length} selected object${selectedObjects.length !== 1 ? 's' : ''}`}
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-gray-400" role="status" aria-live="polite">
+                <Download className="w-12 h-12" />
+                <span className="text-xs">Generating preview...</span>
               </div>
+            )}
+          </div>
+        </div>
 
-              {/* Preview */}
-              <div className="aspect-video bg-[#f5f5f5] rounded-md border border-gray-200 overflow-hidden flex items-center justify-center mb-2">
-                {wholeCanvasPreview ? (
-                  <img
-                    src={wholeCanvasPreview}
-                    alt="Whole canvas preview"
-                    className="max-w-full max-h-full object-contain"
-                  />
-                ) : (
-                  <span className="text-xs text-gray-400">No preview</span>
-                )}
-              </div>
-
-              <p className="text-xs text-gray-500 text-left">
-                Export all {allObjects.length} object{allObjects.length !== 1 ? 's' : ''} on canvas
-              </p>
-            </button>
-
-            {/* Selection Only Option */}
-            <button
-              onClick={() => setOptions(prev => ({ ...prev, scope: 'selection' }))}
-              disabled={!hasSelection || isExporting}
-              className={`
-                group relative flex flex-col p-4 rounded-lg border-2 transition-all
-                ${options.scope === 'selection'
-                  ? 'border-[#0ea5e9] bg-[#0ea5e9]/5 shadow-md'
-                  : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                }
-                disabled:opacity-40 disabled:cursor-not-allowed
-              `}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className={`w-4 h-4 ${options.scope === 'selection' ? 'text-[#0ea5e9]' : 'text-gray-600'}`} />
-                  <span className={`text-sm font-semibold ${options.scope === 'selection' ? 'text-[#0ea5e9]' : 'text-gray-900'}`}>
-                    Selection Only
-                  </span>
-                </div>
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  options.scope === 'selection'
-                    ? 'border-[#0ea5e9] bg-[#0ea5e9]'
-                    : 'border-gray-300'
-                }`}>
-                  {options.scope === 'selection' && (
-                    <div className="w-2 h-2 rounded-full bg-white" />
-                  )}
-                </div>
-              </div>
-
-              {/* Preview */}
-              <div className="aspect-video bg-[#f5f5f5] rounded-md border border-gray-200 overflow-hidden flex items-center justify-center mb-2">
-                {selectionPreview ? (
-                  <img
-                    src={selectionPreview}
-                    alt="Selection preview"
-                    className="max-w-full max-h-full object-contain"
-                  />
-                ) : hasSelection ? (
-                  <span className="text-xs text-gray-400">No preview</span>
-                ) : (
-                  <span className="text-xs text-gray-400">No selection</span>
-                )}
-              </div>
-
-              <p className="text-xs text-gray-500 text-left">
-                {hasSelection
-                  ? `Export ${selectedObjects.length} selected object${selectedObjects.length !== 1 ? 's' : ''} (ultra-precise)`
-                  : 'Select objects to enable'
-                }
-              </p>
-            </button>
+        {/* Settings Section */}
+        <div className="px-6 pb-6 space-y-4" style={{ pointerEvents: isExporting ? 'none' : 'auto' }}>
+          {/* Resolution */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-700">Resolution</label>
+            <div className="flex gap-2">
+              {([1, 2, 3] as const).map(scale => (
+                <button
+                  key={scale}
+                  onClick={() => setOptions(prev => ({ ...prev, scale }))}
+                  className={`
+                    flex-1 px-4 py-2.5 text-xs font-medium rounded-md border transition-all
+                    ${options.scale === scale
+                      ? 'bg-[#0ea5e9] text-white border-[#0ea5e9] shadow-sm'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                    }
+                  `}
+                >
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="font-semibold">{scale}x</span>
+                    <span className="text-[10px] opacity-75">
+                      {scale === 1 ? 'Standard' : scale === 2 ? 'Recommended' : 'Ultra'}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Export Settings */}
-          <div className="flex items-center gap-6 pt-2 border-t border-gray-200">
-            {/* Scale Selection */}
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-medium text-gray-700 min-w-[60px]">Resolution:</label>
-              <div className="flex gap-1.5">
-                {([1, 2, 3] as const).map(scale => (
-                  <button
-                    key={scale}
-                    onClick={() => setOptions(prev => ({ ...prev, scale }))}
-                    disabled={isExporting}
-                    className={`
-                      px-3 py-1.5 text-xs font-medium rounded border
-                      transition-colors
-                      ${options.scale === scale
-                        ? 'bg-[#0ea5e9] text-white border-[#0ea5e9]'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    `}
-                  >
-                    {scale}x
-                  </button>
-                ))}
-              </div>
-              <span className="text-xs text-gray-500">
-                {options.scale === 1 ? 'Standard' : options.scale === 2 ? 'High (Recommended)' : 'Ultra High'}
-              </span>
-            </div>
-
-            {/* Format (always PNG for now) */}
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-medium text-gray-700">Format:</label>
-              <span className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded border border-gray-200">
-                PNG
-              </span>
+          {/* Format */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-700">Format</label>
+            <div className="flex items-center h-10 px-3 bg-gray-50 border border-gray-200 rounded-md">
+              <span className="text-xs text-gray-600">PNG (Transparent)</span>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="px-6 pb-5 pt-0 border-t border-gray-200 bg-gray-50">
+        {/* Footer */}
+        <DialogFooter className="px-6 pb-5 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between w-full">
             <p className="text-xs text-gray-500">
-              Press <kbd className="px-1.5 py-0.5 text-xs font-mono bg-white border border-gray-300 rounded">Enter</kbd> to export
+              Press <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white border border-gray-300 rounded shadow-sm">⏎</kbd> to export
             </p>
             <div className="flex gap-2">
               <button
                 onClick={onClose}
                 disabled={isExporting}
-                className="px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleExport}
-                disabled={!hasObjects || isExporting}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-[#0ea5e9] rounded hover:bg-[#0284c7] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={isExporting}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-[#0ea5e9] rounded-md hover:bg-[#0284c7] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                aria-busy={isExporting}
+                aria-label={isExporting ? 'Exporting PNG file' : 'Export selection as PNG'}
               >
                 {isExporting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                    Exporting...
+                  </>
                 ) : (
-                  <Download className="w-4 h-4" />
+                  <>
+                    <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                    Export PNG
+                  </>
                 )}
-                {isExporting ? 'Exporting...' : 'Export'}
               </button>
             </div>
           </div>

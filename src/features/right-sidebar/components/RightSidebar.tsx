@@ -19,6 +19,7 @@ const AI_HEADER_HEIGHT = 40;  // AI section header height
 export interface RightSidebarProps {
   onExport: () => void;
   hasObjects: boolean;
+  hasSelection: boolean;
 }
 
 /**
@@ -43,9 +44,10 @@ export interface RightSidebarProps {
  * @param {RightSidebarProps} props - Component props
  * @param {Function} props.onExport - Export handler function
  * @param {boolean} props.hasObjects - Whether canvas has objects to export
+ * @param {boolean} props.hasSelection - Whether user has objects selected
  * @returns {JSX.Element} Right sidebar container
  */
-export function RightSidebar({ onExport, hasObjects }: RightSidebarProps) {
+export function RightSidebar({ onExport, hasObjects, hasSelection }: RightSidebarProps) {
   const { aiPanelHeight, isAIChatCollapsed, isResizingAIPanel } = useUIStore();
 
   return (
@@ -66,7 +68,7 @@ export function RightSidebar({ onExport, hasObjects }: RightSidebarProps) {
           willChange: isResizingAIPanel ? 'max-height' : 'auto',
         }}
       >
-        <PropertiesPanel onExport={onExport} hasObjects={hasObjects} />
+        <PropertiesPanel onExport={onExport} hasObjects={hasObjects} hasSelection={hasSelection} />
       </div>
 
       {/* Resize Handle - hidden when AI chat is collapsed */}

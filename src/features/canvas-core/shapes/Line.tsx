@@ -64,11 +64,6 @@ export const Line = memo(function Line({
   onSelect,
   remoteDragState,
 }: LineProps) {
-  // Don't render if hidden
-  if (line.visible === false) {
-    return null;
-  }
-
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
@@ -353,6 +348,11 @@ export const Line = memo(function Line({
       shadowEnabled: line.shadowEnabled ?? false,
     };
   };
+
+  // Don't render if hidden
+  if (line.visible === false) {
+    return null;
+  }
 
   return (
     <Fragment>

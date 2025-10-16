@@ -30,7 +30,7 @@ export abstract class CanvasTool {
   constructor(
     name: string,
     description: string,
-    schema: z.ZodObject<any>,
+    schema: z.ZodObject<z.ZodRawShape>,
     context: CanvasToolContext
   ) {
     this.context = context;
@@ -40,7 +40,7 @@ export abstract class CanvasTool {
       name,
       description,
       schema,
-      func: async (input: any) => {
+      func: async (input: z.infer<typeof schema>) => {
         try {
           logger.info(`Executing tool: ${name}`, {input});
           const result = await this.execute(input);
@@ -79,7 +79,7 @@ export abstract class CanvasTool {
    * @param input - Validated input parameters (matches schema)
    * @returns Tool result with success status and details
    */
-  abstract execute(input: any): Promise<ToolResult>;
+  abstract execute(input: Record<string, unknown>): Promise<ToolResult>;
 
   /**
    * Get the LangChain tool instance

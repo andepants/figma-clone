@@ -33,7 +33,7 @@ import {
  * @returns Optimized canvas state with minimal tokens
  */
 export function optimizeContext(canvasState: CanvasState): CanvasState {
-  let objects = canvasState.objects || [];
+  const objects = canvasState.objects || [];
 
   // Calculate viewport bounds if provided
   let viewportBounds: ViewportBounds | null = null;

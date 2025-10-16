@@ -7,6 +7,7 @@
  * @module _docs/examples/lock-examples
  */
 
+import React from 'react';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { hasLockedParent, getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
 import type { CanvasObject } from '@/types/canvas.types';
@@ -253,7 +254,7 @@ function PreventEditingLockedExample() {
       return;
     }
 
-    updateObject(objectId, { width, height } as any);
+    updateObject(objectId, { width, height } as Partial<CanvasObject>);
   };
 
   return (
@@ -404,7 +405,7 @@ function DeleteWithLockCheckExample() {
   const selectedIds = useCanvasStore((state) => state.selectedIds);
   const removeObject = useCanvasStore((state) => state.removeObject);
 
-  const deleteSelected = () => {
+  const deleteSelected = React.useCallback(() => {
     // Filter out locked objects (direct or inherited)
     const unlockedIds = selectedIds.filter((id) => {
       const obj = objects.find((o) => o.id === id);
@@ -421,7 +422,7 @@ function DeleteWithLockCheckExample() {
     unlockedIds.forEach((id) => removeObject(id));
 
     console.log(`Deleted ${unlockedIds.length} objects`);
-  };
+  }, [selectedIds, objects, removeObject]);
 
   // Keyboard handler for Delete key
   React.useEffect(() => {
@@ -434,7 +435,7 @@ function DeleteWithLockCheckExample() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds, objects]);
+  }, [deleteSelected]);
 
   return <button onClick={deleteSelected}>Delete Selected (Skip Locked)</button>;
 }
@@ -662,10 +663,9 @@ function ContextMenuItem({
   );
 }
 
-// Type placeholders for Konva
-type Rect = any;
-type Transformer = any;
-const React = { useState, useEffect, useMemo } as any;
+// Type placeholders for Konva (referenced in examples)
+// type Rect = unknown;
+// type Transformer = unknown;
 
 // Export all examples
 export {

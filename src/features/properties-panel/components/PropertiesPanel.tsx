@@ -25,6 +25,7 @@ import { useAuth } from '@/features/auth/hooks';
 export interface PropertiesPanelProps {
   onExport: () => void;
   hasObjects: boolean;
+  hasSelection?: boolean;
 }
 
 /**
@@ -38,12 +39,13 @@ export interface PropertiesPanelProps {
  * @param {PropertiesPanelProps} props - Component props
  * @param {Function} props.onExport - Export handler function
  * @param {boolean} props.hasObjects - Whether canvas has objects to export
+ * @param {boolean} props.hasSelection - Whether user has objects selected
  * @example
  * ```tsx
- * <PropertiesPanel onExport={handleExport} hasObjects={true} />
+ * <PropertiesPanel onExport={handleExport} hasObjects={true} hasSelection={true} />
  * ```
  */
-export function PropertiesPanel({ onExport, hasObjects }: PropertiesPanelProps) {
+export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPanelProps) {
   const shape = useSelectedShape();
   const visibility = getSectionVisibility(shape);
 
@@ -75,7 +77,7 @@ export function PropertiesPanel({ onExport, hasObjects }: PropertiesPanelProps) 
           </div>
           <button
             onClick={onExport}
-            disabled={!hasObjects}
+            disabled={!hasSelection}
             className="
               flex items-center gap-1.5 px-2 py-1
               text-xs font-medium text-gray-700
@@ -84,7 +86,7 @@ export function PropertiesPanel({ onExport, hasObjects }: PropertiesPanelProps) 
               disabled:opacity-50 disabled:cursor-not-allowed
               transition-colors
             "
-            title="Export Canvas... (Shift+Cmd+E)"
+            title={hasSelection ? "Export Selection... (Shift+Cmd+E)" : "Select objects to export"}
           >
             <Download className="w-3.5 h-3.5" />
             Export
@@ -137,7 +139,7 @@ export function PropertiesPanel({ onExport, hasObjects }: PropertiesPanelProps) 
         </div>
         <button
           onClick={onExport}
-          disabled={!hasObjects}
+          disabled={!hasSelection}
           className="
             flex items-center gap-1.5 px-2 py-1
             text-xs font-medium text-gray-700
@@ -146,7 +148,7 @@ export function PropertiesPanel({ onExport, hasObjects }: PropertiesPanelProps) 
             disabled:opacity-50 disabled:cursor-not-allowed
             transition-colors
           "
-          title="Export Canvas... (Shift+Cmd+E)"
+          title={hasSelection ? "Export Selection... (Shift+Cmd+E)" : "Select objects to export"}
         >
           <Download className="w-3.5 h-3.5" />
           Export

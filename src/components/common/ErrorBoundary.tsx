@@ -50,7 +50,7 @@ export class ErrorBoundary extends React.Component<
   /**
    * Handle error caught by boundary
    */
-  componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo) {
+  componentDidCatch() {
     // Error is stored in state via getDerivedStateFromError
     // Additional error tracking could be added here (e.g., error reporting service)
   }

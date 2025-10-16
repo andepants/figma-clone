@@ -259,7 +259,7 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
       });
 
       // Parse tool calls from messages
-      const actions: any[] = [];
+      const actions: Array<{tool: string; params: Record<string, unknown>; result: {success: boolean}}> = [];
       for (const msg of messages) {
         if (msg.tool_calls && msg.tool_calls.length > 0) {
           for (const toolCall of msg.tool_calls) {
@@ -274,20 +274,20 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
 
       // Count objects created/modified
       const objectsCreated = actions.filter(
-        (a: any) => a.tool.startsWith("create_")
+        (a) => a.tool.startsWith("create_")
       ).length;
       const objectsModified = actions.filter(
-        (a: any) =>
+        (a) =>
           a.tool.startsWith("update_") ||
           a.tool.startsWith("move_") ||
           a.tool.startsWith("delete_")
       ).length;
-      const toolNames = actions.map((a: any) => a.tool as string);
+      const toolNames = actions.map((a) => a.tool as string);
       const toolsUsed: string[] = Array.from(new Set(toolNames));
 
       // Extract token usage from result metadata
       // Note: LangChain may expose this differently depending on provider
-      const usage = (result as any).llmOutput?.tokenUsage || {};
+      const usage = (result as {llmOutput?: {tokenUsage?: {promptTokens?: number; input_tokens?: number; completionTokens?: number; output_tokens?: number; totalTokens?: number}}}).llmOutput?.tokenUsage || {};
       const promptTokens = usage.promptTokens || usage.input_tokens || 0;
       const completionTokens =
         usage.completionTokens || usage.output_tokens || 0;
