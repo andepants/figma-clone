@@ -32,9 +32,31 @@ function ensureInitialized() {
     hasDefaultApp: admin.apps.length > 0,
   });
 
+  // Check if app exists AND is properly configured
   if (admin.apps.length > 0) {
-    logger.info('Admin app already initialized, skipping');
-    return; // Already initialized
+    try {
+      // Test if the app is actually usable by trying to access it
+      const app = admin.app();
+      logger.info('Testing existing admin app', {
+        projectId: app.options.projectId,
+        databaseURL: app.options.databaseURL,
+      });
+
+      // If we can access it without error, it's initialized correctly
+      logger.info('Admin app already initialized and working, skipping');
+      return;
+    } catch (testError) {
+      // App exists but is broken - delete it and reinitialize
+      logger.warn('Existing admin app is broken, deleting and reinitializing', {
+        error: testError,
+      });
+      try {
+        admin.app().delete();
+        logger.info('Deleted broken admin app');
+      } catch (deleteError) {
+        logger.error('Failed to delete broken app', {error: deleteError});
+      }
+    }
   }
 
   try {
@@ -58,6 +80,7 @@ function ensureInitialized() {
     logger.info('✅ Firebase Admin SDK initialized successfully', {
       apps: admin.apps.length,
       projectId: admin.app().options.projectId,
+      databaseURL: admin.app().options.databaseURL,
     });
   } catch (error) {
     logger.error('❌ Failed to initialize Firebase Admin SDK', {

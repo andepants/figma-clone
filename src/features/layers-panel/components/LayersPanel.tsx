@@ -33,6 +33,7 @@ import { LayerItem } from './LayerItem';
 import { SectionHeader } from './SectionHeader';
 import { buildHierarchyTree, flattenHierarchyTree, getAllDescendantIds, moveToParent } from '../utils/hierarchy';
 import { MenuButton, SidebarToggleButton } from '@/features/navigation/components';
+import { EnvironmentIndicator } from '@/components/common';
 import {
   DndContext,
   closestCenter,
@@ -326,6 +327,7 @@ export function LayersPanel() {
           fixed left-0 top-0 bottom-0 z-20
           w-[240px] bg-white border-r border-gray-200
           transition-transform duration-200 ease-in-out
+          flex flex-col
           ${leftSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
@@ -383,6 +385,9 @@ export function LayersPanel() {
           )}
           </div>
         )}
+
+        {/* Environment Indicator - shows dev/prod mode at bottom (dev only) */}
+        <EnvironmentIndicator />
       </aside>
     </>
   );
