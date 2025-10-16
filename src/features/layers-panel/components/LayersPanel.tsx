@@ -31,7 +31,7 @@ import { useCanvasStore } from '@/stores/canvasStore';
 import { useUIStore } from '@/stores/uiStore';
 import { LayerItem } from './LayerItem';
 import { SectionHeader } from './SectionHeader';
-import { buildHierarchyTree, flattenHierarchyTree, getAllDescendantIds, moveToParent } from '../utils/hierarchy';
+import { buildHierarchyTree, flattenHierarchyTree, reverseTreeForDisplay, getAllDescendantIds, moveToParent } from '../utils/hierarchy';
 import { MenuButton, SidebarToggleButton } from '@/features/navigation/components';
 import { EnvironmentIndicator } from '@/components/common';
 import { syncZIndexes } from '@/lib/firebase';
@@ -108,9 +108,13 @@ export function LayersPanel() {
   }, [objects]);
 
   // Flatten hierarchy for display (respects collapse state)
+  // Reverse tree at ALL levels before flattening to maintain:
+  // 1. Z-index order (front objects at top)
+  // 2. Parent-before-children order (groups above their contents)
+  // 3. Children z-index order (front children at top within group)
   const displayObjects = useMemo(() => {
-    const flattened = flattenHierarchyTree(hierarchyTree, false); // Don't include collapsed children
-    return flattened.reverse(); // Reverse for z-order (top = front)
+    const reversedTree = reverseTreeForDisplay(hierarchyTree); // Recursively reverse for z-order
+    return flattenHierarchyTree(reversedTree, false); // Flatten with parents before children
   }, [hierarchyTree]);
 
   const displayIds = displayObjects.map((obj) => obj.id);
@@ -212,10 +216,38 @@ export function LayersPanel() {
 
     if (dropPosition.position === 'child') {
       // Make child of target
+      const draggedObj = objects.find((obj) => obj.id === draggedId);
+      const oldParentId = draggedObj?.parentId;
+
       const updated = moveToParent(draggedId, targetId, objects);
 
       if (updated) {
         setObjects(updated);
+
+        // Check if old parent is now empty and should be deleted
+        if (oldParentId && oldParentId !== targetId) {
+          const oldParent = updated.find((obj) => obj.id === oldParentId);
+          if (oldParent && oldParent.type === 'group') {
+            // Helper: Check if group has only empty groups
+            const hasOnlyEmptyGroups = (groupId: string, objs: CanvasObject[]): boolean => {
+              const children = objs.filter((obj) => obj.parentId === groupId);
+              if (children.length === 0) return true;
+              const hasNonGroupChild = children.some((child) => child.type !== 'group');
+              if (hasNonGroupChild) return false;
+              return children.every((child) => hasOnlyEmptyGroups(child.id, objs));
+            };
+
+            const remainingChildren = updated.filter((obj) => obj.parentId === oldParentId);
+
+            if (remainingChildren.length === 0 || hasOnlyEmptyGroups(oldParentId, updated)) {
+              // Old parent is empty - use store's removeObject to trigger cascade deletion
+              const removeObject = useCanvasStore.getState().removeObject;
+              removeObject(oldParentId);
+              return; // Don't sync z-indexes if we're deleting groups
+            }
+          }
+        }
+
         // Sync z-indexes to Firebase (async, fire-and-forget)
         syncZIndexes('main', updated).catch(console.error);
       }
@@ -235,6 +267,10 @@ export function LayersPanel() {
       // Reorder in array
       const reordered = arrayMove(objects, oldIndex, newIndex);
 
+      // Get old parent before change
+      const draggedObj = objects[oldIndex];
+      const oldParentId = draggedObj.parentId;
+
       // Inherit parent from target (to maintain hierarchy level)
       const targetObj = objects[targetIndex];
       const adjustedIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
@@ -244,6 +280,32 @@ export function LayersPanel() {
       };
 
       setObjects(reordered);
+
+      // Check if old parent is now empty and should be deleted
+      // This handles the case where dragging an object out of a group makes it empty
+      if (oldParentId && oldParentId !== targetObj.parentId) {
+        // Parent changed - check if old parent should be deleted
+        const oldParent = reordered.find((obj) => obj.id === oldParentId);
+        if (oldParent && oldParent.type === 'group') {
+          // Helper: Check if group has only empty groups
+          const hasOnlyEmptyGroups = (groupId: string, objs: CanvasObject[]): boolean => {
+            const children = objs.filter((obj) => obj.parentId === groupId);
+            if (children.length === 0) return true;
+            const hasNonGroupChild = children.some((child) => child.type !== 'group');
+            if (hasNonGroupChild) return false;
+            return children.every((child) => hasOnlyEmptyGroups(child.id, objs));
+          };
+
+          const remainingChildren = reordered.filter((obj) => obj.parentId === oldParentId);
+
+          if (remainingChildren.length === 0 || hasOnlyEmptyGroups(oldParentId, reordered)) {
+            // Old parent is empty - use store's removeObject to trigger cascade deletion
+            const removeObject = useCanvasStore.getState().removeObject;
+            removeObject(oldParentId);
+            return; // Don't sync z-indexes if we're deleting groups
+          }
+        }
+      }
 
       // Sync z-indexes to Firebase (async, fire-and-forget)
       syncZIndexes('main', reordered).catch(console.error);

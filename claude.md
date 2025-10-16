@@ -369,38 +369,67 @@ const handleContextMenu = (e: React.MouseEvent) => {
 
 ## Export System
 
-PNG export with high-quality 2x resolution using Konva.js toDataURL.
+PNG export with configurable options through a professional modal interface.
 
 ### Key Concepts
 
-- **Selection-based**: Exports selected objects (or all if none selected)
-- **Bounding box**: Calculates tight bounds around objects with 20px padding
-- **High quality**: 2x pixelRatio for crisp exports
+- **Modal-based workflow**: Export button opens configuration modal (matches Figma UX)
+- **Configurable options**: Format (PNG), resolution (1x/2x/3x), scope (selection/all)
+- **High quality exports**: 2x pixelRatio recommended, 3x for ultra-high quality
+- **Selection-based**: Exports selected objects or entire canvas
+- **Tight bounding box**: Calculates exact bounds around objects
+- **Transparent background**: PNG format with transparent background
 - **Group handling**: Automatically expands groups to include descendants
 - **Hidden objects**: Includes hidden objects in export (Figma behavior)
+- **Stroke & shadow aware**: Accounts for stroke width, shadows, and line thickness
+
+### Export Options
+
+```typescript
+interface ExportOptions {
+  format: 'png';              // Currently PNG only (future: SVG, JPG)
+  scale: 1 | 2 | 3;           // Resolution multiplier (1x, 2x, 3x)
+  scope: 'selection' | 'all'; // Export selected or all objects
+}
+```
+
+### Using the Export Modal
+
+```typescript
+import { ExportModal } from '@/features/export';
+
+// In component with export functionality
+<ExportModal
+  isOpen={isExportModalOpen}
+  onClose={() => setIsExportModalOpen(false)}
+  onExport={handleExportWithOptions}
+  hasSelection={selectedIds.length > 0}
+  hasObjects={objects.length > 0}
+/>
+
+// Export handler
+async function handleExportWithOptions(options: ExportOptions) {
+  await exportCanvasToPNG(stageRef, selectedObjects, allObjects, options);
+}
+```
 
 ### Export Function
 
 ```typescript
 import { exportCanvasToPNG } from '@/lib/utils/export';
 
-// In component with stageRef
-const handleExport = async () => {
-  try {
-    const { objects, selectedIds } = useCanvasStore.getState();
-    const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
-
-    await exportCanvasToPNG(stageRef, selectedObjects, objects);
-  } catch (error) {
-    console.error('Export failed:', error);
-    alert('Export failed. Please try again.');
-  }
-};
+// Export with options
+await exportCanvasToPNG(stageRef, selectedObjects, allObjects, {
+  format: 'png',
+  scale: 2,
+  scope: 'selection'
+});
 ```
 
 ### Export Shortcut
 
-- **Export Canvas**: Shift + Cmd/Ctrl + E
+- **Open Export Modal**: Shift + Cmd/Ctrl + E
+- **Trigger Export (in modal)**: Enter
 
 ### Export File Naming
 
@@ -408,15 +437,8 @@ Format: `collabcanvas-YYYY-MM-DD-HH-MM-SS.png`
 
 Example: `collabcanvas-2025-10-16-14-30-45.png`
 
-### Implementation Pattern
+### Export Location
 
-Pass stageRef from canvas page:
-
-```typescript
-// In CanvasPage.tsx
-const stageRef = useRef<Konva.Stage>(null);
-
-<CanvasStage ref={stageRef} /* ... */ />
-
-<button onClick={handleExport}>Export</button>
-```
+- Properties panel top-right (persistent across all states)
+- Tooltip: "Export Canvas... (Shift+Cmd+E)"
+- Disabled when canvas has no objects

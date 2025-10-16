@@ -7,38 +7,52 @@
 
 import type Konva from 'konva';
 import type { CanvasObject } from '@/types';
+import type { ExportOptions } from '@/features/export';
 import { calculateBoundingBox } from './geometry';
 import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
 
 /**
  * Export canvas to PNG file
  *
- * Exports selected objects (or entire canvas if none selected).
- * Uses Konva stage.toDataURL() with high quality settings (2x pixelRatio).
- * Automatically calculates bounding box and adds 20px padding.
+ * Exports canvas objects based on provided options.
+ * Uses Konva stage.toDataURL() with configurable quality settings.
+ * Automatically calculates tight bounding box around objects (no padding).
+ * Accounts for stroke width, shadows, and line thickness in bounds calculation.
+ * PNG exports have transparent background; empty space between objects is transparent.
  * Downloads PNG file with timestamped filename.
  *
  * @param stageRef - React ref to Konva Stage
  * @param selectedObjects - Currently selected objects (if any)
- * @param allObjects - All canvas objects
+ * @param allObjects - All canvas objects (used for group expansion)
+ * @param options - Export options (format, scale, scope)
  * @returns Promise that resolves when download starts
  *
  * @throws {Error} If stage ref is not available
  * @throws {Error} If no objects to export
+ * @throws {Error} If bounding box is invalid (non-finite or zero dimensions)
  *
  * @example
  * ```tsx
- * // Export selected objects
- * await exportCanvasToPNG(stageRef, selectedObjects, allObjects);
+ * // Export selected objects at 2x resolution
+ * await exportCanvasToPNG(stageRef, selectedObjects, allObjects, {
+ *   format: 'png',
+ *   scale: 2,
+ *   scope: 'selection'
+ * });
  *
- * // Export entire canvas
- * await exportCanvasToPNG(stageRef, [], allObjects);
+ * // Export entire canvas at 3x resolution
+ * await exportCanvasToPNG(stageRef, [], allObjects, {
+ *   format: 'png',
+ *   scale: 3,
+ *   scope: 'all'
+ * });
  * ```
  */
 export async function exportCanvasToPNG(
   stageRef: React.RefObject<Konva.Stage>,
   selectedObjects: CanvasObject[],
-  allObjects: CanvasObject[]
+  allObjects: CanvasObject[],
+  options: ExportOptions = { format: 'png', scale: 2, scope: 'selection' }
 ): Promise<void> {
   // Validate stage ref
   if (!stageRef.current) {
@@ -47,8 +61,15 @@ export async function exportCanvasToPNG(
 
   const stage = stageRef.current;
 
-  // Determine what to export: selected objects or all objects
-  let objectsToExport = selectedObjects.length > 0 ? selectedObjects : allObjects;
+  // Determine what to export based on scope option
+  let objectsToExport: CanvasObject[];
+  if (options.scope === 'selection') {
+    // Export selection if available, otherwise all objects
+    objectsToExport = selectedObjects.length > 0 ? selectedObjects : allObjects;
+  } else {
+    // Export all objects
+    objectsToExport = allObjects;
+  }
 
   if (objectsToExport.length === 0) {
     throw new Error('No objects to export');
@@ -91,25 +112,73 @@ export async function exportCanvasToPNG(
   }
 
   // Calculate bounding box of objects to export
-  const bbox = calculateBoundingBox(visibleObjects);
+  const bbox = calculateBoundingBox(visibleObjects, allObjects);
 
-  // Add padding (20px on each side)
-  const padding = 20;
-  const exportX = bbox.x - padding;
-  const exportY = bbox.y - padding;
-  const exportWidth = bbox.width + padding * 2;
-  const exportHeight = bbox.height + padding * 2;
+  // DEBUG: Log bounding box and object details
+  console.log('=== EXPORT DEBUG ===');
+  console.log('Objects to export:', visibleObjects.length);
+  console.log('First object:', visibleObjects[0]);
+  console.log('Calculated bbox:', bbox);
+  console.log('===================');
+
+  // Validate bounding box (handle edge case of invalid bounds)
+  if (!isFinite(bbox.x) || !isFinite(bbox.y) || bbox.width <= 0 || bbox.height <= 0) {
+    throw new Error('Invalid bounding box - cannot export');
+  }
+
+  // Get the objects layer (second layer, index 1)
+  // Layer 0 = Background Layer (infinite canvas background)
+  // Layer 1 = Objects Layer (shapes, selections, etc.)
+  // Layer 2 = Cursors Layer (user cursors)
+  const layers = stage.getLayers();
+  const objectsLayer = layers[1]; // Objects layer
+
+  if (!objectsLayer) {
+    throw new Error('Objects layer not found');
+  }
 
   // Export stage as data URL
-  // Use high quality settings: 2x pixelRatio for crisp export
+  // Use configurable quality settings from options.scale
+  // PNG format automatically provides transparent background
+  // Export only the bounding box without padding (exact screenshot)
+  console.log('toDataURL params:', {
+    x: bbox.x,
+    y: bbox.y,
+    width: bbox.width,
+    height: bbox.height,
+    pixelRatio: options.scale,
+  });
+
+  // CRITICAL FIX: Export from the entire stage, not just one layer
+  // This ensures all shape properties (fill, stroke, etc.) are captured correctly.
+  // We hide the background and cursors layers temporarily to avoid interference.
+
+  // Temporarily hide background and cursors layers
+  const backgroundLayer = layers[0];
+  const cursorsLayer = layers[2];
+
+  const wasBackgroundVisible = backgroundLayer?.visible() ?? false;
+  const wasCursorsVisible = cursorsLayer?.visible() ?? false;
+
+  backgroundLayer?.hide();
+  cursorsLayer?.hide();
+
+  // Force layer redraw to ensure all shapes are fully rendered
+  objectsLayer.batchDraw();
+
+  // Export the stage (now only includes objects layer)
   const dataURL = stage.toDataURL({
-    x: exportX,
-    y: exportY,
-    width: exportWidth,
-    height: exportHeight,
-    pixelRatio: 2, // High quality (2x resolution)
+    x: bbox.x,
+    y: bbox.y,
+    width: bbox.width,
+    height: bbox.height,
+    pixelRatio: options.scale, // Use scale from options (1x, 2x, or 3x)
     mimeType: 'image/png',
   });
+
+  // Restore layer visibility
+  if (wasBackgroundVisible) backgroundLayer?.show();
+  if (wasCursorsVisible) cursorsLayer?.show();
 
   // Generate filename with timestamp
   // Format: collabcanvas-YYYY-MM-DD-HH-MM-SS.png

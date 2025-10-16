@@ -42,6 +42,7 @@ import { hasChildren, getAllDescendantIds, hasLockedParent } from '@/features/la
 import { useCanvasStore } from '@/stores/canvasStore';
 import { ContextMenu } from '@/components/common/ContextMenu';
 import { getContextMenuItems } from '@/features/layers-panel/utils/contextMenu';
+import { updateCanvasObject } from '@/lib/firebase';
 
 /**
  * Props for LayerItem component
@@ -225,18 +226,22 @@ export const LayerItem = memo(function LayerItem({
    * Save the edited name
    * - Trims whitespace
    * - If empty, reverts to auto-generated name
-   * - Updates object in store
+   * - Updates object in store (optimistic)
+   * - Syncs to Firebase RTDB
    * - Exits rename mode
    */
   const handleSave = () => {
     const trimmedName = editedName.trim();
-    if (trimmedName) {
-      updateObject(object.id, { name: trimmedName });
-    } else {
-      // Empty name: revert to auto-generated
-      const autoName = generateLayerName(object.type, [object]);
-      updateObject(object.id, { name: autoName });
-    }
+    const finalName = trimmedName || generateLayerName(object.type, [object]);
+
+    // Optimistic local update (immediate)
+    updateObject(object.id, { name: finalName });
+
+    // Sync to Firebase RTDB (async)
+    updateCanvasObject('main', object.id, { name: finalName }).catch(() => {
+      // Silently fail - Firebase subscription will restore correct state if needed
+    });
+
     setIsRenaming(false);
   };
 
@@ -328,7 +333,7 @@ export const LayerItem = memo(function LayerItem({
         data-layer-id={object.id}
         style={{
           ...style,
-          paddingLeft: `${indentWidth + 8}px`, // Base padding + indentation based on depth
+          paddingLeft: `${indentWidth + 4}px`, // Reduced base padding from 8px to 4px
         }}
         {...attributes}
         {...listeners}
@@ -338,7 +343,7 @@ export const LayerItem = memo(function LayerItem({
         onMouseLeave={onHoverEnd}
         className={`
           group
-          h-8 pr-2 py-1 flex items-center gap-1 cursor-grab active:cursor-grabbing
+          h-7 pr-1.5 py-0.5 flex items-center gap-1 cursor-grab active:cursor-grabbing
           transition-colors duration-75
           ${isDragging ? 'opacity-50 z-10' : ''}
           ${!isVisible ? 'opacity-50' : ''}
@@ -367,14 +372,14 @@ export const LayerItem = memo(function LayerItem({
           onKeyDown={handleKeyDown}
           onMouseDown={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          className="text-xs border-none bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 flex-1 min-w-0"
+          className="text-[11px] border-none bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-0.5 flex-1 min-w-0"
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
         <span
           onDoubleClick={handleDoubleClick}
           className={`
-            text-xs truncate max-w-[160px] cursor-text
+            text-[11px] truncate max-w-[160px] cursor-text
             ${isSelected ? 'font-medium text-gray-900' : 'font-normal text-gray-700'}
             ${!isVisible ? 'text-gray-400' : ''}
           `}

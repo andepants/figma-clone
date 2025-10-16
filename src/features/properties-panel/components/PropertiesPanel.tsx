@@ -84,7 +84,7 @@ export function PropertiesPanel({ onExport, hasObjects }: PropertiesPanelProps) 
               disabled:opacity-50 disabled:cursor-not-allowed
               transition-colors
             "
-            title="Export to PNG (Shift+Cmd+E)"
+            title="Export Canvas... (Shift+Cmd+E)"
           >
             <Download className="w-3.5 h-3.5" />
             Export
@@ -146,7 +146,7 @@ export function PropertiesPanel({ onExport, hasObjects }: PropertiesPanelProps) 
             disabled:opacity-50 disabled:cursor-not-allowed
             transition-colors
           "
-          title="Export to PNG (Shift+Cmd+E)"
+          title="Export Canvas... (Shift+Cmd+E)"
         >
           <Download className="w-3.5 h-3.5" />
           Export

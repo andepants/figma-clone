@@ -336,14 +336,19 @@ export async function getAllCanvasObjects(
 }
 
 /**
- * Sync z-index values for array of objects
+ * Sync z-index and organizational properties for array of objects
  *
- * Updates the zIndex property of all objects to match their position in the array.
- * This ensures layer ordering persists across sessions and syncs to collaborators.
+ * Updates the zIndex, parentId, and other organizational properties of all objects
+ * to match their current state. This ensures layer ordering and hierarchy
+ * persist across sessions and sync to collaborators.
  *
  * Array position maps to z-index:
  * - First in array (index 0) = lowest zIndex (back of canvas)
  * - Last in array (index n-1) = highest zIndex (front of canvas)
+ *
+ * Also syncs organizational properties that may have changed:
+ * - parentId (for hierarchy/grouping)
+ * - isCollapsed (for collapsed groups in layers panel)
  *
  * Used when objects are reordered via drag-drop in layers panel.
  *
@@ -364,18 +369,27 @@ export async function syncZIndexes(
 ): Promise<void> {
   try {
     const dbRef = ref(realtimeDb);
-    const multiPathUpdates: Record<string, number> = {};
+    const multiPathUpdates: Record<string, string | number | boolean | null> = {};
     const timestamp = Date.now();
 
-    // Assign zIndex based on array position
+    // Assign zIndex based on array position and sync organizational properties
     objects.forEach((obj, index) => {
       multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/zIndex`] = index;
       multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/updatedAt`] = timestamp;
+
+      // Sync parentId (critical for hierarchy persistence)
+      // Use null instead of undefined for Firebase compatibility
+      multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/parentId`] = obj.parentId ?? null;
+
+      // Sync collapse state (for groups in layers panel)
+      if (obj.isCollapsed !== undefined) {
+        multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/isCollapsed`] = obj.isCollapsed;
+      }
     });
 
-    // Single atomic update for all zIndex values
+    // Single atomic update for all properties
     await update(dbRef, multiPathUpdates);
   } catch {
-    // Don't throw - z-index sync shouldn't break the app
+    // Don't throw - sync shouldn't break the app
   }
 }

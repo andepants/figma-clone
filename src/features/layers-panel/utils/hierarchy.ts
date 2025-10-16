@@ -71,14 +71,22 @@ export function buildHierarchyTree(objects: CanvasObject[]): CanvasObjectWithChi
  * Used for display order in layers panel (depth-first traversal).
  * Optionally excludes children of collapsed nodes.
  *
+ * IMPORTANT: For layers panel display (which shows front→back from top→bottom):
+ * - The tree is built from objects array (where index = z-index)
+ * - Tree roots are in z-index order (front objects at end of tree array)
+ * - This function flattens depth-first, preserving parent-before-children
+ * - Caller should reverse the tree BEFORE flattening to get front-to-back display
+ * - This ensures parents always appear above their children in the panel
+ *
  * @param tree - Hierarchical tree structure
  * @param includeCollapsed - If false, skip children of collapsed nodes
- * @returns Flat array in display order
+ * @returns Flat array in display order (parents before children)
  *
  * @example
  * ```typescript
  * const tree = buildHierarchyTree(objects);
- * const flat = flattenHierarchyTree(tree, false); // Hide collapsed children
+ * // For layers panel: reverse tree first, then flatten
+ * const flat = flattenHierarchyTree([...tree].reverse(), false);
  * ```
  */
 export function flattenHierarchyTree(
@@ -89,9 +97,10 @@ export function flattenHierarchyTree(
 
   function traverse(nodes: CanvasObjectWithChildren[]) {
     nodes.forEach((node) => {
+      // Always add parent first
       result.push(node);
 
-      // Add children if not collapsed or if includeCollapsed is true
+      // Then add children if not collapsed or if includeCollapsed is true
       if (node.children.length > 0 && (includeCollapsed || !node.isCollapsed)) {
         traverse(node.children);
       }
@@ -100,6 +109,41 @@ export function flattenHierarchyTree(
 
   traverse(tree);
   return result;
+}
+
+/**
+ * Reverse hierarchy tree for display (recursively)
+ *
+ * Reverses z-index order at every hierarchy level to prepare for front-to-back display.
+ * This ensures both root-level objects AND their children are in correct visual order.
+ *
+ * @param tree - Hierarchical tree structure
+ * @returns Tree with all levels reversed for display
+ *
+ * @example
+ * ```typescript
+ * const tree = buildHierarchyTree(objects);
+ * const reversed = reverseTreeForDisplay(tree);
+ * const flat = flattenHierarchyTree(reversed, false);
+ * // Now flat array is in front-to-back order with parents before children
+ * ```
+ */
+export function reverseTreeForDisplay(
+  tree: CanvasObjectWithChildren[]
+): CanvasObjectWithChildren[] {
+  // Reverse this level
+  const reversed = [...tree].reverse();
+
+  // Recursively reverse children at each level
+  return reversed.map((node) => {
+    if (node.children.length > 0) {
+      return {
+        ...node,
+        children: reverseTreeForDisplay(node.children),
+      };
+    }
+    return node;
+  });
 }
 
 /**

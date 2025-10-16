@@ -14,6 +14,7 @@ import type { CanvasObject } from '@/types/canvas.types';
  *
  * Returns the smallest rectangle containing all objects.
  * Handles all object types: rectangle, circle, text, line, group.
+ * Accounts for stroke width, shadows, and line thickness.
  *
  * For groups, the bounding box includes all children recursively.
  * This enables proper nested grouping (group inside a group).
@@ -21,8 +22,17 @@ import type { CanvasObject } from '@/types/canvas.types';
  * Algorithm:
  * 1. Iterate through all objects
  * 2. For groups, recursively include all descendants
- * 3. Calculate min/max X and Y coordinates for each object
- * 4. Return bounding box {x, y, width, height}
+ * 3. Calculate base bounds for each object type
+ * 4. Add stroke width (extends by half stroke on each side)
+ * 5. Add shadow extent (blur radius + offset)
+ * 6. Return bounding box {x, y, width, height}
+ *
+ * Edge cases handled:
+ * - Lines: Include stroke width in bounds
+ * - Strokes: Extend bounds by half stroke width on all sides
+ * - Shadows: Extend bounds based on blur radius and offset
+ * - Groups: No visual bounds, only their children
+ * - Empty arrays: Return zero bounding box
  *
  * @param objects - Array of canvas objects to calculate bounds for
  * @param allObjects - Optional full objects array for resolving group children
@@ -87,37 +97,85 @@ export function calculateBoundingBox(
   });
 
   expandedObjects.forEach((obj) => {
+    // Calculate base bounds for each object type
+    let objMinX = 0;
+    let objMinY = 0;
+    let objMaxX = 0;
+    let objMaxY = 0;
+
     if (obj.type === 'rectangle') {
       // Rectangle: top-left corner + dimensions
-      minX = Math.min(minX, obj.x);
-      minY = Math.min(minY, obj.y);
-      maxX = Math.max(maxX, obj.x + obj.width);
-      maxY = Math.max(maxY, obj.y + obj.height);
+      objMinX = obj.x;
+      objMinY = obj.y;
+      objMaxX = obj.x + obj.width;
+      objMaxY = obj.y + obj.height;
     } else if (obj.type === 'circle') {
       // Circle: center point - radius to center point + radius
-      minX = Math.min(minX, obj.x - obj.radius);
-      minY = Math.min(minY, obj.y - obj.radius);
-      maxX = Math.max(maxX, obj.x + obj.radius);
-      maxY = Math.max(maxY, obj.y + obj.radius);
+      objMinX = obj.x - obj.radius;
+      objMinY = obj.y - obj.radius;
+      objMaxX = obj.x + obj.radius;
+      objMaxY = obj.y + obj.radius;
     } else if (obj.type === 'text') {
       // Text: top-left corner + dimensions
-      minX = Math.min(minX, obj.x);
-      minY = Math.min(minY, obj.y);
-      maxX = Math.max(maxX, obj.x + obj.width);
-      maxY = Math.max(maxY, obj.y + obj.height);
+      objMinX = obj.x;
+      objMinY = obj.y;
+      objMaxX = obj.x + obj.width;
+      objMaxY = obj.y + obj.height;
     } else if (obj.type === 'line') {
       // Line: points are relative to (x, y), calculate absolute positions
       const x1 = obj.x + obj.points[0];
       const y1 = obj.y + obj.points[1];
       const x2 = obj.x + obj.points[2];
       const y2 = obj.y + obj.points[3];
-      minX = Math.min(minX, x1, x2);
-      minY = Math.min(minY, y1, y2);
-      maxX = Math.max(maxX, x1, x2);
-      maxY = Math.max(maxY, y1, y2);
+      objMinX = Math.min(x1, x2);
+      objMinY = Math.min(y1, y2);
+      objMaxX = Math.max(x1, x2);
+      objMaxY = Math.max(y1, y2);
+
+      // Add half stroke width to account for line thickness
+      const halfStroke = (obj.strokeWidth || 2) / 2;
+      objMinX -= halfStroke;
+      objMinY -= halfStroke;
+      objMaxX += halfStroke;
+      objMaxY += halfStroke;
+    } else {
+      // Groups have no dimensions, skip
+      return;
     }
-    // Note: groups without children have no dimensions, so we skip them
-    // They're already expanded above to include their children
+
+    // Account for stroke width (extends beyond base bounds)
+    if (obj.type !== 'line' && obj.strokeEnabled !== false && obj.stroke) {
+      const strokeWidth = obj.strokeWidth || 0;
+      const halfStroke = strokeWidth / 2;
+      objMinX -= halfStroke;
+      objMinY -= halfStroke;
+      objMaxX += halfStroke;
+      objMaxY += halfStroke;
+    }
+
+    // Account for shadow (extends beyond base bounds)
+    if (obj.shadowEnabled !== false && obj.shadowColor) {
+      const shadowBlur = obj.shadowBlur || 0;
+      const shadowOffsetX = obj.shadowOffsetX || 0;
+      const shadowOffsetY = obj.shadowOffsetY || 0;
+
+      // Shadow extends by blur radius + offset in all directions
+      const shadowExtendLeft = Math.max(0, shadowBlur - shadowOffsetX);
+      const shadowExtendRight = Math.max(0, shadowBlur + shadowOffsetX);
+      const shadowExtendTop = Math.max(0, shadowBlur - shadowOffsetY);
+      const shadowExtendBottom = Math.max(0, shadowBlur + shadowOffsetY);
+
+      objMinX -= shadowExtendLeft;
+      objMaxX += shadowExtendRight;
+      objMinY -= shadowExtendTop;
+      objMaxY += shadowExtendBottom;
+    }
+
+    // Update global bounds
+    minX = Math.min(minX, objMinX);
+    minY = Math.min(minY, objMinY);
+    maxX = Math.max(maxX, objMaxX);
+    maxY = Math.max(maxY, objMaxY);
   });
 
   return {

@@ -7,7 +7,6 @@
 
 import { useEffect, useState, useRef } from 'react';
 import type Konva from 'konva';
-import { Download } from 'lucide-react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { RightSidebar } from '@/features/right-sidebar';
@@ -29,6 +28,7 @@ import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
 import { hexToRgba, getUserDisplayName, exportCanvasToPNG } from '@/lib/utils';
+import { ExportModal, type ExportOptions } from '@/features/export';
 
 function CanvasPage() {
   // Update SEO for canvas page
@@ -41,6 +41,9 @@ function CanvasPage() {
 
   // Keyboard shortcuts modal state
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // Export modal state
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Enable keyboard shortcuts for tools with callback to open shortcuts modal
   useToolShortcuts(() => setIsShortcutsOpen(true));
@@ -67,17 +70,40 @@ function CanvasPage() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
 
   /**
-   * Handle export button click
-   * Exports selected objects (or all objects if none selected) to PNG
+   * Handle export with options from modal
+   * Exports objects based on user-configured settings
    */
-  async function handleExport() {
+  async function handleExportWithOptions(options: ExportOptions) {
     try {
       const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
-      await exportCanvasToPNG(stageRef, selectedObjects, objects);
+      await exportCanvasToPNG(stageRef, selectedObjects, objects, options);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      // Provide helpful error messages based on error type
+      let message = 'Unknown error occurred';
+
+      if (error instanceof Error) {
+        if (error.message.includes('Stage ref not available')) {
+          message = 'Canvas not ready. Please try again.';
+        } else if (error.message.includes('No objects to export')) {
+          message = 'No objects to export. Create some objects first.';
+        } else if (error.message.includes('Invalid bounding box')) {
+          message = 'Export failed due to invalid object bounds. Please check your objects.';
+        } else {
+          message = error.message;
+        }
+      }
+
       alert(`Export failed: ${message}`);
+      throw error; // Re-throw so modal can handle loading state
     }
+  }
+
+  /**
+   * Handle export button click
+   * Opens export modal instead of direct export
+   */
+  function handleExport() {
+    setIsExportModalOpen(true);
   }
 
   /**
@@ -469,6 +495,18 @@ function CanvasPage() {
         <ShortcutsModal
           isOpen={isShortcutsOpen}
           onClose={() => setIsShortcutsOpen(false)}
+        />
+
+        {/* Export Modal */}
+        <ExportModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          onExport={handleExportWithOptions}
+          hasSelection={selectedIds.length > 0}
+          hasObjects={objects.length > 0}
+          stageRef={stageRef}
+          selectedObjects={objects.filter(obj => selectedIds.includes(obj.id))}
+          allObjects={objects}
         />
       </div>
     );

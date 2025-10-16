@@ -10,12 +10,10 @@ import type { CanvasObject, Rectangle, Circle, Text, Line } from '@/types';
 /**
  * Compare two canvas object arrays for shallow equality
  *
- * Compares all visual properties that would affect rendering:
- * - Position (x, y)
- * - Dimensions (width, height, radius)
- * - Transform (rotation, opacity, scaleX, scaleY, skewX, skewY)
- * - Style (fill, stroke, strokeWidth, cornerRadius, shadowColor, etc.)
- * - Content (text for TextShape)
+ * Compares all properties that affect rendering and organization:
+ * - Visual: Position (x, y), dimensions, transform, style, content
+ * - Organizational: parentId, name, isCollapsed, visible, locked
+ * - Type-specific: width/height/radius, text properties, line points
  *
  * This prevents unnecessary re-renders when Firebase subscription
  * creates a new array reference with identical values.
@@ -55,7 +53,13 @@ function areObjectArraysEqual(arr1: CanvasObject[], arr2: CanvasObject[]): boole
       obj1.shadowOpacity !== obj2.shadowOpacity ||
       obj1.shadowEnabled !== obj2.shadowEnabled ||
       obj1.createdBy !== obj2.createdBy ||
-      obj1.zIndex !== obj2.zIndex
+      obj1.zIndex !== obj2.zIndex ||
+      // Organizational properties (hierarchy, naming, visibility, lock)
+      obj1.parentId !== obj2.parentId ||
+      obj1.name !== obj2.name ||
+      obj1.isCollapsed !== obj2.isCollapsed ||
+      obj1.visible !== obj2.visible ||
+      obj1.locked !== obj2.locked
     ) {
       return false;
     }
@@ -453,7 +457,22 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       // Remove the object
       let updatedObjects = state.objects.filter((obj) => obj.id !== id);
 
-      // Recursively delete empty ancestor groups
+      // Helper: Check if a group has only empty groups (no actual renderable objects)
+      const hasOnlyEmptyGroups = (groupId: string, objs: CanvasObject[]): boolean => {
+        const children = objs.filter((obj) => obj.parentId === groupId);
+
+        // No children = empty
+        if (children.length === 0) return true;
+
+        // If any child is NOT a group, then we have a real object
+        const hasNonGroupChild = children.some((child) => child.type !== 'group');
+        if (hasNonGroupChild) return false;
+
+        // All children are groups - recursively check if they're all empty
+        return children.every((child) => hasOnlyEmptyGroups(child.id, objs));
+      };
+
+      // Recursively delete empty ancestor groups (or groups with only empty groups)
       const deleteEmptyAncestors = (parentId: string | null | undefined) => {
         if (!parentId) return;
 
@@ -463,8 +482,8 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         // Check if parent has any remaining children
         const siblings = updatedObjects.filter((obj) => obj.parentId === parentId);
 
-        if (siblings.length === 0) {
-          // Parent is now empty group - remove it
+        if (siblings.length === 0 || hasOnlyEmptyGroups(parentId, updatedObjects)) {
+          // Parent is empty or only contains empty groups - remove it
           updatedObjects = updatedObjects.filter((obj) => obj.id !== parentId);
 
           // Recursively check parent's parent
@@ -677,7 +696,18 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     const object = state.objects.find((obj) => obj.id === id);
     if (object) {
       const newVisible = !(object.visible ?? true); // Default true
+
+      // Optimistic local update (immediate)
       state.updateObject(id, { visible: newVisible });
+
+      // Sync to Firebase RTDB (async)
+      import('@/lib/firebase').then(async ({ updateCanvasObject }) => {
+        try {
+          await updateCanvasObject('main', id, { visible: newVisible });
+        } catch (error) {
+          console.error('Failed to sync visibility to Firebase:', error);
+        }
+      });
     }
   },
 
@@ -685,7 +715,19 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     const state = useCanvasStore.getState();
     const object = state.objects.find((obj) => obj.id === id);
     if (object) {
-      state.updateObject(id, { isCollapsed: !object.isCollapsed });
+      const newCollapsed = !object.isCollapsed;
+
+      // Optimistic local update (immediate)
+      state.updateObject(id, { isCollapsed: newCollapsed });
+
+      // Sync to Firebase RTDB (async)
+      import('@/lib/firebase').then(async ({ updateCanvasObject }) => {
+        try {
+          await updateCanvasObject('main', id, { isCollapsed: newCollapsed });
+        } catch (error) {
+          console.error('Failed to sync collapse state to Firebase:', error);
+        }
+      });
     }
   },
 
@@ -718,10 +760,34 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       }
     }
 
-    // Update parent
+    // Helper: Check if a group has only empty groups (no actual renderable objects)
+    const hasOnlyEmptyGroups = (groupId: string, objs: CanvasObject[]): boolean => {
+      const children = objs.filter((obj) => obj.parentId === groupId);
+
+      // No children = empty
+      if (children.length === 0) return true;
+
+      // If any child is NOT a group, then we have a real object
+      const hasNonGroupChild = children.some((child) => child.type !== 'group');
+      if (hasNonGroupChild) return false;
+
+      // All children are groups - recursively check if they're all empty
+      return children.every((child) => hasOnlyEmptyGroups(child.id, objs));
+    };
+
+    // Optimistic local update (immediate)
     state.updateObject(objectId, { parentId: newParentId });
 
-    // Check if old parent is now empty group (auto-delete empty groups)
+    // Sync to Firebase RTDB (async)
+    import('@/lib/firebase').then(async ({ updateCanvasObject }) => {
+      try {
+        await updateCanvasObject('main', objectId, { parentId: newParentId ?? null });
+      } catch (error) {
+        console.error('Failed to sync parentId to Firebase:', error);
+      }
+    });
+
+    // Check if old parent should be deleted (empty or only contains empty groups)
     if (oldParentId) {
       const oldParent = objects.find((obj) => obj.id === oldParentId);
       if (oldParent && oldParent.type === 'group') {
@@ -734,7 +800,10 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         );
 
         if (remainingSiblings.length === 0) {
-          // Old parent is now empty - delete it (triggers recursive cleanup via removeObject)
+          // Old parent is now completely empty - delete it
+          state.removeObject(oldParentId);
+        } else if (hasOnlyEmptyGroups(oldParentId, currentObjects)) {
+          // Old parent only contains empty groups (no actual objects) - delete it
           state.removeObject(oldParentId);
         }
       }
@@ -781,7 +850,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
 
     const descendants = getAllDescendantIds(id, objects);
 
-    // Update object and all descendants
+    // Update object and all descendants (optimistic local update)
     const updatedObjects = objects.map((obj) => {
       if (obj.id === id || descendants.includes(obj.id)) {
         return { ...obj, locked: newLocked, updatedAt: Date.now() };
@@ -790,6 +859,25 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     });
 
     set({ objects: updatedObjects });
+
+    // Sync to Firebase RTDB (async) - batch update for all affected objects
+    import('@/lib/firebase').then(async ({ batchUpdateCanvasObjects }) => {
+      try {
+        const updates: Record<string, Partial<CanvasObject>> = {};
+
+        // Add parent object
+        updates[id] = { locked: newLocked };
+
+        // Add all descendants
+        descendants.forEach((descId) => {
+          updates[descId] = { locked: newLocked };
+        });
+
+        await batchUpdateCanvasObjects('main', updates);
+      } catch (error) {
+        console.error('Failed to sync lock state to Firebase:', error);
+      }
+    });
   },
 
   copyObjects: () => {
@@ -896,6 +984,12 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
           const selectedObjects = objects.filter((obj) => selectedIds.includes(obj.id));
           const bbox = calculateBoundingBox(selectedObjects, objects);
 
+          // Check if all selected objects share the same parent
+          // If yes, create nested group inside that parent
+          const parentIds = selectedObjects.map((obj) => obj.parentId ?? null);
+          const allSameParent = parentIds.every((pid) => pid === parentIds[0]);
+          const sharedParentId = allSameParent ? parentIds[0] : null;
+
           // Create group object
           const groupId = crypto.randomUUID();
           const groupName = generateLayerName('group', objects);
@@ -916,8 +1010,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
             scaleY: 1,
             skewX: 0,
             skewY: 0,
-            stroke: undefined,
-            strokeWidth: undefined,
+            // Omit stroke/strokeWidth for groups (Firebase doesn't allow undefined)
             strokeEnabled: false,
             shadowColor: 'black',
             shadowBlur: 0,
@@ -930,9 +1023,12 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
             updatedAt: Date.now(),
             name: groupName,
             isCollapsed: false, // Start expanded
+            // If all selected objects share same parent, inherit that parent
+            // This creates nested groups (group inside a group)
+            parentId: sharedParentId,
           };
 
-          // Update selected objects to be children of group
+          // Update selected objects to be children of new group
           const updatedObjects = objects.map((obj) => {
             if (selectedIds.includes(obj.id)) {
               return { ...obj, parentId: groupId, updatedAt: Date.now() };

@@ -12,7 +12,7 @@
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
             },
             "type": {
-              ".validate": "newData.isString() && (newData.val() == 'rectangle' || newData.val() == 'circle' || newData.val() == 'text' || newData.val() == 'line')"
+              ".validate": "newData.isString() && (newData.val() == 'rectangle' || newData.val() == 'circle' || newData.val() == 'text' || newData.val() == 'line' || newData.val() == 'group')"
             },
             "text": {
               ".validate": "newData.isString() && newData.val().length <= 50000"
