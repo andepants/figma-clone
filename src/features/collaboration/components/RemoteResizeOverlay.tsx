@@ -104,11 +104,12 @@ export const RemoteResizeOverlay = memo(function RemoteResizeOverlay({
   const { x, y, width, height } = currentBounds;
 
   // Extract transform properties from object (to match its visual appearance)
-  const rotation = object.rotation ?? 0;
-  const scaleX = object.scaleX ?? 1;
-  const scaleY = object.scaleY ?? 1;
-  const skewX = object.skewX ?? 0;
-  const skewY = object.skewY ?? 0;
+  // Type guard: Groups don't have transform properties
+  const rotation = object.type !== 'group' ? (object.rotation ?? 0) : 0;
+  const scaleX = 'scaleX' in object ? (object.scaleX ?? 1) : 1;
+  const scaleY = 'scaleY' in object ? (object.scaleY ?? 1) : 1;
+  const skewX = 'skewX' in object ? (object.skewX ?? 0) : 0;
+  const skewY = 'skewY' in object ? (object.skewY ?? 0) : 0;
 
   // Calculate center position for Group positioning
   const centerX = x + width / 2;

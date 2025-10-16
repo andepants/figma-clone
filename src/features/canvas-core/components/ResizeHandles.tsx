@@ -8,7 +8,7 @@
 import { memo } from 'react';
 import { Group, Label, Tag, Text as KonvaText } from 'react-konva';
 import { ResizeHandle } from './ResizeHandle';
-import type { CanvasObject, ResizeHandle as ResizeHandleType, Rectangle, Circle, Text } from '@/types';
+import type { CanvasObject, ResizeHandle as ResizeHandleType, Rectangle, Circle, Text, Line } from '@/types';
 import { getHandlePosition } from '@/lib/utils';
 
 /**

@@ -31,7 +31,7 @@ import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
  * ```
  */
 export function generateExportPreview(
-  stageRef: React.RefObject<Konva.Stage>,
+  stageRef: React.RefObject<Konva.Stage | null>,
   objectsToExport: CanvasObject[],
   allObjects: CanvasObject[]
 ): string | null {

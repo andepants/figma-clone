@@ -388,6 +388,21 @@ export function useResize(): UseResizeReturn {
               rotation: object.rotation,
             };
             break;
+          case 'group':
+            // Groups: Only position (no dimensions)
+            // Groups don't have visual properties, only organizational
+            finalUpdates = {
+              x: object.x,
+              y: object.y,
+            };
+            break;
+          default:
+            // Fallback for unknown types
+            finalUpdates = {
+              x: object.x,
+              y: object.y,
+            };
+            break;
         }
 
         try {
