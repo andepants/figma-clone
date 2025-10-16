@@ -53,8 +53,11 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
     }
 
     // Rate limiting check
+    logger.info("Importing rate limiter service");
     const {checkRateLimit} = await import("./services/rate-limiter.js");
+    logger.info("Checking rate limit", {userId: auth.uid});
     const allowed = await checkRateLimit(auth.uid);
+    logger.info("Rate limit check completed", {allowed});
     if (!allowed) {
       throw new HttpsError(
         "resource-exhausted",

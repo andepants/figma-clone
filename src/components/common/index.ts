@@ -9,3 +9,4 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { ShortcutsModal } from './ShortcutsModal';
 export { SyncIndicator } from './SyncIndicator';
 export type { SyncStatus } from './SyncIndicator';
+export { EnvironmentIndicator } from './EnvironmentIndicator';

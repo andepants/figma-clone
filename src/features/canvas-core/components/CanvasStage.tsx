@@ -19,7 +19,7 @@ import { getUserColor } from '@/features/collaboration/utils';
 import { throttledUpdateCursor, updateSelection } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 import { screenToCanvasCoords, getSelectionBounds } from '../utils';
-import { hexToRgba } from '@/lib/utils';
+import { hexToRgba, getUserDisplayName } from '@/lib/utils';
 
 /**
  * Canvas stage position interface
@@ -268,8 +268,8 @@ export function CanvasStage() {
     const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
 
     // Update cursor position in Realtime DB (throttled to 50ms)
-    // Use username (displayName) with fallback to email if not set
-    const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
+    // Use username with smart fallback to email username (not full email)
+    const username = getUserDisplayName(currentUser.username, currentUser.email);
     const color = getUserColor(currentUser.uid);
 
     throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);

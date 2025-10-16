@@ -13,10 +13,11 @@
  */
 
 import * as admin from 'firebase-admin';
+import * as logger from 'firebase-functions/logger';
 
 /**
  * Initialize Firebase Admin SDK
- * Only initializes once, safe to import multiple times
+ * Only initializes once, safe to call multiple times
  *
  * Environment Detection:
  * - Production: Uses production RTDB (figma-clone-d33e3)
@@ -25,42 +26,75 @@ import * as admin from 'firebase-admin';
  * The emulator is automatically detected via FIREBASE_DATABASE_EMULATOR_HOST
  * environment variable set by Firebase Functions emulator.
  */
-if (!admin.apps.length) {
-  const isEmulator = process.env.FIREBASE_DATABASE_EMULATOR_HOST !== undefined;
+function ensureInitialized() {
+  logger.info('ensureInitialized called', {
+    appsLength: admin.apps.length,
+    hasDefaultApp: admin.apps.length > 0,
+  });
 
-  if (isEmulator) {
-    // Running in emulator - use local database
-    console.log('🔧 Firebase Admin: Using RTDB Emulator');
-    admin.initializeApp({
-      projectId: 'figma-clone-d33e3',
-      databaseURL: 'http://127.0.0.1:9000/?ns=figma-clone-d33e3-default-rtdb',
+  if (admin.apps.length > 0) {
+    logger.info('Admin app already initialized, skipping');
+    return; // Already initialized
+  }
+
+  try {
+    const isEmulator = process.env.FIREBASE_DATABASE_EMULATOR_HOST !== undefined;
+    logger.info('Environment check', {isEmulator});
+
+    if (isEmulator) {
+      // Running in emulator - use local database
+      logger.info('🔧 Firebase Admin: Initializing with RTDB Emulator');
+      admin.initializeApp({
+        projectId: 'figma-clone-d33e3',
+        databaseURL: 'http://127.0.0.1:9000/?ns=figma-clone-d33e3-default-rtdb',
+      });
+    } else {
+      // Production - use Application Default Credentials
+      // When running in Firebase Functions, admin.initializeApp() with no params
+      // automatically uses the service account and project settings
+      logger.info('🚀 Firebase Admin: Initializing with Production (ADC)');
+      admin.initializeApp();
+    }
+    logger.info('✅ Firebase Admin SDK initialized successfully', {
+      apps: admin.apps.length,
+      projectId: admin.app().options.projectId,
     });
-  } else {
-    // Production - use real database
-    console.log('🚀 Firebase Admin: Using Production RTDB');
-    admin.initializeApp({
-      databaseURL: 'https://figma-clone-d33e3-default-rtdb.firebaseio.com',
+  } catch (error) {
+    logger.error('❌ Failed to initialize Firebase Admin SDK', {
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
     });
+    throw error;
   }
 }
 
 /**
- * Firebase Realtime Database instance
+ * Get Firebase Realtime Database instance
  * Used for real-time canvas object synchronization
  */
-export const db = admin.database();
+export function getDatabase() {
+  ensureInitialized();
+  return admin.database();
+}
 
 /**
- * Firestore instance
+ * Get Firestore instance
  * Used for metadata and configuration storage
  */
-export const firestore = admin.firestore();
+export function getFirestore() {
+  ensureInitialized();
+  return admin.firestore();
+}
 
 /**
- * Firebase Auth instance
+ * Get Firebase Auth instance
  * Used for user authentication and management
  */
-export const auth = admin.auth();
+export function getAuth() {
+  ensureInitialized();
+  return admin.auth();
+}
 
 /**
  * Get a reference to a specific canvas in RTDB
@@ -73,7 +107,7 @@ export const auth = admin.auth();
  * const snapshot = await canvasRef.once('value');
  */
 export function getCanvasRef(canvasId: string) {
-  return db.ref(`canvases/${canvasId}`);
+  return getDatabase().ref(`canvases/${canvasId}`);
 }
 
 /**
@@ -88,7 +122,7 @@ export function getCanvasRef(canvasId: string) {
  * const objects = snapshot.val();
  */
 export function getCanvasObjectsRef(canvasId: string) {
-  return db.ref(`canvases/${canvasId}/objects`);
+  return getDatabase().ref(`canvases/${canvasId}/objects`);
 }
 
 /**
@@ -103,5 +137,5 @@ export function getCanvasObjectsRef(canvasId: string) {
  * await objectRef.update({ x: 100, y: 200 });
  */
 export function getCanvasObjectRef(canvasId: string, objectId: string) {
-  return db.ref(`canvases/${canvasId}/objects/${objectId}`);
+  return getDatabase().ref(`canvases/${canvasId}/objects/${objectId}`);
 }

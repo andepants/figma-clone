@@ -5,7 +5,7 @@
  * Uses Firebase RTDB for distributed rate limiting across function instances.
  */
 
-import { db } from './firebase-admin';
+import { getDatabase } from './firebase-admin';
 
 export interface RateLimitConfig {
   windowMs: number;
@@ -34,7 +34,7 @@ export async function checkRateLimit(
   userId: string,
   config: RateLimitConfig = DEFAULT_CONFIG
 ): Promise<boolean> {
-  const ref = db.ref(`rate-limits/ai-commands/${userId}`);
+  const ref = getDatabase().ref(`rate-limits/ai-commands/${userId}`);
   const snapshot = await ref.once('value');
   const data: RateLimitData | null = snapshot.val();
 
@@ -74,7 +74,7 @@ export async function getRemainingRequests(
   userId: string,
   config: RateLimitConfig = DEFAULT_CONFIG
 ): Promise<number> {
-  const ref = db.ref(`rate-limits/ai-commands/${userId}`);
+  const ref = getDatabase().ref(`rate-limits/ai-commands/${userId}`);
   const snapshot = await ref.once('value');
   const data: RateLimitData | null = snapshot.val();
 
@@ -103,7 +103,7 @@ export async function getResetTime(
   userId: string,
   config: RateLimitConfig = DEFAULT_CONFIG
 ): Promise<number> {
-  const ref = db.ref(`rate-limits/ai-commands/${userId}`);
+  const ref = getDatabase().ref(`rate-limits/ai-commands/${userId}`);
   const snapshot = await ref.once('value');
   const data: RateLimitData | null = snapshot.val();
 

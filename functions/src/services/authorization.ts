@@ -5,7 +5,7 @@
  * Checks canvas ownership and explicit permissions.
  */
 
-import { db } from './firebase-admin';
+import { getDatabase } from './firebase-admin';
 import * as logger from 'firebase-functions/logger';
 
 export type CanvasPermission = 'owner' | 'edit' | 'view';
@@ -23,7 +23,7 @@ export async function canUserModifyCanvas(
 ): Promise<boolean> {
   try {
     // Check explicit permissions first
-    const permissionRef = db.ref(`canvases/${canvasId}/permissions/${userId}`);
+    const permissionRef = getDatabase().ref(`canvases/${canvasId}/permissions/${userId}`);
     const permissionSnapshot = await permissionRef.once('value');
     const permission = permissionSnapshot.val() as CanvasPermission | null;
 
@@ -36,7 +36,7 @@ export async function canUserModifyCanvas(
     }
 
     // If no explicit permission, check if user is owner
-    const ownerRef = db.ref(`canvases/${canvasId}/ownerId`);
+    const ownerRef = getDatabase().ref(`canvases/${canvasId}/ownerId`);
     const ownerSnapshot = await ownerRef.once('value');
     const ownerId = ownerSnapshot.val();
 
@@ -69,7 +69,7 @@ export async function canUserViewCanvas(
 ): Promise<boolean> {
   try {
     // Check explicit permissions
-    const permissionRef = db.ref(`canvases/${canvasId}/permissions/${userId}`);
+    const permissionRef = getDatabase().ref(`canvases/${canvasId}/permissions/${userId}`);
     const permissionSnapshot = await permissionRef.once('value');
     const permission = permissionSnapshot.val() as CanvasPermission | null;
 
@@ -78,7 +78,7 @@ export async function canUserViewCanvas(
     }
 
     // Check if user is owner
-    const ownerRef = db.ref(`canvases/${canvasId}/ownerId`);
+    const ownerRef = getDatabase().ref(`canvases/${canvasId}/ownerId`);
     const ownerSnapshot = await ownerRef.once('value');
     const ownerId = ownerSnapshot.val();
 
@@ -106,7 +106,7 @@ export async function getUserPermission(
 ): Promise<CanvasPermission | null> {
   try {
     // Check explicit permissions
-    const permissionRef = db.ref(`canvases/${canvasId}/permissions/${userId}`);
+    const permissionRef = getDatabase().ref(`canvases/${canvasId}/permissions/${userId}`);
     const permissionSnapshot = await permissionRef.once('value');
     const permission = permissionSnapshot.val() as CanvasPermission | null;
 
@@ -115,7 +115,7 @@ export async function getUserPermission(
     }
 
     // Check if user is owner
-    const ownerRef = db.ref(`canvases/${canvasId}/ownerId`);
+    const ownerRef = getDatabase().ref(`canvases/${canvasId}/ownerId`);
     const ownerSnapshot = await ownerRef.once('value');
     const ownerId = ownerSnapshot.val();
 

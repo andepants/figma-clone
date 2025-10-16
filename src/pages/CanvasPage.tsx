@@ -25,8 +25,8 @@ import {
 import { useAuth } from '@/features/auth/hooks';
 import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
-import { hexToRgba } from '@/lib/utils';
+import { SyncIndicator, type SyncStatus, ShortcutsModal, EnvironmentIndicator } from '@/components/common';
+import { hexToRgba, getUserDisplayName } from '@/lib/utils';
 
 function CanvasPage() {
   // Update SEO for canvas page
@@ -180,7 +180,8 @@ function CanvasPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const username = currentUser.username || currentUser.email || 'Anonymous';
+    // Use username with smart fallback to email username (not full email)
+    const username = getUserDisplayName(currentUser.username, currentUser.email);
 
     // Set user online (includes automatic onDisconnect cleanup)
     setOnline('main', currentUser.uid, username).catch(() => {});
@@ -400,6 +401,9 @@ function CanvasPage() {
         className="relative h-screen w-screen overflow-hidden"
         style={{ backgroundColor: bgColorWithOpacity }}
       >
+        {/* Environment Indicator - shows dev/prod mode (dev only) */}
+        <EnvironmentIndicator />
+
         {/* Layers Panel - fixed left sidebar */}
         <LayersPanel />
 
