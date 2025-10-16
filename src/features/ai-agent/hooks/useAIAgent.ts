@@ -8,9 +8,11 @@
 import { useState, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
+import { auth } from '@/lib/firebase/config';
 import { useAIStore } from '@/stores';
 import { useCanvasStore } from '@/stores';
 import { v4 as uuidv4 } from 'uuid';
+import { generateThreadId } from '@/lib/utils/threadId';
 
 /**
  * Response from processAICommand Firebase Function
@@ -33,6 +35,7 @@ interface ProcessAICommandResponse {
  * @property {string} command - User's natural language command
  * @property {string} canvasId - Current canvas ID
  * @property {object} canvasState - Current canvas state for context
+ * @property {string} [threadId] - Thread ID for conversation persistence (optional)
  */
 interface ProcessAICommandInput {
   command: string;
@@ -49,7 +52,14 @@ interface ProcessAICommandInput {
     }>;
     selectedObjectIds: string[];
     canvasSize: { width: number; height: number };
+    /** User's current viewport (camera position and zoom) - optional */
+    viewport?: {
+      camera: { x: number; y: number };
+      zoom: number;
+    };
   };
+  /** Thread ID for conversation persistence - optional */
+  threadId?: string;
 }
 
 /**
@@ -74,7 +84,7 @@ interface UseAIAgentReturn {
  */
 export function useAIAgent(): UseAIAgentReturn {
   const { isProcessing, setProcessing, addCommand, updateCommand } = useAIStore();
-  const { objects, selectedIds } = useCanvasStore();
+  const { objects, selectedIds, zoom, panX, panY } = useCanvasStore();
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -104,6 +114,11 @@ export function useAIAgent(): UseAIAgentReturn {
           ProcessAICommandInput,
           ProcessAICommandResponse
         >(functions, 'processAICommand');
+
+        // Generate thread ID for conversation persistence
+        const userId = auth.currentUser?.uid || null;
+        const canvasId = 'main';
+        const threadId = generateThreadId(userId, canvasId);
 
         // Prepare canvas state with proper type handling
         const canvasState = {
@@ -140,13 +155,19 @@ export function useAIAgent(): UseAIAgentReturn {
           }),
           selectedObjectIds: selectedIds,
           canvasSize: { width: 5000, height: 5000 }, // Standard canvas size
+          // NEW: Include viewport data for spatial awareness
+          viewport: {
+            camera: { x: -panX / zoom, y: -panY / zoom }, // Convert pan to camera position
+            zoom,
+          },
         };
 
         // Call Firebase Function
         const result = await processAICommand({
           command,
-          canvasId: 'main', // Must match the canvas ID in CanvasPage.tsx subscription
+          canvasId, // Must match the canvas ID in CanvasPage.tsx subscription
           canvasState,
+          threadId, // NEW: Include thread ID for conversation persistence
         });
 
         // Handle response
@@ -193,7 +214,7 @@ export function useAIAgent(): UseAIAgentReturn {
         setProcessing(false);
       }
     },
-    [isProcessing, objects, selectedIds, setProcessing, addCommand, updateCommand]
+    [isProcessing, objects, selectedIds, zoom, panX, panY, setProcessing, addCommand, updateCommand]
   );
 
   return {

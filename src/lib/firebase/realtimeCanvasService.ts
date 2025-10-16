@@ -63,7 +63,10 @@ export function subscribeToCanvasObjects(
         .map(([objectId, objectData]) => ({
           ...(objectData as CanvasObject),
           id: objectId, // Ensure ID is set
-        }));
+        }))
+        // Sort by zIndex (lower = back, higher = front)
+        // Objects without zIndex default to 0
+        .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
 
       callback(objectsArray);
     },
@@ -329,5 +332,50 @@ export async function getAllCanvasObjects(
     return objectsArray;
   } catch {
     return [];
+  }
+}
+
+/**
+ * Sync z-index values for array of objects
+ *
+ * Updates the zIndex property of all objects to match their position in the array.
+ * This ensures layer ordering persists across sessions and syncs to collaborators.
+ *
+ * Array position maps to z-index:
+ * - First in array (index 0) = lowest zIndex (back of canvas)
+ * - Last in array (index n-1) = highest zIndex (front of canvas)
+ *
+ * Used when objects are reordered via drag-drop in layers panel.
+ *
+ * @param {string} canvasId - Canvas identifier
+ * @param {CanvasObject[]} objects - Ordered array of canvas objects
+ * @returns {Promise<void>}
+ *
+ * @example
+ * ```typescript
+ * // After reordering in layers panel
+ * const reorderedObjects = [...]; // New order
+ * await syncZIndexes('main', reorderedObjects);
+ * ```
+ */
+export async function syncZIndexes(
+  canvasId: string,
+  objects: CanvasObject[]
+): Promise<void> {
+  try {
+    const dbRef = ref(realtimeDb);
+    const multiPathUpdates: Record<string, number> = {};
+    const timestamp = Date.now();
+
+    // Assign zIndex based on array position
+    objects.forEach((obj, index) => {
+      multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/zIndex`] = index;
+      multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/updatedAt`] = timestamp;
+    });
+
+    // Single atomic update for all zIndex values
+    await update(dbRef, multiPathUpdates);
+  } catch {
+    // Don't throw - z-index sync shouldn't break the app
   }
 }

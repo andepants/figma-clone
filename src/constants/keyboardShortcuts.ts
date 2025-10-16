@@ -26,8 +26,14 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   // Edit Operations
   { key: 'Cmd/Ctrl+C', action: 'Copy selected', category: 'Edit' },
   { key: 'Cmd/Ctrl+V', action: 'Paste', category: 'Edit' },
+  { key: 'Cmd/Ctrl+G', action: 'Group selection', category: 'Edit' },
+  { key: 'Shift+Cmd/Ctrl+G', action: 'Ungroup selection', category: 'Edit' },
+  { key: ']', action: 'Bring to front', category: 'Edit' },
+  { key: '[', action: 'Send to back', category: 'Edit' },
   { key: 'Del / Backspace', action: 'Delete selected', category: 'Edit' },
   { key: 'Shift+Cmd/Ctrl+L', action: 'Lock/unlock selected', category: 'Edit' },
+  { key: 'Shift+Cmd/Ctrl+H', action: 'Show/hide selected', category: 'Edit' },
+  { key: 'Shift+Cmd/Ctrl+E', action: 'Export to PNG', category: 'Edit' },
   { key: 'Esc', action: 'Deselect', category: 'Edit' },
 
   // Canvas Navigation

@@ -35,7 +35,7 @@ export abstract class CanvasTool {
   ) {
     this.context = context;
 
-    // Wrap execute method to add logging and error handling
+    // Wrap execute method to add logging, error handling, and memory tracking
     this.tool = new DynamicStructuredTool({
       name,
       description,
@@ -44,6 +44,15 @@ export abstract class CanvasTool {
         try {
           logger.info(`Executing tool: ${name}`, {input});
           const result = await this.execute(input);
+
+          // Update context with last created objects for conversation memory
+          if (result.objectsCreated && result.objectsCreated.length > 0) {
+            this.context.lastCreatedObjectIds = result.objectsCreated;
+            logger.info(`Updated last created objects`, {
+              objectIds: result.objectsCreated,
+            });
+          }
+
           logger.info(`Tool ${name} completed`, {
             success: result.success,
             message: result.message,

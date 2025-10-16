@@ -34,6 +34,7 @@ import { SectionHeader } from './SectionHeader';
 import { buildHierarchyTree, flattenHierarchyTree, getAllDescendantIds, moveToParent } from '../utils/hierarchy';
 import { MenuButton, SidebarToggleButton } from '@/features/navigation/components';
 import { EnvironmentIndicator } from '@/components/common';
+import { syncZIndexes } from '@/lib/firebase';
 import {
   DndContext,
   closestCenter,
@@ -215,6 +216,8 @@ export function LayersPanel() {
 
       if (updated) {
         setObjects(updated);
+        // Sync z-indexes to Firebase (async, fire-and-forget)
+        syncZIndexes('main', updated).catch(console.error);
       }
       // Circular reference detected - silently prevented
     } else {
@@ -241,6 +244,9 @@ export function LayersPanel() {
       };
 
       setObjects(reordered);
+
+      // Sync z-indexes to Firebase (async, fire-and-forget)
+      syncZIndexes('main', reordered).catch(console.error);
     }
   };
 

@@ -3,6 +3,7 @@
  */
 
 import {CanvasObject} from "../../types";
+import {ViewportBounds} from "../utils/viewport-calculator";
 
 /**
  * Context provided to all canvas tools
@@ -25,6 +26,12 @@ export interface CanvasToolContext {
 
   /** Currently selected object IDs */
   selectedObjectIds: string[];
+
+  /** Viewport bounds for spatial awareness (optional) */
+  viewportBounds?: ViewportBounds;
+
+  /** Last created object IDs from conversation memory (optional) */
+  lastCreatedObjectIds?: string[];
 }
 
 /**

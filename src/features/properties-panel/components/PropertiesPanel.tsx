@@ -6,7 +6,7 @@
  * Displays active users presence at the top.
  */
 
-import { Square, Circle as CircleIcon, Type, Minus } from 'lucide-react';
+import { Square, Circle as CircleIcon, Type, Minus, Download } from 'lucide-react';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { getSectionVisibility } from '../utils/section-visibility';
 import { PositionSection } from './PositionSection';
@@ -22,6 +22,11 @@ import { AvatarStack, PresenceDropdown, type PresenceUser } from '@/features/col
 import { usePresence } from '@/features/collaboration/hooks';
 import { useAuth } from '@/features/auth/hooks';
 
+export interface PropertiesPanelProps {
+  onExport: () => void;
+  hasObjects: boolean;
+}
+
 /**
  * PropertiesPanel Component
  *
@@ -30,12 +35,15 @@ import { useAuth } from '@/features/auth/hooks';
  * Shows presence avatars at the top.
  * Shows empty state when nothing is selected.
  *
+ * @param {PropertiesPanelProps} props - Component props
+ * @param {Function} props.onExport - Export handler function
+ * @param {boolean} props.hasObjects - Whether canvas has objects to export
  * @example
  * ```tsx
- * <PropertiesPanel />
+ * <PropertiesPanel onExport={handleExport} hasObjects={true} />
  * ```
  */
-export function PropertiesPanel() {
+export function PropertiesPanel({ onExport, hasObjects }: PropertiesPanelProps) {
   const shape = useSelectedShape();
   const visibility = getSectionVisibility(shape);
 
@@ -55,15 +63,32 @@ export function PropertiesPanel() {
   if (!shape) {
     return (
       <div className="flex flex-col h-full">
-        {/* Presence Section */}
+        {/* Presence Section with Export Button */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-3 py-2 z-20 flex items-center justify-between">
-          <span className="text-[11px] text-gray-500">Active</span>
-          {presenceUsers.length > 0 && (
-            <PresenceDropdown
-              users={presenceUsers}
-              trigger={<AvatarStack users={presenceUsers} maxVisible={3} size="sm" />}
-            />
-          )}
+          <div>
+            {presenceUsers.length > 0 && (
+              <PresenceDropdown
+                users={presenceUsers}
+                trigger={<AvatarStack users={presenceUsers} maxVisible={3} size="sm" />}
+              />
+            )}
+          </div>
+          <button
+            onClick={onExport}
+            disabled={!hasObjects}
+            className="
+              flex items-center gap-1.5 px-2 py-1
+              text-xs font-medium text-gray-700
+              bg-white border border-gray-300 rounded shadow-sm
+              hover:bg-gray-50 hover:border-gray-400
+              disabled:opacity-50 disabled:cursor-not-allowed
+              transition-colors
+            "
+            title="Export to PNG (Shift+Cmd+E)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export
+          </button>
         </div>
 
         {/* Zoom Section */}
@@ -100,15 +125,32 @@ export function PropertiesPanel() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      {/* Presence Section - Always visible at top */}
+      {/* Presence Section with Export Button - Always visible at top */}
       <div className="sticky top-0 bg-white border-b border-gray-200 px-3 py-2 z-20 flex items-center justify-between">
-        <span className="text-[11px] text-gray-500">Active</span>
-        {presenceUsers.length > 0 && (
-          <PresenceDropdown
-            users={presenceUsers}
-            trigger={<AvatarStack users={presenceUsers} maxVisible={3} size="sm" />}
-          />
-        )}
+        <div>
+          {presenceUsers.length > 0 && (
+            <PresenceDropdown
+              users={presenceUsers}
+              trigger={<AvatarStack users={presenceUsers} maxVisible={3} size="sm" />}
+            />
+          )}
+        </div>
+        <button
+          onClick={onExport}
+          disabled={!hasObjects}
+          className="
+            flex items-center gap-1.5 px-2 py-1
+            text-xs font-medium text-gray-700
+            bg-white border border-gray-300 rounded shadow-sm
+            hover:bg-gray-50 hover:border-gray-400
+            disabled:opacity-50 disabled:cursor-not-allowed
+            transition-colors
+          "
+          title="Export to PNG (Shift+Cmd+E)"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Export
+        </button>
       </div>
 
       {/* Shape Header - Sticks below presence */}

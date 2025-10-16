@@ -15,6 +15,10 @@ A production-grade Figma clone built to explore real-time collaboration and AI-a
 - **Professional Canvas** — Konva.js rendering at 60 FPS with zoom, pan, and layer optimization
 - **Hierarchy & Locking** — Parent-child relationships, object grouping, Figma-style lock behavior
 - **Advanced Editing** — Properties panel, multi-select, drag-to-arrange, line shapes, typography controls
+- **Z-Index Control** — Drag to reorder layers, keyboard shortcuts (]/[), bring to front/send to back
+- **Object Grouping** — Group selections (Cmd/Ctrl+G), ungroup (Shift+Cmd/Ctrl+G), auto-delete empty groups
+- **Context Menu** — Right-click layers panel for quick actions (group, lock, hide, reorder)
+- **PNG Export** — High-quality 2x resolution export of selection or entire canvas (Shift+Cmd/Ctrl+E)
 
 ## Tech Stack & Strategic Decisions
 

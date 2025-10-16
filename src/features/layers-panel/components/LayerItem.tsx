@@ -40,6 +40,8 @@ import { HierarchyArrow } from './HierarchyArrow';
 import { generateLayerName } from '@/features/layers-panel/utils';
 import { hasChildren, getAllDescendantIds, hasLockedParent } from '@/features/layers-panel/utils/hierarchy';
 import { useCanvasStore } from '@/stores/canvasStore';
+import { ContextMenu } from '@/components/common/ContextMenu';
+import { getContextMenuItems } from '@/features/layers-panel/utils/contextMenu';
 
 /**
  * Props for LayerItem component
@@ -146,6 +148,11 @@ export const LayerItem = memo(function LayerItem({
   const [isRenaming, setIsRenaming] = useState(false);
   const [editedName, setEditedName] = useState(object.name || '');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // Store actions
   const updateObject = useCanvasStore((state) => state.updateObject);
   const toggleVisibility = useCanvasStore((state) => state.toggleVisibility);
   const toggleCollapse = useCanvasStore((state) => state.toggleCollapse);
@@ -187,6 +194,22 @@ export const LayerItem = memo(function LayerItem({
       inputRef.current.select();
     }
   }, [isRenaming]);
+
+  // Listen for rename trigger from keyboard shortcut (Cmd+R)
+  useEffect(() => {
+    const handleRenameEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ id: string }>;
+      if (customEvent.detail.id === object.id) {
+        setIsRenaming(true);
+        setEditedName(object.name || generateLayerName(object.type, []));
+      }
+    };
+
+    window.addEventListener('trigger-rename', handleRenameEvent);
+    return () => {
+      window.removeEventListener('trigger-rename', handleRenameEvent);
+    };
+  }, [object.id, object.name, object.type]);
 
   /**
    * Handle double-click to enter rename mode
@@ -272,6 +295,16 @@ export const LayerItem = memo(function LayerItem({
     toggleCollapse(object.id);
   };
 
+  /**
+   * Handle right-click to open context menu
+   * Stops propagation and prevents default browser context menu
+   */
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
   return (
     <div className="relative">
       {/* Drop indicator: Blue line at top (reorder before) */}
@@ -300,7 +333,7 @@ export const LayerItem = memo(function LayerItem({
         {...attributes}
         {...listeners}
         onClick={(e) => onSelect(e)}
-        onDoubleClick={handleDoubleClick}
+        onContextMenu={handleContextMenu}
         onMouseEnter={onHover}
         onMouseLeave={onHoverEnd}
         className={`
@@ -338,11 +371,14 @@ export const LayerItem = memo(function LayerItem({
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <span className={`
-          text-xs truncate max-w-[160px]
-          ${isSelected ? 'font-medium text-gray-900' : 'font-normal text-gray-700'}
-          ${!isVisible ? 'text-gray-400' : ''}
-        `}>
+        <span
+          onDoubleClick={handleDoubleClick}
+          className={`
+            text-xs truncate max-w-[160px] cursor-text
+            ${isSelected ? 'font-medium text-gray-900' : 'font-normal text-gray-700'}
+            ${!isVisible ? 'text-gray-400' : ''}
+          `}
+        >
           {displayName}
         </span>
       )}
@@ -364,7 +400,7 @@ export const LayerItem = memo(function LayerItem({
           )}
         </button>
 
-        {/* Eye icon */}
+        {/* Eye icon - shows on hover or when hidden */}
         <button
           onClick={handleVisibilityClick}
           onPointerDown={(e) => e.stopPropagation()}
@@ -372,12 +408,22 @@ export const LayerItem = memo(function LayerItem({
           aria-label={isVisible ? 'Hide object' : 'Show object'}
         >
           {isVisible ? (
-            <Eye className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+            <Eye className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
           ) : (
             <EyeOff className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
           )}
         </button>
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={getContextMenuItems(object, objects, selectedIds)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 });

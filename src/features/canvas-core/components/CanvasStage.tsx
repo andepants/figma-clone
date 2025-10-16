@@ -33,11 +33,21 @@ interface Position {
 }
 
 /**
+ * CanvasStage component props
+ * @interface CanvasStageProps
+ * @property {React.RefObject<Konva.Stage>} [stageRef] - Optional external ref to access the stage
+ */
+interface CanvasStageProps {
+  stageRef?: React.RefObject<Konva.Stage>;
+}
+
+/**
  * CanvasStage component
  * Renders the main Konva stage with pan and zoom capabilities
+ * @param {CanvasStageProps} props - Component props
  * @returns {JSX.Element} Canvas stage component
  */
-export function CanvasStage() {
+export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {}) {
   // Get active tool to control canvas behavior
   const { activeTool } = useToolStore();
 
@@ -71,8 +81,11 @@ export function CanvasStage() {
   // Track mouse position to distinguish clicks from drags
   const mouseDownPos = useRef<Position | null>(null);
 
-  // Reference to the Konva stage
-  const stageRef = useRef<Konva.Stage | null>(null);
+  // Reference to the Konva stage (internal)
+  const internalStageRef = useRef<Konva.Stage | null>(null);
+
+  // Use external ref if provided, otherwise use internal ref
+  const stageRef = externalStageRef || internalStageRef;
 
   // Touch gesture handlers
   const { handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchGestures(
@@ -338,13 +351,13 @@ export function CanvasStage() {
 
       {/* Objects Layer (shapes and preview) */}
       <Layer>
-        {/* Render persisted rectangles from store */}
-        {objects
-          .filter((obj) => obj.type === 'rectangle')
-          .map((obj) => {
-            // Find if this object is being dragged by another user
-            const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
+        {/* Render all objects in z-index order (array order = render order) */}
+        {objects.map((obj) => {
+          // Find if this object is being dragged by another user
+          const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
 
+          // Render based on type
+          if (obj.type === 'rectangle') {
             return (
               <Rectangle
                 key={obj.id}
@@ -361,15 +374,7 @@ export function CanvasStage() {
                 remoteDragState={remoteDragState}
               />
             );
-          })}
-
-        {/* Render persisted circles from store */}
-        {objects
-          .filter((obj) => obj.type === 'circle')
-          .map((obj) => {
-            // Find if this object is being dragged by another user
-            const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
-
+          } else if (obj.type === 'circle') {
             return (
               <Circle
                 key={obj.id}
@@ -386,14 +391,7 @@ export function CanvasStage() {
                 remoteDragState={remoteDragState}
               />
             );
-          })}
-
-        {/* Render persisted text shapes from store */}
-        {objects
-          .filter((obj) => obj.type === 'text')
-          .map((obj) => {
-            // Find if this object is being dragged by another user
-            const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
+          } else if (obj.type === 'text') {
             // Find if this object is being edited by another user
             const editState = editStates[obj.id];
 
@@ -414,15 +412,7 @@ export function CanvasStage() {
                 editState={editState}
               />
             );
-          })}
-
-        {/* Render persisted lines from store */}
-        {objects
-          .filter((obj) => obj.type === 'line')
-          .map((obj) => {
-            // Find if this object is being dragged by another user
-            const remoteDragState = dragStates.find((state) => state.objectId === obj.id);
-
+          } else if (obj.type === 'line') {
             return (
               <Line
                 key={obj.id}
@@ -439,7 +429,11 @@ export function CanvasStage() {
                 remoteDragState={remoteDragState}
               />
             );
-          })}
+          }
+
+          // Skip unknown types (e.g., 'group' which is container-only)
+          return null;
+        })}
 
         {/* Render remote selection overlays (supports multi-select) */}
         {remoteSelections.flatMap((selection) => {

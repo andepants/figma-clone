@@ -58,6 +58,7 @@ export {
   clearAllCanvasObjects,
   getAllCanvasObjects,
   batchUpdateCanvasObjects,
+  syncZIndexes,
 } from './realtimeCanvasService'
 
 // Export Cursor Service

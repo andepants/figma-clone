@@ -40,6 +40,11 @@ function isInputFocused(): boolean {
  * - Shift+Cmd/Ctrl+\: Toggle left sidebar (Minimize UI)
  * - Cmd/Ctrl+C: Copy selected objects (supports multi-select, preserves hierarchy)
  * - Cmd/Ctrl+V: Paste copied objects (supports multi-select, preserves hierarchy)
+ * - Cmd/Ctrl+G: Group selected objects (requires 2+ objects)
+ * - Shift+Cmd/Ctrl+G: Ungroup selected group(s)
+ * - ]: Bring selected object(s) to front (supports multi-select)
+ * - [: Send selected object(s) to back (supports multi-select)
+ * - Shift+Cmd/Ctrl+H: Show/hide selected object(s) (supports multi-select)
  * - Cmd/Ctrl+0: Reset zoom to 100%
  * - Cmd/Ctrl+1: Fit all objects in view
  * - Cmd/Ctrl+2: Zoom to selection (supports multi-select)
@@ -66,7 +71,7 @@ function isInputFocused(): boolean {
 export function useToolShortcuts(onShowShortcuts?: () => void) {
   const { setActiveTool } = useToolStore();
   const { toggleAIChatCollapse, toggleLeftSidebar } = useUIStore();
-  const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects } = useCanvasStore();
+  const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility } = useCanvasStore();
 
   useEffect(() => {
     /**
@@ -278,6 +283,57 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
         return;
       }
 
+      // Handle ] for bring to front (supports multi-select)
+      if (key === ']') {
+        event.preventDefault();
+        if (selectedIds.length > 0) {
+          selectedIds.forEach(id => bringToFront(id));
+        }
+        return;
+      }
+
+      // Handle [ for send to back (supports multi-select)
+      if (key === '[') {
+        event.preventDefault();
+        if (selectedIds.length > 0) {
+          selectedIds.forEach(id => sendToBack(id));
+        }
+        return;
+      }
+
+      // Handle Shift+Cmd/Ctrl+H for toggle visibility (show/hide)
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'h') {
+        event.preventDefault();
+        if (selectedIds.length > 0) {
+          selectedIds.forEach(id => toggleVisibility(id));
+        }
+        return;
+      }
+
+      // Handle Shift+Cmd/Ctrl+G for ungroup
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'g') {
+        event.preventDefault();
+        ungroupObjects();
+        return;
+      }
+
+      // Handle Cmd/Ctrl+G for group (without Shift)
+      if (!event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'g') {
+        event.preventDefault();
+        groupObjects();
+        return;
+      }
+
+      // Handle Cmd/Ctrl+R for rename (single selection only)
+      if (!event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'r') {
+        event.preventDefault();
+        if (selectedIds.length === 1) {
+          // Trigger rename mode by dispatching a custom event
+          window.dispatchEvent(new CustomEvent('trigger-rename', { detail: { id: selectedIds[0] } }));
+        }
+        return;
+      }
+
       // Handle ? key (Shift + /) to show shortcuts modal
       if (event.key === '?' && onShowShortcuts) {
         event.preventDefault();
@@ -351,5 +407,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, onShowShortcuts]);
+  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, onShowShortcuts]);
 }

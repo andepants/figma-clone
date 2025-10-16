@@ -209,3 +209,214 @@ For collapsible panel sections (properties, layers, etc.):
 - Gray-50 hover background
 - Chevron rotates 90deg when expanded
 - Border-bottom separator between sections
+
+## Z-Index System
+
+CollabCanvas uses array position to control layer order (like Figma).
+
+### Key Concepts
+
+- **Array position = Z-index**: First in array = back, last in array = front
+- **Layers panel display**: Reversed order (top of panel = front of canvas)
+- **Firebase sync**: Z-index stored as numeric property on each object
+- **Drag to reorder**: Layers panel drag-drop updates z-index immediately
+
+### Store Actions
+
+```typescript
+import { useCanvasStore } from '@/stores/canvasStore';
+
+// Bring object to front (highest z-index)
+bringToFront(objectId);
+
+// Send object to back (lowest z-index)
+sendToBack(objectId);
+```
+
+### Z-Index Shortcuts
+
+- **Bring to Front**: ] (right bracket)
+- **Send to Back**: [ (left bracket)
+
+### Implementation Pattern
+
+When reordering objects, always sync z-index to Firebase:
+
+```typescript
+// After reordering objects array
+const reordered = [...objects];
+// ... reorder logic ...
+setObjects(reordered); // Updates local state
+syncZIndexes(reordered); // Syncs to Firebase RTDB
+```
+
+## Grouping System
+
+CollabCanvas supports grouping objects using the existing parentId hierarchy (like Figma frames).
+
+### Key Concepts
+
+- **Group type**: Special object type with no visual representation
+- **Container only**: Groups don't render on canvas, only organize hierarchy
+- **Auto-delete**: Empty groups automatically deleted when last child removed
+- **Nested groups**: Full support for group-within-group hierarchies
+
+### Store Actions
+
+```typescript
+import { useCanvasStore } from '@/stores/canvasStore';
+
+// Group selected objects (minimum 2 objects)
+groupObjects();
+
+// Ungroup selected groups
+ungroupObjects();
+```
+
+### Grouping Shortcuts
+
+- **Group Selection**: Cmd/Ctrl + G
+- **Ungroup Selection**: Shift + Cmd/Ctrl + G
+
+### Group Object Type
+
+```typescript
+export interface Group extends BaseCanvasObject {
+  type: 'group';
+  // Groups have position (x, y) calculated from children bounding box
+  // Groups have no width/height/fill/stroke - purely hierarchical
+  isCollapsed?: boolean; // Collapse state in layers panel
+}
+```
+
+### Implementation Pattern
+
+Creating groups:
+
+```typescript
+// Calculate bounding box of selected objects
+const bbox = calculateBoundingBox(selectedObjects);
+
+// Create group at center of bounding box
+const group: Group = {
+  id: crypto.randomUUID(),
+  type: 'group',
+  x: bbox.x + bbox.width / 2,
+  y: bbox.y + bbox.height / 2,
+  name: generateLayerName('group', objects),
+  isCollapsed: false,
+  // ... base properties
+};
+
+// Set parentId on children
+const updatedObjects = objects.map(obj =>
+  selectedIds.includes(obj.id)
+    ? { ...obj, parentId: group.id }
+    : obj
+);
+```
+
+## Context Menu
+
+Right-click context menu in layers panel provides quick access to common actions.
+
+### Key Concepts
+
+- **Trigger**: Right-click on layer item in layers panel
+- **Positioning**: Menu positioned at cursor, adjusts to stay on screen
+- **Dynamic items**: Menu items vary based on object type and state
+- **Keyboard shortcuts**: Displayed alongside each action
+
+### Context Menu Actions
+
+Available actions (varies by selection):
+
+- Bring to Front / Send to Back
+- Rename (double-click also works)
+- Copy / Paste
+- Group Selection (multi-select) / Ungroup (groups only)
+- Show / Hide
+- Lock / Unlock
+- Delete
+
+### Implementation Pattern
+
+Using the context menu helper:
+
+```typescript
+import { getContextMenuItems } from '@/features/layers-panel/utils/contextMenu';
+import { ContextMenu } from '@/components/common/ContextMenu';
+
+// In component
+const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+const handleContextMenu = (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setContextMenu({ x: e.clientX, y: e.clientY });
+};
+
+// In render
+{contextMenu && (
+  <ContextMenu
+    x={contextMenu.x}
+    y={contextMenu.y}
+    items={getContextMenuItems(object, objects, selectedIds)}
+    onClose={() => setContextMenu(null)}
+  />
+)}
+```
+
+## Export System
+
+PNG export with high-quality 2x resolution using Konva.js toDataURL.
+
+### Key Concepts
+
+- **Selection-based**: Exports selected objects (or all if none selected)
+- **Bounding box**: Calculates tight bounds around objects with 20px padding
+- **High quality**: 2x pixelRatio for crisp exports
+- **Group handling**: Automatically expands groups to include descendants
+- **Hidden objects**: Includes hidden objects in export (Figma behavior)
+
+### Export Function
+
+```typescript
+import { exportCanvasToPNG } from '@/lib/utils/export';
+
+// In component with stageRef
+const handleExport = async () => {
+  try {
+    const { objects, selectedIds } = useCanvasStore.getState();
+    const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+
+    await exportCanvasToPNG(stageRef, selectedObjects, objects);
+  } catch (error) {
+    console.error('Export failed:', error);
+    alert('Export failed. Please try again.');
+  }
+};
+```
+
+### Export Shortcut
+
+- **Export Canvas**: Shift + Cmd/Ctrl + E
+
+### Export File Naming
+
+Format: `collabcanvas-YYYY-MM-DD-HH-MM-SS.png`
+
+Example: `collabcanvas-2025-10-16-14-30-45.png`
+
+### Implementation Pattern
+
+Pass stageRef from canvas page:
+
+```typescript
+// In CanvasPage.tsx
+const stageRef = useRef<Konva.Stage>(null);
+
+<CanvasStage ref={stageRef} /* ... */ />
+
+<button onClick={handleExport}>Export</button>
+```

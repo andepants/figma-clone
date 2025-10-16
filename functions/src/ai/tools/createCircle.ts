@@ -9,6 +9,8 @@ import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
 import {createCanvasObject} from "../../services/canvas-objects";
+import {findEmptySpace} from "../utils/collision-detector.js";
+import * as logger from 'firebase-functions/logger';
 
 /**
  * Schema for circle creation parameters
@@ -17,21 +19,28 @@ const CreateCircleSchema = z.object({
   x: z.number()
     .min(0)
     .max(50000)
-    .describe("X coordinate of center point (0-50000)"),
+    .optional()
+    .describe("X coordinate of center point (defaults to viewport center)"),
   y: z.number()
     .min(0)
     .max(50000)
-    .describe("Y coordinate of center point (0-50000)"),
+    .optional()
+    .describe("Y coordinate of center point (defaults to viewport center)"),
   radius: z.number()
     .min(1)
     .max(25000)
-    .describe("Radius in pixels (1-25000)"),
+    .default(50)
+    .describe("Radius in pixels (default: 50)"),
   fill: z.string()
     .default("#6b7280")
     .describe("Fill color (hex like #ff0000 or color name)"),
   name: z.string()
     .optional()
     .describe("Optional name for the circle"),
+  avoidOverlap: z.boolean()
+    .optional()
+    .default(true)
+    .describe("Automatically find empty space if position would overlap (default: true)"),
 });
 
 /**
@@ -68,11 +77,62 @@ export class CreateCircleTool extends CanvasTool {
         };
       }
 
+      // Determine position (default to viewport center)
+      let x = input.x;
+      let y = input.y;
+
+      if (x === undefined || y === undefined) {
+        // Use viewport center if available, else canvas center
+        // For circles, x,y is the CENTER point (not top-left)
+        if (this.context.viewportBounds) {
+          x = this.context.viewportBounds.centerX;
+          y = this.context.viewportBounds.centerY;
+          logger.info('Using viewport center for circle placement', {
+            viewportCenter: { x, y }
+          });
+        } else {
+          x = this.context.canvasSize.width / 2;
+          y = this.context.canvasSize.height / 2;
+          logger.info('Using canvas center for circle placement (no viewport)', {
+            canvasCenter: { x, y }
+          });
+        }
+      }
+
+      // Check for overlap and find empty space if needed
+      if (input.avoidOverlap) {
+        // For collision detection, calculate bounding box (top-left corner)
+        const boundingBoxX = x - input.radius;
+        const boundingBoxY = y - input.radius;
+        const diameter = input.radius * 2;
+
+        const emptyPos = findEmptySpace(
+          boundingBoxX,
+          boundingBoxY,
+          diameter,
+          diameter,
+          this.context.currentObjects
+        );
+
+        // Convert back to center point
+        const newCenterX = emptyPos.x + input.radius;
+        const newCenterY = emptyPos.y + input.radius;
+
+        if (newCenterX !== x || newCenterY !== y) {
+          logger.info('Adjusted position to avoid overlap', {
+            original: { x, y },
+            adjusted: { x: newCenterX, y: newCenterY },
+          });
+          x = newCenterX;
+          y = newCenterY;
+        }
+      }
+
       // Create object in Firebase RTDB
       const objectId = await createCanvasObject({
         canvasId: this.context.canvasId,
         type: "circle",
-        position: {x: input.x, y: input.y},
+        position: {x, y},
         radius: input.radius,
         appearance: {fill: input.fill},
         name: input.name,
@@ -80,9 +140,9 @@ export class CreateCircleTool extends CanvasTool {
       });
 
       const message = input.name ?
-        `Created circle "${input.name}" at center (${input.x}, ${input.y}) ` +
+        `Created circle "${input.name}" at center (${Math.round(x)}, ${Math.round(y)}) ` +
         `with radius ${input.radius}` :
-        `Created circle at center (${input.x}, ${input.y}) ` +
+        `Created circle at center (${Math.round(x)}, ${Math.round(y)}) ` +
         `with radius ${input.radius}`;
 
       return {
@@ -92,8 +152,8 @@ export class CreateCircleTool extends CanvasTool {
         data: {
           id: objectId,
           type: "circle",
-          x: input.x,
-          y: input.y,
+          x,
+          y,
           radius: input.radius,
           fill: input.fill,
           name: input.name,

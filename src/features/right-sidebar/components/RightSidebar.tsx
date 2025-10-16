@@ -16,6 +16,11 @@ import { ChatInput } from '@/features/ai-agent/components/ChatInput';
 const CHAT_INPUT_HEIGHT = 90; // Input area height (padding + textarea + button)
 const AI_HEADER_HEIGHT = 40;  // AI section header height
 
+export interface RightSidebarProps {
+  onExport: () => void;
+  hasObjects: boolean;
+}
+
 /**
  * RightSidebar Component
  *
@@ -35,9 +40,12 @@ const AI_HEADER_HEIGHT = 40;  // AI section header height
  * - Resize handle is hidden
  * - Smooth max-height animation on messages area
  *
+ * @param {RightSidebarProps} props - Component props
+ * @param {Function} props.onExport - Export handler function
+ * @param {boolean} props.hasObjects - Whether canvas has objects to export
  * @returns {JSX.Element} Right sidebar container
  */
-export function RightSidebar() {
+export function RightSidebar({ onExport, hasObjects }: RightSidebarProps) {
   const { aiPanelHeight, isAIChatCollapsed, isResizingAIPanel } = useUIStore();
 
   return (
@@ -58,7 +66,7 @@ export function RightSidebar() {
           willChange: isResizingAIPanel ? 'max-height' : 'auto',
         }}
       >
-        <PropertiesPanel />
+        <PropertiesPanel onExport={onExport} hasObjects={hasObjects} />
       </div>
 
       {/* Resize Handle - hidden when AI chat is collapsed */}

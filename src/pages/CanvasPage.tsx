@@ -5,7 +5,9 @@
  * Contains the collaborative canvas and toolbar with real-time Firestore sync.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import type Konva from 'konva';
+import { Download } from 'lucide-react';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { RightSidebar } from '@/features/right-sidebar';
@@ -26,7 +28,7 @@ import { useAuth } from '@/features/auth/hooks';
 import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
-import { hexToRgba, getUserDisplayName } from '@/lib/utils';
+import { hexToRgba, getUserDisplayName, exportCanvasToPNG } from '@/lib/utils';
 
 function CanvasPage() {
   // Update SEO for canvas page
@@ -44,7 +46,10 @@ function CanvasPage() {
   useToolShortcuts(() => setIsShortcutsOpen(true));
 
   // Get canvas store setObjects method
-  const { setObjects } = useCanvasStore();
+  const { setObjects, objects, selectedIds } = useCanvasStore();
+
+  // Ref to access Konva stage for export
+  const stageRef = useRef<Konva.Stage>(null);
 
   // Get page settings for background color
   const { pageSettings } = usePageStore();
@@ -60,6 +65,44 @@ function CanvasPage() {
 
   // Track sync status for sync indicator
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+
+  /**
+   * Handle export button click
+   * Exports selected objects (or all objects if none selected) to PNG
+   */
+  async function handleExport() {
+    try {
+      const selectedObjects = objects.filter(obj => selectedIds.includes(obj.id));
+      await exportCanvasToPNG(stageRef, selectedObjects, objects);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Export failed: ${message}`);
+    }
+  }
+
+  /**
+   * Handle export keyboard shortcut (Shift+Cmd/Ctrl+E)
+   */
+  useEffect(() => {
+    function handleExportShortcut(event: KeyboardEvent) {
+      // Check if Shift+Cmd/Ctrl+E
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'e') {
+        // Don't trigger if user is typing in an input
+        const activeElement = document.activeElement;
+        const isTyping = activeElement instanceof HTMLInputElement ||
+                         activeElement instanceof HTMLTextAreaElement ||
+                         activeElement?.getAttribute('contenteditable') === 'true';
+
+        if (isTyping) return;
+
+        event.preventDefault();
+        handleExport();
+      }
+    }
+
+    window.addEventListener('keydown', handleExportShortcut);
+    return () => window.removeEventListener('keydown', handleExportShortcut);
+  }, [handleExport]);
 
   /**
    * Comprehensive prevention of browser back/forward navigation on swipe gestures
@@ -412,14 +455,14 @@ function CanvasPage() {
           `}
         >
           <Toolbar onShowShortcuts={() => setIsShortcutsOpen(true)} />
-          {/* Sync Indicator - shows online/offline and sync status (positioned left of right sidebar) */}
+          {/* Sync Indicator - shows online/offline and sync status */}
           <SyncIndicator status={syncStatus} className="!top-4 !right-[256px]" />
           {/* Canvas Stage - adjusted for right sidebar (240px right margin) */}
           <div className="absolute top-0 left-0 right-[240px] bottom-0">
-            <CanvasStage />
+            <CanvasStage stageRef={stageRef} />
           </div>
           {/* Right Sidebar - unified properties + AI chat */}
-          <RightSidebar />
+          <RightSidebar onExport={handleExport} hasObjects={objects.length > 0} />
         </div>
 
         {/* Keyboard Shortcuts Modal */}

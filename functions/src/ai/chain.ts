@@ -1,21 +1,29 @@
 /**
- * LangChain agent chain setup
+ * LangGraph agent chain setup with memory
  *
- * Creates and configures the AI agent with tools for canvas manipulation.
+ * Uses createReactAgent instead of AgentExecutor for better memory support.
  */
 
-import {AgentExecutor, createToolCallingAgent} from "langchain/agents";
-import {ChatPromptTemplate} from "@langchain/core/prompts";
+import {createReactAgent} from "@langchain/langgraph/prebuilt";
+import {MemorySaver} from "@langchain/langgraph";
 import {DynamicStructuredTool} from "@langchain/core/tools";
+import {BaseMessage, trimMessages} from "@langchain/core/messages";
 import * as logger from "firebase-functions/logger";
 import {getLLM, getAIProvider} from "./config";
 
-/**
- * System prompt for the AI canvas agent
- */
+// Global memory saver (persists across function invocations within same instance)
+const memorySaver = new MemorySaver();
+
+// Enhanced system prompt with memory instructions
 const SYSTEM_PROMPT = `You are an AI assistant for a collaborative canvas application (like Figma).
 
 Your job is to interpret natural language commands and TAKE ACTION immediately using the provided tools.
+
+IMPORTANT MEMORY FEATURES:
+- You can remember previous commands in this conversation
+- When user says "it" or "that", refer to the last object you created
+- Track what you've done to answer questions like "what did you just make?"
+- You can reference objects by name or by recency ("the circle I just made")
 
 IMPORTANT: Be action-oriented! Use sensible defaults and execute commands right away. Only ask for clarification when the command is truly ambiguous.
 
@@ -31,7 +39,7 @@ Default Values (USE THESE AUTOMATICALLY):
 - Circle radius: 50 pixels
 - Text font size: 24px
 - Default colors: blue=#3b82f6, red=#ef4444, green=#22c55e, yellow=#eab308, gray=#6b7280
-- Position: Top-left (0, 0) if not specified
+- Position: VIEWPORT CENTER (where user is currently looking) if not specified
 - Spacing for layouts: 20px
 
 Coordinate System:
@@ -40,35 +48,66 @@ Coordinate System:
 - For circles: x,y is the CENTER point
 - For rectangles/text: x,y is the TOP-LEFT corner
 - Rotation: degrees (0-360)
+- VIEWPORT: User's current view (use viewport center for new objects!)
 
 Action-Oriented Examples:
-✅ "Create a blue square" → Use createRectangle with 200x200, blue color, center position
-✅ "Make a red circle" → Use createCircle with 50 radius, red color, center position
-✅ "Move it to 100, 200" → Use moveObject with specified coordinates
-✅ "Make it bigger" → Use resizeObject with scale: 2 (double size)
-✅ "Arrange in a row" → Use arrangeInRow with default spacing
+✅ "Create a blue square" → Use createRectangle at VIEWPORT CENTER
+✅ "Make a red circle" → Use createCircle at VIEWPORT CENTER
+✅ "Move it to the right" → Move last created object 100px right
+✅ "Make it bigger" → Resize last created object with scale: 1.5
+✅ "Arrange them in a row" → Use arrangeInRow on last created objects
+
+Memory Examples:
+✅ "Create 3 circles" → Create circles, remember their IDs
+✅ "Now move them left" → Move the 3 circles you just created
+✅ "What did I just make?" → Refer to conversation history
 
 Only Ask for Clarification When Truly Ambiguous:
 ❌ "Create a shape" (no type) → Ask: "What type of shape?"
-❌ "Move that" (no object selected, multiple objects exist) → Ask: "Which object?"
+❌ "Move that" (no object created yet, nothing selected) → Ask: "Which object?"
 ❌ "Change the color" (no color mentioned) → Ask: "What color?"
 
 After executing tools, respond with a brief confirmation of what was created/changed.
 
-Canvas state is provided with each command. Use it to understand current objects and positions.`;
+Viewport context is provided with each command. Use it to understand what the user is currently viewing.`;
 
 /**
- * Create AI agent chain with tools
+ * Message trimmer to limit conversation history
+ * Keeps last 10 messages to balance context vs token cost
+ */
+const messageModifier = async (messages: BaseMessage[]): Promise<BaseMessage[]> => {
+  // Trim messages, keeping system prompt
+  const trimmed = await trimMessages(messages, {
+    tokenCounter: (msgs) => msgs.length, // Count messages, not tokens
+    maxTokens: 10, // Keep last 10 messages
+    strategy: "last",
+    startOn: "human", // Ensure valid conversation structure
+    includeSystem: true, // Always keep system prompt
+    allowPartial: false,
+  });
+
+  // Ensure system prompt is prepended if not present
+  const hasSystemPrompt = trimmed.some((msg) => msg._getType() === "system");
+  if (!hasSystemPrompt) {
+    const {SystemMessage} = await import("@langchain/core/messages");
+    return [new SystemMessage(SYSTEM_PROMPT), ...trimmed];
+  }
+
+  return trimmed;
+};
+
+/**
+ * Create LangGraph React agent with memory
  *
  * @param tools - Array of LangChain tools for canvas operations
- * @returns Configured agent executor ready to process commands
+ * @returns Configured agent with memory persistence
  */
 export async function createAIChain(
   tools: DynamicStructuredTool[]
-): Promise<AgentExecutor> {
+): Promise<ReturnType<typeof createReactAgent>> {
   try {
     const provider = getAIProvider();
-    logger.info("Creating AI chain", {
+    logger.info("Creating LangGraph agent with memory", {
       provider,
       toolCount: tools.length,
       toolNames: tools.map((t) => t.name),
@@ -76,33 +115,19 @@ export async function createAIChain(
 
     const llm = getLLM(provider);
 
-    // Create prompt template
-    const prompt = ChatPromptTemplate.fromMessages([
-      ["system", SYSTEM_PROMPT],
-      ["human", "{input}"],
-      ["placeholder", "{agent_scratchpad}"],
-    ]);
-
-    // Create tool-calling agent
-    const agent = await createToolCallingAgent({
+    // Create React agent with memory
+    // Note: System prompt is automatically included via messageModifier
+    const agent = createReactAgent({
       llm,
       tools,
-      prompt,
+      messageModifier, // Trim to last 10 messages
+      checkpointSaver: memorySaver, // Enable conversation memory
     });
 
-    // Create executor
-    const executor = new AgentExecutor({
-      agent,
-      tools,
-      verbose: true, // Log tool calls in development
-      maxIterations: 10, // Prevent infinite loops
-      returnIntermediateSteps: true, // Return tool call history
-    });
-
-    logger.info("AI chain created successfully");
-    return executor;
+    logger.info("LangGraph agent created successfully");
+    return agent;
   } catch (error) {
-    logger.error("Failed to create AI chain", {error});
+    logger.error("Failed to create LangGraph agent", {error});
     throw new Error(`Failed to create AI chain: ${error}`);
   }
 }

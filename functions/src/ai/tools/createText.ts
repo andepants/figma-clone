@@ -9,6 +9,8 @@ import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
 import {createCanvasObject} from "../../services/canvas-objects";
+import {findEmptySpace} from "../utils/collision-detector.js";
+import * as logger from 'firebase-functions/logger';
 
 /**
  * Schema for text creation parameters
@@ -21,11 +23,13 @@ const CreateTextSchema = z.object({
   x: z.number()
     .min(0)
     .max(50000)
-    .describe("X coordinate of top-left corner (0-50000)"),
+    .optional()
+    .describe("X coordinate of top-left corner (defaults to viewport center)"),
   y: z.number()
     .min(0)
     .max(50000)
-    .describe("Y coordinate of top-left corner (0-50000)"),
+    .optional()
+    .describe("Y coordinate of top-left corner (defaults to viewport center)"),
   fontSize: z.number()
     .min(1)
     .max(500)
@@ -37,6 +41,10 @@ const CreateTextSchema = z.object({
   name: z.string()
     .optional()
     .describe("Optional name for the text object"),
+  avoidOverlap: z.boolean()
+    .optional()
+    .default(true)
+    .describe("Automatically find empty space if position would overlap (default: true)"),
 });
 
 /**
@@ -88,11 +96,61 @@ export class CreateTextTool extends CanvasTool {
       const estimatedWidth = Math.max(200, input.text.length * charWidth);
       const estimatedHeight = input.fontSize * 1.5; // Line height
 
+      // Determine position (default to viewport center)
+      let x = input.x;
+      let y = input.y;
+
+      if (x === undefined || y === undefined) {
+        // Use viewport center if available, else canvas center
+        if (this.context.viewportBounds) {
+          x = this.context.viewportBounds.centerX - estimatedWidth / 2; // Top-left corner
+          y = this.context.viewportBounds.centerY - estimatedHeight / 2;
+          logger.info('Using viewport center for text placement', {
+            viewportCenter: {
+              x: this.context.viewportBounds.centerX,
+              y: this.context.viewportBounds.centerY
+            },
+            textTopLeft: { x, y },
+            estimatedDimensions: { width: estimatedWidth, height: estimatedHeight }
+          });
+        } else {
+          x = this.context.canvasSize.width / 2 - estimatedWidth / 2;
+          y = this.context.canvasSize.height / 2 - estimatedHeight / 2;
+          logger.info('Using canvas center for text placement (no viewport)', {
+            canvasCenter: {
+              x: this.context.canvasSize.width / 2,
+              y: this.context.canvasSize.height / 2
+            },
+            textTopLeft: { x, y }
+          });
+        }
+      }
+
+      // Check for overlap and find empty space if needed
+      if (input.avoidOverlap) {
+        const emptyPos = findEmptySpace(
+          x,
+          y,
+          estimatedWidth,
+          estimatedHeight,
+          this.context.currentObjects
+        );
+
+        if (emptyPos.x !== x || emptyPos.y !== y) {
+          logger.info('Adjusted position to avoid overlap', {
+            original: { x, y },
+            adjusted: emptyPos,
+          });
+          x = emptyPos.x;
+          y = emptyPos.y;
+        }
+      }
+
       // Create object in Firebase RTDB
       const objectId = await createCanvasObject({
         canvasId: this.context.canvasId,
         type: "text",
-        position: {x: input.x, y: input.y},
+        position: {x, y},
         dimensions: {
           width: estimatedWidth,
           height: estimatedHeight,
@@ -111,8 +169,8 @@ export class CreateTextTool extends CanvasTool {
 
       const message = input.name ?
         `Created text "${input.name}" with content ${textPreview} ` +
-        `at (${input.x}, ${input.y})` :
-        `Created text ${textPreview} at (${input.x}, ${input.y})`;
+        `at (${Math.round(x)}, ${Math.round(y)})` :
+        `Created text ${textPreview} at (${Math.round(x)}, ${Math.round(y)})`;
 
       return {
         success: true,
@@ -121,8 +179,8 @@ export class CreateTextTool extends CanvasTool {
         data: {
           id: objectId,
           type: "text",
-          x: input.x,
-          y: input.y,
+          x,
+          y,
           text: input.text,
           fontSize: input.fontSize,
           fill: input.fill,

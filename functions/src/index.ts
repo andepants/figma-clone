@@ -105,6 +105,31 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
       );
     }
 
+    // NEW: Validate viewport data (optional but must be valid if provided)
+    if (data.canvasState.viewport) {
+      const {camera, zoom} = data.canvasState.viewport;
+
+      if (
+        typeof camera?.x !== "number" ||
+        typeof camera?.y !== "number" ||
+        typeof zoom !== "number" ||
+        zoom <= 0
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Invalid viewport data format. Camera x/y must be numbers and zoom must be a positive number."
+        );
+      }
+    }
+
+    // NEW: Validate threadId format if provided
+    if (data.threadId && typeof data.threadId !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "Invalid threadId format. Must be a string."
+      );
+    }
+
     // Authorization check (temporarily disabled for local testing)
     // TODO: Re-enable for production
     // const {canUserModifyCanvas} = await import("./services/authorization.js");
@@ -116,9 +141,13 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
     //   );
     // }
 
-    logger.info("Processing AI command", {
+    // Generate thread ID for conversation persistence
+    const threadId = data.threadId || `${auth.uid}_${data.canvasId}_default`;
+
+    logger.info("Processing AI command with thread", {
       userId: auth.uid,
       canvasId: data.canvasId,
+      threadId,
       command: data.command.substring(0, 100), // Log first 100 chars
       objectCount: data.canvasState.objects.length,
     });
@@ -135,15 +164,30 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
       const {getLLM} = await import("./ai/config.js");
       const {logAIUsage} = await import("./services/analytics.js");
       const {optimizeContext} = await import("./ai/utils/context-optimizer.js");
+      const {
+        getCachedContext,
+        setCachedContext,
+        generateCacheKey,
+      } = await import("./ai/utils/context-cache.js");
 
-      // Optimize context to reduce token usage
-      const optimizedState = optimizeContext(data.canvasState);
+      // Try cache first
+      const cacheKey = generateCacheKey(data.canvasState);
+      let optimizedState = getCachedContext(cacheKey);
 
-      logger.info("Context optimized", {
-        originalObjects: data.canvasState.objects.length,
-        optimizedObjects: optimizedState.objects.length,
-        selectedCount: data.canvasState.selectedObjectIds?.length || 0,
-      });
+      if (optimizedState) {
+        logger.info("Using cached context", {cacheKey});
+      } else {
+        logger.info("Optimizing context (cache miss)", {cacheKey});
+        optimizedState = optimizeContext(data.canvasState);
+        setCachedContext(cacheKey, optimizedState);
+
+        logger.info("Context optimized", {
+          originalObjects: data.canvasState.objects.length,
+          optimizedObjects: optimizedState.objects.length,
+          selectedCount: data.canvasState.selectedObjectIds?.length || 0,
+          hasViewport: !!optimizedState._viewportBounds,
+        });
+      }
 
       // Use OpenAI for all environments
       const provider = "openai";
@@ -161,40 +205,72 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
         currentObjects: optimizedState.objects,
         canvasSize: optimizedState.canvasSize,
         selectedObjectIds: optimizedState.selectedObjectIds,
+        // Pass viewport bounds from optimized state
+        viewportBounds: optimizedState._viewportBounds,
+        // Will be populated from conversation memory in Phase 3
+        lastCreatedObjectIds: [],
       };
 
       // Get tools and create AI chain
       const tools = getTools(toolContext);
       const chain = await createAIChain(tools);
 
-      logger.info("Invoking AI chain", {
+      // Configure LangGraph with thread ID for memory persistence
+      const config = {
+        configurable: {
+          thread_id: threadId,
+        },
+        streamMode: "values" as const,
+      };
+
+      logger.info("Invoking LangGraph agent", {
         command: data.command,
         toolCount: tools.length,
         provider: aiProvider,
         model: modelName,
+        threadId,
       });
 
-      // Invoke the chain with the command
-      const result = await chain.invoke({
-        input: data.command,
-      });
+      // Invoke with messages format (LangGraph expects this)
+      const result = await chain.invoke(
+        {
+          messages: [
+            {
+              role: "user",
+              content: data.command,
+            },
+          ],
+        },
+        config
+      );
 
       const responseTime = Date.now() - startTime;
 
-      logger.info("AI chain completed", {
-        output: result.output?.substring(0, 200),
-        stepCount: result.intermediateSteps?.length || 0,
+      // Extract response from LangGraph result
+      const messages = result.messages || [];
+      const lastMessage = messages[messages.length - 1];
+      const output = lastMessage?.content || "Command processed successfully";
+
+      logger.info("LangGraph agent completed", {
+        output: output.substring(0, 200),
+        messageCount: messages.length,
+        threadId,
         responseTime: `${responseTime}ms`,
       });
 
-      // Parse intermediate steps to extract actions
-      const actions = (result.intermediateSteps || []).map(
-        (step: any) => ({
-          tool: step.action?.tool || "unknown",
-          params: step.action?.toolInput || {},
-          result: step.observation ? JSON.parse(step.observation) : null,
-        })
-      );
+      // Parse tool calls from messages
+      const actions: any[] = [];
+      for (const msg of messages) {
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
+          for (const toolCall of msg.tool_calls) {
+            actions.push({
+              tool: toolCall.name,
+              params: toolCall.args,
+              result: {success: true}, // Simplified for now
+            });
+          }
+        }
+      }
 
       // Count objects created/modified
       const objectsCreated = actions.filter(
@@ -239,7 +315,7 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
 
       const response: ProcessAICommandResponse = {
         success: true,
-        message: result.output || "Command processed successfully",
+        message: output,
         actions,
       };
 
