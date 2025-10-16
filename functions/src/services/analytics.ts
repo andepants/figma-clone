@@ -6,7 +6,7 @@
  */
 
 import * as logger from "firebase-functions/logger";
-import {db} from "./firebase-admin";
+import {getDatabase} from "./firebase-admin";
 import {AIProvider} from "../ai/config";
 
 /**
@@ -88,7 +88,7 @@ export async function logAIUsage(data: AIUsageData): Promise<void> {
       timestamp: Date.now(),
     };
 
-    const ref = db.ref("analytics/ai-usage").push();
+    const ref = getDatabase().ref("analytics/ai-usage").push();
     await ref.set(analyticsData);
 
     logger.info("AI usage logged", {
@@ -122,7 +122,7 @@ export async function getUserUsageStats(
   totalCost: number;
   avgResponseTime: number;
 }> {
-  const ref = db.ref("analytics/ai-usage");
+  const ref = getDatabase().ref("analytics/ai-usage");
   const startTime = Date.now() - timeRangeMs;
 
   const snapshot = await ref

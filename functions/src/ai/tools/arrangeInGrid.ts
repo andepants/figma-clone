@@ -8,7 +8,7 @@ import {z} from "zod";
 import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
-import {db} from "../../services/firebase-admin";
+import {getDatabase} from "../../services/firebase-admin";
 
 /**
  * Schema for grid arrangement parameters
@@ -119,7 +119,7 @@ export class ArrangeInGridTool extends CanvasTool {
       }
 
       // Apply all updates in one atomic operation
-      await db.ref().update(updates);
+      await getDatabase().ref().update(updates);
 
       return {
         success: true,

@@ -161,7 +161,29 @@ export function useAIAgent(): UseAIAgentReturn {
         }
       } catch (err: any) {
         console.error('❌ AI command error:', err);
-        const errorMessage = err.message || 'Unknown error occurred';
+        console.error('Error details:', {
+          message: err.message,
+          code: err.code,
+          details: err.details,
+          stack: err.stack,
+          fullError: JSON.stringify(err, null, 2),
+        });
+
+        // Extract detailed error info
+        let errorMessage = err.message || 'Unknown error occurred';
+
+        // Add code if available (e.g., 'internal', 'unauthenticated', etc.)
+        if (err.code) {
+          errorMessage = `[${err.code}] ${errorMessage}`;
+        }
+
+        // Add details if available
+        if (err.details) {
+          errorMessage += ` (Details: ${JSON.stringify(err.details)})`;
+        }
+
+        console.error('Final error message:', errorMessage);
+
         setError(errorMessage);
         updateCommand(commandId, {
           status: 'error',

@@ -10,11 +10,12 @@
  */
 
 import { initializeApp, type FirebaseApp } from 'firebase/app'
-import { getAuth, type Auth } from 'firebase/auth'
+import { getAuth, type Auth, connectAuthEmulator } from 'firebase/auth'
 import {
   getFirestore,
   type Firestore,
   enableIndexedDbPersistence,
+  connectFirestoreEmulator,
 } from 'firebase/firestore'
 import { getDatabase, type Database, connectDatabaseEmulator } from 'firebase/database'
 import { getFunctions, type Functions, connectFunctionsEmulator } from 'firebase/functions'
@@ -54,8 +55,17 @@ export const realtimeDb: Database = getDatabase(app)
 export const functions: Functions = getFunctions(app)
 
 // Connect to Firebase Emulators in development
+// This ensures complete isolation from production data during local development
 if (import.meta.env.DEV) {
   console.log('🔧 Using Firebase Emulators (local development)')
+  console.log('   → Auth: localhost:9099')
+  console.log('   → Firestore: localhost:9150')
+  console.log('   → Realtime DB: localhost:9000')
+  console.log('   → Functions: localhost:5001')
+
+  // Connect all services to local emulators
+  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
+  connectFirestoreEmulator(firestore, 'localhost', 9150)
   connectDatabaseEmulator(realtimeDb, 'localhost', 9000)
   connectFunctionsEmulator(functions, 'localhost', 5001)
 }
