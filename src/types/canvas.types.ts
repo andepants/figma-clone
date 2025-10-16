@@ -212,17 +212,19 @@ export interface Line extends BaseCanvasObject, VisualProperties {
  * Group object (container for other objects)
  * @interface Group
  * @extends BaseCanvasObject
+ * @extends VisualProperties
  * @property {'group'} type - Discriminator for type checking
  *
  * @remarks
  * Groups are container objects with NO visual representation on canvas.
  * They only exist in the hierarchy to organize other objects.
  * Position (x, y) can be calculated from children's bounding box if needed.
- * Groups have no width, height, fill, stroke, or other visual properties.
- * Like Figma, groups are purely organizational - they don't render anything.
+ * Groups inherit VisualProperties for consistency but these are not rendered.
+ * Transform properties (rotation, scale, skew) can affect grouped children.
+ * Like Figma, groups are purely organizational - they don't render fill/stroke.
  * The isCollapsed property controls whether children are visible in the layers panel.
  */
-export interface Group extends BaseCanvasObject {
+export interface Group extends BaseCanvasObject, VisualProperties {
   type: 'group';
   // Groups inherit BaseCanvasObject properties:
   // - id, createdBy, createdAt, updatedAt, zIndex
@@ -232,7 +234,9 @@ export interface Group extends BaseCanvasObject {
   // - parentId (groups can be nested within other groups)
   // - isCollapsed (hides children in layers panel when true)
   //
-  // Groups do NOT have visual properties (no fill, stroke, width, height, etc.)
+  // Groups inherit VisualProperties for consistency:
+  // - Transform properties (rotation, opacity, scale, skew)
+  // - Stroke/shadow properties (not rendered, but kept for type consistency)
 }
 
 /**

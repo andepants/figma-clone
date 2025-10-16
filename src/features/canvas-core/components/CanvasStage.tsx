@@ -35,10 +35,10 @@ interface Position {
 /**
  * CanvasStage component props
  * @interface CanvasStageProps
- * @property {React.RefObject<Konva.Stage>} [stageRef] - Optional external ref to access the stage
+ * @property {React.RefObject<Konva.Stage | null>} [stageRef] - Optional external ref to access the stage
  */
 interface CanvasStageProps {
-  stageRef?: React.RefObject<Konva.Stage>;
+  stageRef?: React.RefObject<Konva.Stage | null>;
 }
 
 /**

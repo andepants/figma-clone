@@ -48,7 +48,22 @@ export function generateExportPreview(
     return null;
   }
 
+  const isDev = import.meta.env.DEV;
+
   try {
+    if (isDev) {
+      console.log('=== PREVIEW GENERATION START ===');
+      console.log('Objects to export:', objectsToExport.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        name: obj.name,
+        x: obj.x,
+        y: obj.y,
+        width: 'width' in obj ? obj.width : 'radius' in obj ? obj.radius * 2 : undefined,
+        height: 'height' in obj ? obj.height : 'radius' in obj ? obj.radius * 2 : undefined,
+      })));
+    }
+
     // Expand groups: if a group is in export list, include its descendants
     const expandedIds = new Set<string>();
     objectsToExport.forEach(obj => {
@@ -69,8 +84,24 @@ export function generateExportPreview(
       return null;
     }
 
+    if (isDev) {
+      console.log('Visible objects for preview:', visibleObjects.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        name: obj.name,
+        x: obj.x,
+        y: obj.y,
+        width: 'width' in obj ? obj.width : 'radius' in obj ? obj.radius * 2 : undefined,
+        height: 'height' in obj ? obj.height : 'radius' in obj ? obj.radius * 2 : undefined,
+      })));
+    }
+
     // Calculate bounding box
     const bbox = calculateBoundingBox(visibleObjects, allObjects);
+
+    if (isDev) {
+      console.log('Preview bounding box:', bbox);
+    }
 
     // Validate bounding box
     if (!isFinite(bbox.x) || !isFinite(bbox.y) || bbox.width <= 0 || bbox.height <= 0) {
@@ -79,6 +110,16 @@ export function generateExportPreview(
 
     // Generate preview with configurable quality
     // Use scale parameter to match export quality (1x = fast, 2x/3x = accurate)
+    if (isDev) {
+      console.log('Calling stage.toDataURL() with params:', {
+        x: bbox.x,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+        pixelRatio: scale,
+      });
+    }
+
     const dataURL = stage.toDataURL({
       x: bbox.x,
       y: bbox.y,
@@ -87,6 +128,11 @@ export function generateExportPreview(
       pixelRatio: scale, // Match export scale for accurate preview
       mimeType: 'image/png',
     });
+
+    if (isDev) {
+      console.log('Preview generated successfully, data URL length:', dataURL.length);
+      console.log('=== PREVIEW GENERATION END ===');
+    }
 
     return dataURL;
   } catch (error) {

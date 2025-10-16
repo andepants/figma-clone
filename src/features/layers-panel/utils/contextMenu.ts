@@ -54,7 +54,7 @@ import { useCanvasStore } from '@/stores/canvasStore';
  */
 export function getContextMenuItems(
   object: CanvasObject,
-  objects: CanvasObject[],
+  _objects: CanvasObject[],
   selectedIds: string[]
 ): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];

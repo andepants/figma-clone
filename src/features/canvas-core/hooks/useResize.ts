@@ -388,7 +388,7 @@ export function useResize(): UseResizeReturn {
               rotation: object.rotation,
             };
             break;
-          case 'group':
+          case 'group': {
             // Groups: Only position (no dimensions)
             // Groups don't have visual properties, only organizational
             finalUpdates = {
@@ -396,13 +396,16 @@ export function useResize(): UseResizeReturn {
               y: object.y,
             };
             break;
-          default:
-            // Fallback for unknown types
+          }
+          default: {
+            // Fallback for unknown types - ensure exhaustive check
+            const _exhaustiveCheck: never = object;
             finalUpdates = {
-              x: object.x,
-              y: object.y,
+              x: (_exhaustiveCheck as { x: number; y: number }).x,
+              y: (_exhaustiveCheck as { x: number; y: number }).y,
             };
             break;
+          }
         }
 
         try {

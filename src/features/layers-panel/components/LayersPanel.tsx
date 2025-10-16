@@ -35,6 +35,7 @@ import { buildHierarchyTree, flattenHierarchyTree, reverseTreeForDisplay, getAll
 import { MenuButton, SidebarToggleButton } from '@/features/navigation/components';
 import { EnvironmentIndicator } from '@/components/common';
 import { syncZIndexes } from '@/lib/firebase';
+import type { CanvasObject } from '@/types';
 import {
   DndContext,
   closestCenter,

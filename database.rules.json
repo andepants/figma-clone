@@ -12,7 +12,7 @@
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
             },
             "type": {
-              ".validate": "newData.isString() && (newData.val() == 'rectangle' || newData.val() == 'circle' || newData.val() == 'text' || newData.val() == 'line' || newData.val() == 'group')"
+              ".validate": "newData.isString() && (newData.val() == 'rectangle' || newData.val() == 'circle' || newData.val() == 'text' || newData.val() == 'line' || newData.val() == 'group' || newData.val() == 'image')"
             },
             "text": {
               ".validate": "newData.isString() && newData.val().length <= 50000"
@@ -67,6 +67,33 @@
             },
             "rotation": {
               ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+            },
+            "src": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500000"
+            },
+            "naturalWidth": {
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 50000"
+            },
+            "naturalHeight": {
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 50000"
+            },
+            "fileName": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
+            },
+            "fileSize": {
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10485760"
+            },
+            "mimeType": {
+              ".validate": "newData.isString() && newData.val().matches(/^image\\/(png|jpeg|jpg|gif|webp|svg\\+xml)$/)"
+            },
+            "storageType": {
+              ".validate": "newData.isString() && (newData.val() == 'dataURL' || newData.val() == 'storage')"
+            },
+            "storagePath": {
+              ".validate": "newData.isString() && newData.val().length <= 1000"
+            },
+            "lockAspectRatio": {
+              ".validate": "newData.isBoolean()"
             },
             "$other": {
               ".validate": "true"

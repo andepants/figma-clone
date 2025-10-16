@@ -58,7 +58,7 @@ function CanvasPage() {
   );
 
   // Ref to access Konva stage for export
-  const stageRef = useRef<Konva.Stage>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
 
   // Get page settings for background color
   const { pageSettings } = usePageStore();
