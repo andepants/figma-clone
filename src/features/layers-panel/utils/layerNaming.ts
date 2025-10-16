@@ -24,6 +24,7 @@ import type { CanvasObject, ShapeType } from '@/types/canvas.types';
  * getBaseName('circle')    // 'Circle'
  * getBaseName('text')      // 'Text'
  * getBaseName('line')      // 'Line'
+ * getBaseName('group')     // 'Group'
  */
 export function getBaseName(type: ShapeType): string {
   const nameMap: Record<ShapeType, string> = {
@@ -31,6 +32,7 @@ export function getBaseName(type: ShapeType): string {
     circle: 'Circle',
     text: 'Text',
     line: 'Line',
+    group: 'Group',
   };
   return nameMap[type] || 'Object';
 }

@@ -8,7 +8,7 @@
 import { memo } from 'react';
 import { Group, Label, Tag, Text as KonvaText } from 'react-konva';
 import { ResizeHandle } from './ResizeHandle';
-import type { CanvasObject, ResizeHandle as ResizeHandleType, Rectangle, Circle, Text } from '@/types';
+import type { CanvasObject, ResizeHandle as ResizeHandleType, Rectangle, Circle, Text, Line } from '@/types';
 import { getHandlePosition } from '@/lib/utils';
 
 /**
@@ -110,17 +110,40 @@ function arePropsEqual(prevProps: ResizeHandlesProps, nextProps: ResizeHandlesPr
 
   // Compare transform properties (rotation, scale, skew)
   // These affect how handles are positioned and oriented
+  // Type guard: Only shapes with VisualProperties have these transform properties
   const prevObj = prevProps.object;
   const nextObj = nextProps.object;
 
-  if (
-    (prevObj.rotation ?? 0) !== (nextObj.rotation ?? 0) ||
-    (prevObj.scaleX ?? 1) !== (nextObj.scaleX ?? 1) ||
-    (prevObj.scaleY ?? 1) !== (nextObj.scaleY ?? 1) ||
-    (prevObj.skewX ?? 0) !== (nextObj.skewX ?? 0) ||
-    (prevObj.skewY ?? 0) !== (nextObj.skewY ?? 0)
-  ) {
-    return false;
+  // Type narrowing: These properties exist on Rectangle, Circle, Text, Line (but not Group)
+  const hasTransforms = (obj: CanvasObject): obj is Rectangle | Circle | Text | Line => {
+    return obj.type !== 'group';
+  };
+
+  if (hasTransforms(prevObj) && hasTransforms(nextObj)) {
+    // Safe to access rotation on Line (which has it directly)
+    // Safe to access scaleX/scaleY/skewX/skewY on Rectangle, Circle, Text (via VisualProperties)
+    const prevRotation = prevObj.rotation ?? 0;
+    const nextRotation = nextObj.rotation ?? 0;
+
+    // For scaleX/scaleY/skewX/skewY, they don't exist on Line, so use fallback
+    const prevScaleX = 'scaleX' in prevObj ? (prevObj.scaleX ?? 1) : 1;
+    const nextScaleX = 'scaleX' in nextObj ? (nextObj.scaleX ?? 1) : 1;
+    const prevScaleY = 'scaleY' in prevObj ? (prevObj.scaleY ?? 1) : 1;
+    const nextScaleY = 'scaleY' in nextObj ? (nextObj.scaleY ?? 1) : 1;
+    const prevSkewX = 'skewX' in prevObj ? (prevObj.skewX ?? 0) : 0;
+    const nextSkewX = 'skewX' in nextObj ? (nextObj.skewX ?? 0) : 0;
+    const prevSkewY = 'skewY' in prevObj ? (prevObj.skewY ?? 0) : 0;
+    const nextSkewY = 'skewY' in nextObj ? (nextObj.skewY ?? 0) : 0;
+
+    if (
+      prevRotation !== nextRotation ||
+      prevScaleX !== nextScaleX ||
+      prevScaleY !== nextScaleY ||
+      prevSkewX !== nextSkewX ||
+      prevSkewY !== nextSkewY
+    ) {
+      return false;
+    }
   }
 
   // All checks passed - props are equal, don't re-render
@@ -168,11 +191,12 @@ export const ResizeHandles = memo(function ResizeHandles({
   const bounds = getBounds(object);
 
   // Extract transform properties from object
-  const rotation = object.rotation ?? 0;
-  const scaleX = object.scaleX ?? 1;
-  const scaleY = object.scaleY ?? 1;
-  const skewX = object.skewX ?? 0;
-  const skewY = object.skewY ?? 0;
+  // Type guard: Groups don't have transform properties
+  const rotation = object.type !== 'group' ? (object.rotation ?? 0) : 0;
+  const scaleX = 'scaleX' in object ? (object.scaleX ?? 1) : 1;
+  const scaleY = 'scaleY' in object ? (object.scaleY ?? 1) : 1;
+  const skewX = 'skewX' in object ? (object.skewX ?? 0) : 0;
+  const skewY = 'skewY' in object ? (object.skewY ?? 0) : 0;
 
   // Calculate center position for Group positioning
   // This matches how Rectangle/Circle position themselves with transforms

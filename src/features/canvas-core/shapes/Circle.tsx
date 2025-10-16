@@ -68,11 +68,6 @@ export const Circle = memo(function Circle({
   onSelect,
   remoteDragState,
 }: CircleProps) {
-  // Don't render if hidden
-  if (circle.visible === false) {
-    return null;
-  }
-
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
@@ -335,6 +330,11 @@ export const Circle = memo(function Circle({
       shadowEnabled: circle.shadowEnabled ?? false,
     };
   };
+
+  // Don't render if hidden
+  if (circle.visible === false) {
+    return null;
+  }
 
   return (
     <Fragment>

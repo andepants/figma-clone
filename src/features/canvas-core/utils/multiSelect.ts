@@ -63,13 +63,14 @@ export function getSelectedObjects(
 /**
  * Calculate bounding box containing all selected objects
  *
- * Handles all shape types (rectangles, circles, text, lines) and returns
+ * Handles all shape types (rectangles, circles, text, lines, groups) and returns
  * the minimum bounding box that contains all selected objects.
- * Returns null if no objects are selected.
+ * For groups, recursively includes all descendants to calculate bounds.
+ * Returns null if no objects are selected or if selection contains only empty groups.
  *
  * @param objects - All canvas objects
  * @param selectedIds - Array of selected object IDs
- * @returns Bounding box {x, y, width, height} or null if no selection
+ * @returns Bounding box {x, y, width, height} or null if no selection or empty groups
  *
  * @example
  * ```ts
@@ -87,12 +88,46 @@ export function getSelectionBounds(
     return null;
   }
 
+  // Helper to get all descendants of a group
+  const getAllDescendants = (groupId: string): CanvasObject[] => {
+    const children = objects.filter((obj) => obj.parentId === groupId);
+    const descendants: CanvasObject[] = [...children];
+    children.forEach((child) => {
+      if (child.type === 'group') {
+        descendants.push(...getAllDescendants(child.id));
+      }
+    });
+    return descendants;
+  };
+
+  // Expand selection to include children of groups
+  const expandedObjects: CanvasObject[] = [];
+  selected.forEach((obj) => {
+    if (obj.type === 'group') {
+      // For groups, include all descendants instead of the group itself
+      const descendants = getAllDescendants(obj.id);
+      expandedObjects.push(...descendants);
+    } else {
+      expandedObjects.push(obj);
+    }
+  });
+
+  // If selection contains only empty groups, return null
+  if (expandedObjects.length === 0) {
+    return null;
+  }
+
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
 
-  selected.forEach((obj) => {
+  expandedObjects.forEach((obj) => {
+    // Skip groups (should only have leaf objects after expansion)
+    if (obj.type === 'group') {
+      return;
+    }
+
     if (obj.type === 'rectangle') {
       // Rectangle: (x, y) is top-left corner
       minX = Math.min(minX, obj.x);
@@ -129,6 +164,11 @@ export function getSelectionBounds(
       maxY = Math.max(maxY, y1, y2);
     }
   });
+
+  // Final safety check: if no valid bounds were calculated, return null
+  if (minX === Infinity || maxX === -Infinity || minY === Infinity || maxY === -Infinity) {
+    return null;
+  }
 
   return {
     x: minX,

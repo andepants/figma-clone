@@ -7,13 +7,13 @@
  * @module _docs/examples/hierarchy-examples
  */
 
+import React from 'react';
 import { useCanvasStore } from '@/stores/canvasStore';
 import {
   buildHierarchyTree,
   flattenHierarchyTree,
   getAllDescendantIds,
   hasChildren,
-  hasLockedParent,
   moveToParent,
 } from '@/features/layers-panel/utils/hierarchy';
 import type { CanvasObject } from '@/types/canvas.types';
@@ -492,14 +492,14 @@ function BuildTreeExample() {
 
     console.log('=== Hierarchy Tree ===');
 
-    const printNode = (node: any, prefix: string = '') => {
+    const printNode = (node: CanvasObject & { children: unknown[]; depth: number}, prefix: string = '') => {
       const name = node.name || `${node.type} ${node.id.slice(0, 4)}`;
       const childCount = node.children.length;
       const collapsed = node.isCollapsed ? ' [collapsed]' : '';
 
       console.log(`${prefix}├─ ${name} (${childCount} children)${collapsed}`);
 
-      node.children.forEach((child: any, index: number) => {
+      node.children.forEach((child: CanvasObject & { children: unknown[]; depth: number}, index: number) => {
         const isLast = index === node.children.length - 1;
         const childPrefix = prefix + (isLast ? '   ' : '│  ');
         printNode(child, childPrefix);

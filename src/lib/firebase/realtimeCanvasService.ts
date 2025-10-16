@@ -63,7 +63,10 @@ export function subscribeToCanvasObjects(
         .map(([objectId, objectData]) => ({
           ...(objectData as CanvasObject),
           id: objectId, // Ensure ID is set
-        }));
+        }))
+        // Sort by zIndex (lower = back, higher = front)
+        // Objects without zIndex default to 0
+        .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
 
       callback(objectsArray);
     },
@@ -329,5 +332,64 @@ export async function getAllCanvasObjects(
     return objectsArray;
   } catch {
     return [];
+  }
+}
+
+/**
+ * Sync z-index and organizational properties for array of objects
+ *
+ * Updates the zIndex, parentId, and other organizational properties of all objects
+ * to match their current state. This ensures layer ordering and hierarchy
+ * persist across sessions and sync to collaborators.
+ *
+ * Array position maps to z-index:
+ * - First in array (index 0) = lowest zIndex (back of canvas)
+ * - Last in array (index n-1) = highest zIndex (front of canvas)
+ *
+ * Also syncs organizational properties that may have changed:
+ * - parentId (for hierarchy/grouping)
+ * - isCollapsed (for collapsed groups in layers panel)
+ *
+ * Used when objects are reordered via drag-drop in layers panel.
+ *
+ * @param {string} canvasId - Canvas identifier
+ * @param {CanvasObject[]} objects - Ordered array of canvas objects
+ * @returns {Promise<void>}
+ *
+ * @example
+ * ```typescript
+ * // After reordering in layers panel
+ * const reorderedObjects = [...]; // New order
+ * await syncZIndexes('main', reorderedObjects);
+ * ```
+ */
+export async function syncZIndexes(
+  canvasId: string,
+  objects: CanvasObject[]
+): Promise<void> {
+  try {
+    const dbRef = ref(realtimeDb);
+    const multiPathUpdates: Record<string, string | number | boolean | null> = {};
+    const timestamp = Date.now();
+
+    // Assign zIndex based on array position and sync organizational properties
+    objects.forEach((obj, index) => {
+      multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/zIndex`] = index;
+      multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/updatedAt`] = timestamp;
+
+      // Sync parentId (critical for hierarchy persistence)
+      // Use null instead of undefined for Firebase compatibility
+      multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/parentId`] = obj.parentId ?? null;
+
+      // Sync collapse state (for groups in layers panel)
+      if (obj.isCollapsed !== undefined) {
+        multiPathUpdates[`canvases/${canvasId}/objects/${obj.id}/isCollapsed`] = obj.isCollapsed;
+      }
+    });
+
+    // Single atomic update for all properties
+    await update(dbRef, multiPathUpdates);
+  } catch {
+    // Don't throw - sync shouldn't break the app
   }
 }

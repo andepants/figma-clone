@@ -5,7 +5,8 @@
  * Contains the collaborative canvas and toolbar with real-time Firestore sync.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import type Konva from 'konva';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { RightSidebar } from '@/features/right-sidebar';
@@ -26,7 +27,8 @@ import { useAuth } from '@/features/auth/hooks';
 import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
-import { hexToRgba, getUserDisplayName } from '@/lib/utils';
+import { hexToRgba, getUserDisplayName, exportCanvasToPNG } from '@/lib/utils';
+import { ExportModal, type ExportOptions } from '@/features/export';
 
 function CanvasPage() {
   // Update SEO for canvas page
@@ -40,11 +42,23 @@ function CanvasPage() {
   // Keyboard shortcuts modal state
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
+  // Export modal state
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
   // Enable keyboard shortcuts for tools with callback to open shortcuts modal
   useToolShortcuts(() => setIsShortcutsOpen(true));
 
   // Get canvas store setObjects method
-  const { setObjects } = useCanvasStore();
+  const { setObjects, objects, selectedIds } = useCanvasStore();
+
+  // Memoize selected objects to prevent unnecessary preview re-generation
+  const selectedObjects = useMemo(
+    () => objects.filter(obj => selectedIds.includes(obj.id)),
+    [objects, selectedIds]
+  );
+
+  // Ref to access Konva stage for export
+  const stageRef = useRef<Konva.Stage | null>(null);
 
   // Get page settings for background color
   const { pageSettings } = usePageStore();
@@ -60,6 +74,70 @@ function CanvasPage() {
 
   // Track sync status for sync indicator
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+
+  /**
+   * Handle export with options from modal
+   * Exports objects based on user-configured settings
+   */
+  async function handleExportWithOptions(options: ExportOptions) {
+    try {
+      await exportCanvasToPNG(stageRef, selectedObjects, objects, options);
+    } catch (error) {
+      // Provide helpful error messages based on error type
+      let message = 'Unknown error occurred';
+
+      if (error instanceof Error) {
+        if (error.message.includes('Stage ref not available')) {
+          message = 'Canvas not ready. Please try again.';
+        } else if (error.message.includes('No objects to export')) {
+          message = 'No objects to export. Create some objects first.';
+        } else if (error.message.includes('Invalid bounding box')) {
+          message = 'Export failed due to invalid object bounds. Please check your objects.';
+        } else {
+          message = error.message;
+        }
+      }
+
+      alert(`Export failed: ${message}`);
+      throw error; // Re-throw so modal can handle loading state
+    }
+  }
+
+  /**
+   * Handle export button click
+   * Opens export modal instead of direct export
+   */
+  const handleExport = useCallback(() => {
+    setIsExportModalOpen(true);
+  }, []);
+
+  /**
+   * Handle export keyboard shortcut (Shift+Cmd/Ctrl+E)
+   * Only triggers if there's a selection
+   */
+  useEffect(() => {
+    function handleExportShortcut(event: KeyboardEvent) {
+      // Check if Shift+Cmd/Ctrl+E
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'e') {
+        // Don't trigger if user is typing in an input
+        const activeElement = document.activeElement;
+        const isTyping = activeElement instanceof HTMLInputElement ||
+                         activeElement instanceof HTMLTextAreaElement ||
+                         activeElement?.getAttribute('contenteditable') === 'true';
+
+        if (isTyping) return;
+
+        // Only export if there's a selection
+        if (selectedIds.length === 0) return;
+
+        event.preventDefault();
+        handleExport();
+      }
+    }
+
+    window.addEventListener('keydown', handleExportShortcut);
+    return () => window.removeEventListener('keydown', handleExportShortcut);
+  }, [handleExport, selectedIds]);
 
   /**
    * Comprehensive prevention of browser back/forward navigation on swipe gestures
@@ -412,20 +490,35 @@ function CanvasPage() {
           `}
         >
           <Toolbar onShowShortcuts={() => setIsShortcutsOpen(true)} />
-          {/* Sync Indicator - shows online/offline and sync status (positioned left of right sidebar) */}
+          {/* Sync Indicator - shows online/offline and sync status */}
           <SyncIndicator status={syncStatus} className="!top-4 !right-[256px]" />
           {/* Canvas Stage - adjusted for right sidebar (240px right margin) */}
           <div className="absolute top-0 left-0 right-[240px] bottom-0">
-            <CanvasStage />
+            <CanvasStage stageRef={stageRef} />
           </div>
           {/* Right Sidebar - unified properties + AI chat */}
-          <RightSidebar />
+          <RightSidebar
+            onExport={handleExport}
+            hasObjects={objects.length > 0}
+            hasSelection={selectedIds.length > 0}
+          />
         </div>
 
         {/* Keyboard Shortcuts Modal */}
         <ShortcutsModal
           isOpen={isShortcutsOpen}
           onClose={() => setIsShortcutsOpen(false)}
+        />
+
+        {/* Export Modal */}
+        <ExportModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          onExport={handleExportWithOptions}
+          hasSelection={selectedIds.length > 0}
+          stageRef={stageRef}
+          selectedObjects={selectedObjects}
+          allObjects={objects}
         />
       </div>
     );

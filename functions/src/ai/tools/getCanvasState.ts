@@ -93,7 +93,7 @@ export class GetCanvasStateTool extends CanvasTool {
 
       // Format object data for LLM consumption
       const formattedObjects = limitedObjects.map(obj => {
-        const base: any = {
+        const base: Record<string, unknown> = {
           id: obj.id,
           type: obj.type,
           name: obj.name || `Unnamed ${obj.type}`,
@@ -121,7 +121,7 @@ export class GetCanvasStateTool extends CanvasTool {
       // Build result message
       const filterDesc = input.filter ?
         ` (filtered by: ${Object.entries(input.filter)
-          .filter(([_, v]) => v !== undefined)
+          .filter(([, v]) => v !== undefined)
           .map(([k, v]) => `${k}=${v}`)
           .join(", ")})` :
         "";

@@ -7,6 +7,7 @@
  * - Firestore database
  * - Realtime database
  * - Cloud Functions
+ * - Cloud Storage
  */
 
 import { initializeApp, type FirebaseApp } from 'firebase/app'
@@ -19,6 +20,7 @@ import {
 } from 'firebase/firestore'
 import { getDatabase, type Database, connectDatabaseEmulator } from 'firebase/database'
 import { getFunctions, type Functions, connectFunctionsEmulator } from 'firebase/functions'
+import { getStorage, type FirebaseStorage, connectStorageEmulator } from 'firebase/storage'
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -53,6 +55,7 @@ export const auth: Auth = getAuth(app)
 export const firestore: Firestore = getFirestore(app)
 export const realtimeDb: Database = getDatabase(app)
 export const functions: Functions = getFunctions(app)
+export const storage: FirebaseStorage = getStorage(app)
 
 // Connect to Firebase Emulators in development
 // This ensures complete isolation from production data during local development
@@ -62,12 +65,14 @@ if (import.meta.env.DEV) {
   console.log('   → Firestore: localhost:9150')
   console.log('   → Realtime DB: localhost:9000')
   console.log('   → Functions: localhost:5001')
+  console.log('   → Storage: localhost:9199')
 
   // Connect all services to local emulators
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
   connectFirestoreEmulator(firestore, 'localhost', 9150)
   connectDatabaseEmulator(realtimeDb, 'localhost', 9000)
   connectFunctionsEmulator(functions, 'localhost', 5001)
+  connectStorageEmulator(storage, 'localhost', 9199)
 }
 
 // Enable offline persistence for Firestore

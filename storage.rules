@@ -2,11 +2,27 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Authenticated users can upload and read files
+    // Image uploads with strict validation
+    match /images/{roomId}/{userId}/{fileName} {
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
+
+      // Allow write only for the owning user with validation
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size <= 10 * 1024 * 1024  // 10MB limit
+                   && request.resource.contentType.matches('image/.*');  // Images only
+
+      // Allow delete only for the owning user
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Legacy: Generic authenticated access (keep for backward compatibility)
+    // This can be removed once all files use the /images path structure
     match /{allPaths=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
-                   && request.resource.size < 5 * 1024 * 1024; // 5MB limit
+                   && request.resource.size < 10 * 1024 * 1024;
     }
   }
 }

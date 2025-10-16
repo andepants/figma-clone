@@ -30,20 +30,29 @@ export abstract class CanvasTool {
   constructor(
     name: string,
     description: string,
-    schema: z.ZodObject<any>,
+    schema: z.ZodObject<z.ZodRawShape>,
     context: CanvasToolContext
   ) {
     this.context = context;
 
-    // Wrap execute method to add logging and error handling
+    // Wrap execute method to add logging, error handling, and memory tracking
     this.tool = new DynamicStructuredTool({
       name,
       description,
       schema,
-      func: async (input: any) => {
+      func: async (input: z.infer<typeof schema>) => {
         try {
           logger.info(`Executing tool: ${name}`, {input});
           const result = await this.execute(input);
+
+          // Update context with last created objects for conversation memory
+          if (result.objectsCreated && result.objectsCreated.length > 0) {
+            this.context.lastCreatedObjectIds = result.objectsCreated;
+            logger.info(`Updated last created objects`, {
+              objectIds: result.objectsCreated,
+            });
+          }
+
           logger.info(`Tool ${name} completed`, {
             success: result.success,
             message: result.message,
@@ -70,7 +79,7 @@ export abstract class CanvasTool {
    * @param input - Validated input parameters (matches schema)
    * @returns Tool result with success status and details
    */
-  abstract execute(input: any): Promise<ToolResult>;
+  abstract execute(input: Record<string, unknown>): Promise<ToolResult>;
 
   /**
    * Get the LangChain tool instance

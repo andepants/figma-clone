@@ -151,7 +151,7 @@ export async function createCanvasObject(params: CreateObjectParams): Promise<st
       canvasObject.fill = params.appearance.fill || '#000000';
       break;
 
-    case 'line':
+    case 'line': {
       if (!params.points) {
         throw new Error('Line requires points array [x1, y1, x2, y2]');
       }
@@ -162,6 +162,7 @@ export async function createCanvasObject(params: CreateObjectParams): Promise<st
       canvasObject.stroke = params.appearance.stroke || '#000000';
       canvasObject.strokeWidth = params.appearance.strokeWidth || 2;
       break;
+    }
   }
 
   // Add optional appearance properties
@@ -282,7 +283,7 @@ export async function batchCreateObjects(
         canvasObject.fill = obj.appearance.fill || '#000000';
         break;
 
-      case 'line':
+      case 'line': {
         if (!obj.points) throw new Error('Line requires points array');
         canvasObject.points = obj.points;
         const [x1, y1, x2, y2] = obj.points;
@@ -290,6 +291,7 @@ export async function batchCreateObjects(
         canvasObject.stroke = obj.appearance.stroke || '#000000';
         canvasObject.strokeWidth = obj.appearance.strokeWidth || 2;
         break;
+      }
     }
 
     // Add optional properties

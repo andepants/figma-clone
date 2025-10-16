@@ -114,7 +114,8 @@ function calculateLabelPosition(
   }
 
   // For rectangles and text, calculate bounding box and position at bottom
-  const rotation = object.rotation ?? 0;
+  // Type guard: rotation exists on Rectangle, Circle, Text, Line (but not Group)
+  const rotation = object.type !== 'group' ? (object.rotation ?? 0) : 0;
   const bbox = getRotatedBoundingBox(object.x, object.y, width, height, rotation);
 
   return {

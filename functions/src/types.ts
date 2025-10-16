@@ -25,7 +25,16 @@ export interface ProcessAICommandRequest {
       width: number;
       height: number;
     };
+
+    /** User's current viewport (camera position and zoom) - optional for backward compatibility */
+    viewport?: {
+      camera: { x: number; y: number };
+      zoom: number;
+    };
   };
+
+  /** Thread ID for conversation persistence - optional, will be generated if not provided */
+  threadId?: string;
 }
 
 /**
@@ -67,6 +76,10 @@ export interface CanvasObject {
   locked?: boolean;
   visible?: boolean;
   parentId?: string | null;
+  /** Whether this object was created by AI */
+  aiGenerated?: boolean;
+  /** Timestamp when object was created (for AI context prioritization) */
+  createdAt?: number;
 }
 
 /**
@@ -79,6 +92,20 @@ export interface CanvasState {
     width: number;
     height: number;
   };
+  /** User's current viewport (optional) */
+  viewport?: {
+    camera: { x: number; y: number };
+    zoom: number;
+  };
+  /** Internal field: viewport bounds calculated from viewport data */
+  _viewportBounds?: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+    centerX: number;
+    centerY: number;
+  };
 }
 
 /**
@@ -89,10 +116,10 @@ export interface AIAction {
   tool: string;
 
   /** Parameters passed to tool */
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 
   /** Result of tool execution */
-  result?: any;
+  result?: Record<string, unknown>;
 
   /** Error if tool failed */
   error?: string;

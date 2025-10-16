@@ -2,19 +2,30 @@
  * Context Optimization Utilities
  *
  * Reduces token usage by sending only relevant canvas objects to the LLM.
- * Prioritizes selected objects and visible/unlocked objects.
+ * Prioritizes viewport-visible objects, selected objects, and recent AI creations.
  */
 
 import * as logger from 'firebase-functions/logger';
 import {CanvasObject, CanvasState} from '../../types.js';
+import {
+  calculateViewportBounds,
+  isObjectInViewport,
+  distanceFromViewportCenter,
+  ViewportBounds,
+} from './viewport-calculator.js';
 
 /**
- * Optimize canvas context for LLM consumption
+ * Optimize canvas context for LLM consumption with viewport awareness
+ *
+ * Priority order:
+ * 1. Selected objects (always include)
+ * 2. Objects in viewport (visible to user)
+ * 3. Recently created AI objects (last 5 minutes)
+ * 4. Other visible, unlocked objects
  *
  * Reduces token count by:
  * - Limiting to 100 objects max
- * - Prioritizing selected objects
- * - Filtering visible/unlocked objects
+ * - Prioritizing viewport-visible objects
  * - Removing unnecessary fields
  * - Rounding coordinates
  *
@@ -22,39 +33,88 @@ import {CanvasObject, CanvasState} from '../../types.js';
  * @returns Optimized canvas state with minimal tokens
  */
 export function optimizeContext(canvasState: CanvasState): CanvasState {
-  let objects = canvasState.objects || [];
+  const objects = canvasState.objects || [];
+
+  // Calculate viewport bounds if provided
+  let viewportBounds: ViewportBounds | null = null;
+  if (canvasState.viewport) {
+    viewportBounds = calculateViewportBounds(canvasState.viewport);
+    logger.info('Viewport bounds calculated', {
+      bounds: viewportBounds,
+      zoom: canvasState.viewport.zoom,
+    });
+  }
 
   // Priority 1: Selected objects (always include)
   const selectedObjects = objects.filter((obj) =>
     canvasState.selectedObjectIds?.includes(obj.id)
   );
 
-  // Priority 2: Visible, unlocked objects (most likely to be manipulated)
+  // Priority 2: Viewport-visible objects (sorted by distance from center)
+  const viewportObjects = viewportBounds
+    ? objects
+        .filter((obj) => isObjectInViewport(obj, viewportBounds))
+        .sort((a, b) => {
+          // Sort by distance from viewport center (closest first)
+          const distA = distanceFromViewportCenter(a, viewportBounds!);
+          const distB = distanceFromViewportCenter(b, viewportBounds!);
+          return distA - distB;
+        })
+        .slice(0, 50) // Limit to 50 viewport objects
+    : [];
+
+  // Priority 3: Recently created AI objects (last 5 minutes)
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+  const recentAIObjects = objects.filter(
+    (obj) =>
+      obj.aiGenerated &&
+      obj.createdAt &&
+      obj.createdAt > fiveMinutesAgo
+  );
+
+  // Priority 4: Other visible, unlocked objects
   const visibleObjects = objects
     .filter((obj) => obj.visible !== false && !obj.locked)
-    .slice(0, 50); // Limit to 50 visible objects
+    .slice(0, 30); // Limit to 30 other objects
 
-  // Combine and deduplicate
-  const relevantObjects = [
-    ...selectedObjects,
-    ...visibleObjects.filter(
-      (obj) => !selectedObjects.find((s) => s.id === obj.id)
-    ),
-  ].slice(0, 100); // Hard limit: 100 objects total
+  // Combine and deduplicate (preserve priority order)
+  const seenIds = new Set<string>();
+  const relevantObjects: CanvasObject[] = [];
 
-  logger.info('Context optimization', {
+  const addUnique = (obj: CanvasObject) => {
+    if (!seenIds.has(obj.id)) {
+      seenIds.add(obj.id);
+      relevantObjects.push(obj);
+    }
+  };
+
+  // Add in priority order
+  selectedObjects.forEach(addUnique);
+  viewportObjects.forEach(addUnique);
+  recentAIObjects.forEach(addUnique);
+  visibleObjects.forEach(addUnique);
+
+  // Hard limit: 100 objects total
+  const limitedObjects = relevantObjects.slice(0, 100);
+
+  logger.info('Context optimization complete', {
     originalCount: objects.length,
     selectedCount: selectedObjects.length,
-    optimizedCount: relevantObjects.length,
+    viewportCount: viewportObjects.length,
+    recentAICount: recentAIObjects.length,
+    optimizedCount: limitedObjects.length,
+    hasViewport: !!viewportBounds,
   });
 
   // Simplify objects to reduce token count
-  const simplifiedObjects = relevantObjects.map(simplifyObject);
+  const simplifiedObjects = limitedObjects.map(simplifyObject);
 
   return {
     ...canvasState,
     objects: simplifiedObjects,
-  };
+    // Include viewport bounds in optimized state for tool context
+    _viewportBounds: viewportBounds,
+  } as CanvasState;
 }
 
 /**

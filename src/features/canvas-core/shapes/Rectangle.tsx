@@ -65,11 +65,6 @@ export const Rectangle = memo(function Rectangle({
   onSelect,
   remoteDragState,
 }: RectangleProps) {
-  // Don't render if hidden
-  if (rectangle.visible === false) {
-    return null;
-  }
-
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
@@ -349,6 +344,11 @@ export const Rectangle = memo(function Rectangle({
       shadowEnabled: rectangle.shadowEnabled ?? false,
     };
   };
+
+  // Don't render if hidden
+  if (rectangle.visible === false) {
+    return null;
+  }
 
   return (
     <Fragment>

@@ -2,29 +2,38 @@
  * Move Object Tool
  *
  * AI tool for moving canvas objects to new positions.
- * Updates the x,y coordinates of an existing object.
+ * Supports both absolute positioning and relative movement.
+ * Can move multiple objects at once using last created objects from context.
  */
 
 import {z} from "zod";
+import * as logger from "firebase-functions/logger";
 import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
-import {updateCanvasObject, getCanvasObject} from "../../services/canvas-objects";
+import {updateCanvasObject} from "../../services/canvas-objects";
 
 /**
  * Schema for move object parameters
  */
 const MoveObjectSchema = z.object({
-  objectId: z.string()
-    .describe("ID of the object to move"),
+  objectIds: z.array(z.string())
+    .optional()
+    .describe("Object IDs to move. If not provided, uses last created objects."),
+  // Support either absolute position OR relative direction
   x: z.number()
-    .min(0)
-    .max(50000)
-    .describe("New X position (0-50000)"),
+    .optional()
+    .describe("Absolute X coordinate"),
   y: z.number()
-    .min(0)
-    .max(50000)
-    .describe("New Y position (0-50000)"),
+    .optional()
+    .describe("Absolute Y coordinate"),
+  direction: z.enum(["left", "right", "up", "down"])
+    .optional()
+    .describe("Relative direction to move"),
+  distance: z.number()
+    .optional()
+    .default(100)
+    .describe("Distance to move in pixels (default: 100)"),
 });
 
 /**
@@ -34,8 +43,10 @@ export class MoveObjectTool extends CanvasTool {
   constructor(context: CanvasToolContext) {
     super(
       "moveObject",
-      "Move an existing object to a new position (x, y). " +
-      "Requires the object ID of the object to move.",
+      "Move objects to a new position. " +
+      "Supports absolute positioning (x, y) or relative movement (direction + distance). " +
+      "If no objectIds provided, moves the last created objects. " +
+      "Direction: 'left', 'right', 'up', 'down'. Default distance: 100px.",
       MoveObjectSchema,
       context
     );
@@ -45,57 +56,122 @@ export class MoveObjectTool extends CanvasTool {
    * Execute object move
    *
    * @param input - Validated move parameters
-   * @returns Tool result with modified object ID
+   * @returns Tool result with modified object IDs
    */
   async execute(
     input: z.infer<typeof MoveObjectSchema>
   ): Promise<ToolResult> {
     try {
-      // Check if object exists
-      const existingObject = await getCanvasObject(
-        this.context.canvasId,
-        input.objectId
-      );
+      // Determine which objects to move
+      let objectIds = input.objectIds;
 
-      if (!existingObject) {
-        return {
-          success: false,
-          error: `Object ${input.objectId} not found in canvas`,
-          message: "Failed to move object - object not found",
-        };
+      if (!objectIds || objectIds.length === 0) {
+        // Use last created objects from context
+        if (this.context.lastCreatedObjectIds &&
+            this.context.lastCreatedObjectIds.length > 0) {
+          objectIds = this.context.lastCreatedObjectIds;
+          logger.info("Using last created objects for move", {objectIds});
+        } else {
+          return {
+            success: false,
+            error: "No objects specified and no recently created objects",
+            message: "Please specify which objects to move or create objects first",
+          };
+        }
       }
 
-      // Update object position in RTDB
-      await updateCanvasObject(
-        this.context.canvasId,
-        input.objectId,
-        {
-          x: input.x,
-          y: input.y,
-        }
-      );
+      // Convert direction to delta
+      let deltaX = 0;
+      let deltaY = 0;
+      let isRelative = false;
 
-      const objectName = existingObject.name as string || input.objectId;
-      const message = `Moved "${objectName}" to position (${input.x}, ${input.y})`;
+      if (input.direction) {
+        isRelative = true;
+        const distance = input.distance || 100;
+
+        switch (input.direction) {
+          case "left":
+            deltaX = -distance;
+            break;
+          case "right":
+            deltaX = distance;
+            break;
+          case "up":
+            deltaY = -distance;
+            break;
+          case "down":
+            deltaY = distance;
+            break;
+        }
+
+        logger.info("Relative movement", {
+          direction: input.direction,
+          distance,
+          deltaX,
+          deltaY,
+        });
+      }
+
+      // Move each object
+      const movedObjectIds: string[] = [];
+
+      for (const objectId of objectIds) {
+        const obj = this.context.currentObjects.find((o) => o.id === objectId);
+
+        if (!obj) {
+          logger.warn("Object not found for move", {objectId});
+          continue;
+        }
+
+        let newX: number;
+        let newY: number;
+
+        if (isRelative) {
+          // Relative movement
+          newX = obj.x + deltaX;
+          newY = obj.y + deltaY;
+        } else {
+          // Absolute position
+          newX = input.x !== undefined ? input.x : obj.x;
+          newY = input.y !== undefined ? input.y : obj.y;
+        }
+
+        // Update in Firebase
+        await updateCanvasObject(this.context.canvasId, objectId, {
+          x: newX,
+          y: newY,
+        });
+
+        movedObjectIds.push(objectId);
+
+        logger.info("Moved object", {
+          objectId,
+          oldPosition: {x: obj.x, y: obj.y},
+          newPosition: {x: newX, y: newY},
+          isRelative,
+        });
+      }
+
+      const message = isRelative ?
+        `Moved ${movedObjectIds.length} object(s) ${input.direction} by ${input.distance}px` :
+        `Moved ${movedObjectIds.length} object(s) to (${input.x}, ${input.y})`;
 
       return {
         success: true,
         message,
-        objectsModified: [input.objectId],
+        objectsModified: movedObjectIds,
         data: {
-          objectId: input.objectId,
-          newPosition: {x: input.x, y: input.y},
-          oldPosition: {
-            x: existingObject.x as number,
-            y: existingObject.y as number,
-          },
+          count: movedObjectIds.length,
+          direction: input.direction,
+          distance: input.distance,
+          isRelative,
         },
       };
     } catch (error) {
       return {
         success: false,
         error: String(error),
-        message: "Failed to move object",
+        message: "Failed to move objects",
       };
     }
   }

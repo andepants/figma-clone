@@ -6,9 +6,9 @@
 
 /**
  * Available shape types on the canvas
- * @typedef {'rectangle' | 'circle' | 'text' | 'line'} ShapeType
+ * @typedef {'rectangle' | 'circle' | 'text' | 'line' | 'group'} ShapeType
  */
-export type ShapeType = 'rectangle' | 'circle' | 'text' | 'line';
+export type ShapeType = 'rectangle' | 'circle' | 'text' | 'line' | 'group';
 
 /**
  * Base properties shared by all canvas objects
@@ -20,6 +20,7 @@ export type ShapeType = 'rectangle' | 'circle' | 'text' | 'line';
  * @property {string} createdBy - User ID of creator
  * @property {number} createdAt - Unix timestamp of creation
  * @property {number} updatedAt - Unix timestamp of last update
+ * @property {number} [zIndex] - Z-index for layer ordering (higher = front, lower = back) - Synced to Firebase for persistence
  * @property {string} [name] - Optional user-defined name for the object
  * @property {boolean} [visible] - Visibility state (default: true) - Controls whether object is rendered on canvas
  * @property {boolean} [locked] - Lock state (default: false) - Locked objects cannot be selected, moved, or edited on canvas
@@ -34,6 +35,7 @@ export interface BaseCanvasObject {
   createdBy: string;
   createdAt: number;
   updatedAt: number;
+  zIndex?: number;
   name?: string;
   visible?: boolean;
   locked?: boolean;
@@ -207,11 +209,42 @@ export interface Line extends BaseCanvasObject, VisualProperties {
 }
 
 /**
+ * Group object (container for other objects)
+ * @interface Group
+ * @extends BaseCanvasObject
+ * @extends VisualProperties
+ * @property {'group'} type - Discriminator for type checking
+ *
+ * @remarks
+ * Groups are container objects with NO visual representation on canvas.
+ * They only exist in the hierarchy to organize other objects.
+ * Position (x, y) can be calculated from children's bounding box if needed.
+ * Groups inherit VisualProperties for consistency but these are not rendered.
+ * Transform properties (rotation, scale, skew) can affect grouped children.
+ * Like Figma, groups are purely organizational - they don't render fill/stroke.
+ * The isCollapsed property controls whether children are visible in the layers panel.
+ */
+export interface Group extends BaseCanvasObject, VisualProperties {
+  type: 'group';
+  // Groups inherit BaseCanvasObject properties:
+  // - id, createdBy, createdAt, updatedAt, zIndex
+  // - name (e.g., "Group 1", "Group 2")
+  // - visible (groups can be hidden, which hides all children)
+  // - locked (locked groups cannot be edited, locks cascade to children)
+  // - parentId (groups can be nested within other groups)
+  // - isCollapsed (hides children in layers panel when true)
+  //
+  // Groups inherit VisualProperties for consistency:
+  // - Transform properties (rotation, opacity, scale, skew)
+  // - Stroke/shadow properties (not rendered, but kept for type consistency)
+}
+
+/**
  * Union type of all possible canvas objects
  * Discriminated union using the 'type' property
- * @typedef {Rectangle | Circle | Text | Line} CanvasObject
+ * @typedef {Rectangle | Circle | Text | Line | Group} CanvasObject
  */
-export type CanvasObject = Rectangle | Circle | Text | Line;
+export type CanvasObject = Rectangle | Circle | Text | Line | Group;
 
 /**
  * Helper type for objects with resolved children
@@ -334,4 +367,11 @@ export function isTextShape(shape: CanvasObject): shape is Text {
  */
 export function isLineShape(shape: CanvasObject): shape is Line {
   return shape.type === 'line';
+}
+
+/**
+ * Type guard: Check if object is a group
+ */
+export function isGroupShape(shape: CanvasObject): shape is Group {
+  return shape.type === 'group';
 }
