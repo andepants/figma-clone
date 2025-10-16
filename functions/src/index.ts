@@ -21,8 +21,6 @@ import {
 
 // Define secrets (for production deployment)
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
-const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
-const aiProvider = defineSecret("AI_PROVIDER");
 
 // Global options for all functions
 setGlobalOptions({
@@ -41,7 +39,7 @@ setGlobalOptions({
  */
 export const processAICommand = onCall<ProcessAICommandRequest>(
   {
-    secrets: [openaiApiKey, anthropicApiKey, aiProvider],
+    secrets: [openaiApiKey],
   },
   async (request) => {
     const {auth, data} = request;
@@ -131,7 +129,7 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
       // Import AI chain components
       const {createAIChain} = await import("./ai/chain.js");
       const {getTools} = await import("./ai/tools/index.js");
-      const {getAIProvider, getLLM} = await import("./ai/config.js");
+      const {getLLM} = await import("./ai/config.js");
       const {logAIUsage} = await import("./services/analytics.js");
       const {optimizeContext} = await import("./ai/utils/context-optimizer.js");
 
@@ -144,8 +142,8 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
         selectedCount: data.canvasState.selectedObjectIds?.length || 0,
       });
 
-      // Get provider and model info for logging
-      const provider = getAIProvider();
+      // Use OpenAI for all environments
+      const provider = "openai";
       aiProvider = provider;
       const llm = getLLM(provider);
       // Extract model name safely from either provider
