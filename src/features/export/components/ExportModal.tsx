@@ -2,12 +2,13 @@
  * Export Modal Component
  *
  * Modal for configuring and triggering canvas exports.
- * Provides options for format, resolution, and scope with live preview.
+ * Provides two clear options: Whole Canvas or Selection Only.
+ * Shows side-by-side previews for both export modes.
  * Matches Figma's minimalist export workflow.
  */
 
 import { useState, useEffect } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, Image as ImageIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -42,8 +43,11 @@ export interface ExportModalProps {
 /**
  * ExportModal Component
  *
- * Minimalist export configuration modal with live preview.
- * Allows users to customize export settings and see preview before downloading.
+ * Enhanced export modal with two clear options:
+ * 1. Whole Canvas - Exports everything on the canvas
+ * 2. Selection Only - Exports only selected objects (ultra-precise)
+ *
+ * Shows side-by-side previews for both options.
  *
  * @param {ExportModalProps} props - Component props
  * @returns {JSX.Element} Export modal dialog
@@ -82,8 +86,9 @@ export function ExportModal({
   // Loading state during export
   const [isExporting, setIsExporting] = useState(false);
 
-  // Preview state (data URL of low-quality preview)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Preview state (data URLs for both previews)
+  const [wholeCanvasPreview, setWholeCanvasPreview] = useState<string | null>(null);
+  const [selectionPreview, setSelectionPreview] = useState<string | null>(null);
 
   /**
    * Handle export button click
@@ -119,27 +124,42 @@ export function ExportModal({
   }
 
   /**
-   * Generate preview when options change or modal opens
-   * Uses low-quality settings for fast preview generation
+   * Generate both previews when modal opens
+   * Shows side-by-side previews for whole canvas and selection
    */
   useEffect(() => {
     if (!isOpen || !hasObjects) {
-      setPreviewUrl(null);
+      setWholeCanvasPreview(null);
+      setSelectionPreview(null);
       return;
     }
 
+    console.log('Generating previews...', {
+      hasSelection,
+      selectedObjectsCount: selectedObjects.length,
+      allObjectsCount: allObjects.length,
+    });
+
     try {
-      const preview = generateExportPreview(
-        stageRef,
-        options.scope === 'selection' ? selectedObjects : allObjects,
-        allObjects
-      );
-      setPreviewUrl(preview);
+      // Generate whole canvas preview
+      const wholePreview = generateExportPreview(stageRef, allObjects, allObjects);
+      setWholeCanvasPreview(wholePreview);
+      console.log('Whole canvas preview generated:', wholePreview ? 'success' : 'failed');
+
+      // Generate selection preview (if has selection)
+      if (hasSelection && selectedObjects.length > 0) {
+        const selPreview = generateExportPreview(stageRef, selectedObjects, allObjects);
+        setSelectionPreview(selPreview);
+        console.log('Selection preview generated:', selPreview ? 'success' : 'failed');
+      } else {
+        setSelectionPreview(null);
+      }
     } catch (error) {
-      console.error('Failed to generate preview:', error);
-      setPreviewUrl(null);
+      console.error('Failed to generate previews:', error);
+      setWholeCanvasPreview(null);
+      setSelectionPreview(null);
     }
-  }, [isOpen, options.scope, hasObjects, stageRef, selectedObjects, allObjects]);
+  }, [isOpen, hasObjects, hasSelection, stageRef, selectedObjects, allObjects]);
 
   /**
    * Handle Enter key to trigger export
