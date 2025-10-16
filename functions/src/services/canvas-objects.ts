@@ -17,6 +17,7 @@
 
 import { getCanvasObjectsRef, getCanvasObjectRef } from './firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
+import * as logger from 'firebase-functions/logger';
 
 /**
  * Parameters for creating a canvas object
@@ -85,9 +86,21 @@ export interface CanvasObjectResult {
  * });
  */
 export async function createCanvasObject(params: CreateObjectParams): Promise<string> {
+  logger.info('createCanvasObject called', {
+    canvasId: params.canvasId,
+    type: params.type,
+    position: params.position,
+    userId: params.userId,
+  });
+
   const objectId = uuidv4();
   const ref = getCanvasObjectRef(params.canvasId, objectId);
   const now = Date.now();
+
+  logger.info('Generated object ID and ref', {
+    objectId,
+    refPath: `canvases/${params.canvasId}/objects/${objectId}`,
+  });
 
   // Build base object
   const canvasObject: Record<string, unknown> = {
@@ -167,8 +180,32 @@ export async function createCanvasObject(params: CreateObjectParams): Promise<st
     canvasObject.rotation = params.rotation;
   }
 
-  // Write to RTDB
-  await ref.set(canvasObject);
+  logger.info('About to write to RTDB', {
+    objectId,
+    canvasId: params.canvasId,
+    objectKeys: Object.keys(canvasObject),
+    objectPreview: JSON.stringify(canvasObject).substring(0, 200),
+  });
+
+  try {
+    // Write to RTDB
+    await ref.set(canvasObject);
+
+    logger.info('✅ Successfully wrote to RTDB', {
+      objectId,
+      canvasId: params.canvasId,
+      type: params.type,
+    });
+  } catch (error) {
+    logger.error('❌ Failed to write to RTDB', {
+      error: String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      objectId,
+      canvasId: params.canvasId,
+      refPath: `canvases/${params.canvasId}/objects/${objectId}`,
+    });
+    throw error;
+  }
 
   return objectId;
 }
@@ -191,6 +228,11 @@ export async function batchCreateObjects(
   canvasId: string,
   objects: Omit<CreateObjectParams, 'canvasId'>[]
 ): Promise<string[]> {
+  logger.info('batchCreateObjects called', {
+    canvasId,
+    objectCount: objects.length,
+  });
+
   const updates: Record<string, unknown> = {};
   const objectIds: string[] = [];
   const now = Date.now();
@@ -259,8 +301,30 @@ export async function batchCreateObjects(
     updates[`canvases/${canvasId}/objects/${objectId}`] = canvasObject;
   }
 
-  // Single multi-path update
-  await getCanvasObjectsRef(canvasId).root.update(updates);
+  logger.info('About to batch write to RTDB', {
+    canvasId,
+    objectCount: objectIds.length,
+    updatePaths: Object.keys(updates),
+  });
+
+  try {
+    // Single multi-path update
+    await getCanvasObjectsRef(canvasId).root.update(updates);
+
+    logger.info('✅ Successfully batch wrote to RTDB', {
+      canvasId,
+      objectCount: objectIds.length,
+      objectIds,
+    });
+  } catch (error) {
+    logger.error('❌ Failed to batch write to RTDB', {
+      error: String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      canvasId,
+      objectCount: objectIds.length,
+    });
+    throw error;
+  }
 
   return objectIds;
 }
