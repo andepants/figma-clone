@@ -15,6 +15,7 @@ export interface SectionVisibility {
   fill: boolean;       // Fill color
   stroke: boolean;     // Stroke properties (future)
   text: boolean;       // Text-specific properties
+  image: boolean;      // Image-specific properties (file info, aspect ratio)
   effects: boolean;    // Shadow and effects (future)
 }
 
@@ -44,6 +45,7 @@ export function getSectionVisibility(shape: CanvasObject | null): SectionVisibil
       fill: false,
       stroke: false,
       text: false,
+      image: false,
       effects: false,
     };
   }
@@ -54,6 +56,8 @@ export function getSectionVisibility(shape: CanvasObject | null): SectionVisibil
     rotation: true,  // All shapes can be rotated
     fill: true,      // All shapes have fill
     stroke: false,   // All shapes can have stroke (future implementation)
+    text: false,     // Only text shapes have text properties
+    image: false,    // Only image shapes have image properties
     effects: false,  // All shapes can have effects (future implementation)
   };
 
@@ -89,8 +93,16 @@ export function getSectionVisibility(shape: CanvasObject | null): SectionVisibil
         layout: true,      // Show width (line length)
         appearance: true,  // Show opacity only (no corner radius)
         stroke: true,      // Show stroke color and width
-        text: false,       // No text properties
         fill: false,       // Lines don't have fill
+      };
+
+    case 'image':
+      return {
+        ...commonSections,
+        layout: true,      // Show width × height with aspect ratio lock
+        appearance: true,  // Show opacity
+        image: true,       // Show image-specific properties (file info, replace)
+        fill: false,       // Images don't have fill
       };
 
     default:
@@ -99,7 +111,6 @@ export function getSectionVisibility(shape: CanvasObject | null): SectionVisibil
         ...commonSections,
         layout: true,
         appearance: true,
-        text: false,
       };
   }
 }

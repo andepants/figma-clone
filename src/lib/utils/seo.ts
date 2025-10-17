@@ -18,7 +18,7 @@ export interface SEOConfig {
  */
 export function updateSEO(config: SEOConfig): void {
   const {
-    title = 'CollabCanvas - Real-time Collaborative Design Tool',
+    title = 'Canvas Icons - Real-time Collaborative Design Tool',
     description = 'Free real-time collaborative canvas for design teams. Create, share, and collaborate on designs instantly.',
     keywords = 'collaborative design tool, real-time canvas, figma alternative',
     image = 'https://collabcanvas.app/og-image.png',

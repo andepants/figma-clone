@@ -2,7 +2,7 @@
 
 ## Overview
 
-The AI Canvas Agent uses Firebase Functions, LangChain, and LLMs (OpenAI/Claude) to process natural language commands and manipulate canvas objects in real-time.
+The Canvas Icons AI Agent uses Firebase Functions, LangChain, LangGraph, and OpenAI to process natural language commands and manipulate canvas objects in real-time. The system features conversation memory, viewport-aware object creation, and context optimization.
 
 ## Architecture Diagram
 
@@ -11,27 +11,29 @@ The AI Canvas Agent uses Firebase Functions, LangChain, and LLMs (OpenAI/Claude)
 │  Frontend   │
 │  (React)    │
 └──────┬──────┘
-       │ 1. Command + Canvas State
+       │ 1. Command + Canvas State + Viewport
+       │    (with threadId for conversation memory)
        │
        ▼
 ┌─────────────────────┐
 │  Firebase Function  │
 │  processAICommand   │
 └──────┬──────────────┘
-       │ 2. Create Agent
+       │ 2. Context Optimization (cache)
        │
        ▼
 ┌─────────────┐
-│  LangChain  │
+│  LangGraph  │
 │   Agent     │
+│  (Memory)   │
 └──────┬──────┘
        │ 3. Interpret Command
+       │    (with conversation history)
        │
        ▼
 ┌─────────────┐
-│     LLM     │
-│  (Claude/   │
-│   OpenAI)   │
+│   OpenAI    │
+│ GPT-4o-mini │
 └──────┬──────┘
        │ 4. Choose Tools
        │
@@ -42,6 +44,7 @@ The AI Canvas Agent uses Firebase Functions, LangChain, and LLMs (OpenAI/Claude)
 │ Move, etc)  │
 └──────┬──────┘
        │ 5. Execute Operations
+       │    (viewport-aware positioning)
        │
        ▼
 ┌─────────────┐
@@ -94,16 +97,16 @@ The AI Canvas Agent uses Firebase Functions, LangChain, and LLMs (OpenAI/Claude)
 - Error handling
 
 **ai/chain.ts**
-- LangChain agent setup
-- System prompt configuration
-- Agent executor creation
-- Provider abstraction (OpenAI/Claude)
+- LangGraph agent setup (MessageGraph with conversation memory)
+- System prompt configuration (canvas-specific instructions)
+- Agent executor creation with tool binding
+- Memory persistence via thread_id
 
 **ai/config.ts**
-- LLM provider configuration
-- Model selection (GPT-4o-mini, Claude 3.5 Haiku)
-- API key management
-- Temperature and parameter settings
+- OpenAI provider configuration only
+- Model: GPT-4o-mini (fast, cost-effective)
+- API key management from environment
+- Temperature: 0 (deterministic output)
 
 **ai/tools/**
 - Tool implementations for canvas operations
@@ -111,10 +114,13 @@ The AI Canvas Agent uses Firebase Functions, LangChain, and LLMs (OpenAI/Claude)
 - Zod schemas for validation
 - Individual tools:
   - `createRectangle.ts`, `createCircle.ts`, `createText.ts`, `createLine.ts`
-  - `moveObject.ts`, `resizeObject.ts`, `rotateObject.ts`
-  - `deleteObjects.ts`, `updateAppearance.ts`
-  - `arrangeInRow.ts`, `arrangeInColumn.ts`, `arrangeInGrid.ts`
+  - `moveObject.ts`, `deleteObjects.ts`
+  - `arrangeInGrid.ts`
   - `getCanvasState.ts`
+
+**ai/utils/**
+- `context-optimizer.ts` - Reduces token usage by filtering/prioritizing objects
+- `context-cache.ts` - Caches optimized context for reuse (60s TTL)
 
 **services/canvas-objects.ts**
 - RTDB manipulation utilities
@@ -137,6 +143,11 @@ The AI Canvas Agent uses Firebase Functions, LangChain, and LLMs (OpenAI/Claude)
 - Canvas permission checking
 - Owner, edit, view permissions
 - RTDB permission lookup
+- Currently disabled for local development
+
+**services/stripe-webhook.ts**
+- Stripe webhook event handling
+- Subscription lifecycle management
 
 ## Data Flow
 
@@ -148,10 +159,15 @@ const { execute, loading, error } = useAIAgent();
 await execute({
   command: "Create a blue rectangle",
   canvasId: currentCanvasId,
+  threadId: `${userId}_${canvasId}_default`, // For conversation memory
   canvasState: {
     objects: [...],
     selectedObjectIds: [...],
-    canvasSize: { width: 5000, height: 5000 }
+    canvasSize: { width: 5000, height: 5000 },
+    viewport: {
+      camera: { x: panX, y: panY },
+      zoom: zoom
+    }
   }
 });
 ```
@@ -177,21 +193,45 @@ export const processAICommand = onCall(async (request) => {
   const canModify = await canUserModifyCanvas(auth.uid, data.canvasId);
   if (!canModify) throw new HttpsError('permission-denied', '...');
 
-  // 5. Optimize context
-  const optimized = optimizeContext(data.canvasState);
+  // 5. Optimize context (with caching)
+  const cacheKey = generateCacheKey(data.canvasState);
+  let optimized = getCachedContext(cacheKey);
+  if (!optimized) {
+    optimized = optimizeContext(data.canvasState);
+    setCachedContext(cacheKey, optimized);
+  }
 
-  // 6. Create agent
-  const tools = getTools({ canvasId, userId, ... });
+  // 6. Create tool context with viewport bounds
+  const toolContext = {
+    canvasId: data.canvasId,
+    userId: auth.uid,
+    currentObjects: optimized.objects,
+    canvasSize: optimized.canvasSize,
+    selectedObjectIds: optimized.selectedObjectIds,
+    viewportBounds: optimized._viewportBounds, // Viewport-aware positioning
+    lastCreatedObjectIds: [], // For conversation context
+  };
+
+  // 7. Get tools and create LangGraph agent
+  const tools = getTools(toolContext);
   const chain = await createAIChain(tools);
 
-  // 7. Execute
-  const result = await chain.invoke({ input: data.command });
+  // 8. Execute with thread ID for memory
+  const config = {
+    configurable: { thread_id: data.threadId || `${auth.uid}_${data.canvasId}_default` },
+    streamMode: "values" as const,
+  };
+  const result = await chain.invoke(
+    { messages: [{ role: "user", content: data.command }] },
+    config
+  );
 
-  // 8. Log analytics
+  // 9. Log analytics
   await logAIUsage({ ... });
 
-  // 9. Return result
-  return { success: true, message: result.output, actions: [...] };
+  // 10. Return result
+  const lastMessage = result.messages[result.messages.length - 1];
+  return { success: true, message: lastMessage.content, actions: [...] };
 });
 ```
 
@@ -246,7 +286,7 @@ All connected clients receive real-time updates via Firebase RTDB listeners.
 
 **Concurrency Model: Last Write Wins**
 
-CollabCanvas uses a "last write wins" strategy for all canvas operations:
+Canvas Icons uses a "last write wins" strategy for all canvas operations:
 - No optimistic locking or version numbers
 - No transactions for object updates
 - The most recent write to Firebase RTDB is the final state
@@ -332,37 +372,22 @@ export function getTools(context: CanvasToolContext): DynamicStructuredTool[] {
 // The LLM will automatically discover and use it if relevant
 ```
 
-## Switching LLM Providers
+## Current AI Implementation
 
-### Environment Variables
+### Single Provider: OpenAI
+
+Canvas Icons currently uses **OpenAI GPT-4o-mini exclusively** for all AI operations:
 
 ```bash
-# Use OpenAI (default)
-AI_PROVIDER=openai
+# Environment Variables
 OPENAI_API_KEY=sk-...
-
-# Use Claude
-AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-### Code Configuration
+### Configuration
 
 ```typescript
 // functions/src/ai/config.ts
-export function getAIProvider(): AIProvider {
-  const provider = process.env.AI_PROVIDER?.toLowerCase();
-  return provider === 'anthropic' ? 'anthropic' : 'openai';
-}
-
-export function getLLM(provider: AIProvider) {
-  if (provider === 'anthropic') {
-    return new ChatAnthropic({
-      modelName: 'claude-3-5-haiku-20241022',
-      temperature: 0,
-      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
+export function getLLM(provider: "openai") {
   return new ChatOpenAI({
     modelName: 'gpt-4o-mini',
     temperature: 0,
@@ -371,32 +396,45 @@ export function getLLM(provider: AIProvider) {
 }
 ```
 
-### Model Comparison
+### Why OpenAI GPT-4o-mini?
 
-| Provider | Model | Speed | Cost | Quality |
-|----------|-------|-------|------|---------|
-| Anthropic | Claude 3.5 Haiku | ⚡️⚡️⚡️ | 💰 | ⭐️⭐️⭐️⭐️ |
-| OpenAI | GPT-4o-mini | ⚡️⚡️ | 💰💰 | ⭐️⭐️⭐️⭐️⭐️ |
-| OpenAI | GPT-4 | ⚡️ | 💰💰💰💰 | ⭐️⭐️⭐️⭐️⭐️ |
+| Feature | Benefit |
+|---------|---------|
+| **Speed** | Fast responses (2-4s typical) |
+| **Cost** | Affordable for production use |
+| **Reliability** | Consistent, deterministic outputs |
+| **LangGraph Support** | First-class integration with LangGraph |
+| **Function Calling** | Excellent tool execution accuracy |
 
-**Current Recommendation:** Claude 3.5 Haiku (best speed/cost ratio)
+**Note:** Anthropic support was removed to simplify the codebase and reduce maintenance overhead. GPT-4o-mini provides excellent performance for our use case.
 
 ## Cost Optimization
 
 ### Context Optimization
 
-The `optimizeContext` function reduces token usage:
+The `optimizeContext` function reduces token usage and adds viewport awareness:
 
-1. **Prioritize selected objects** (always included)
-2. **Filter visible/unlocked objects** (most relevant)
-3. **Limit to 100 objects max**
-4. **Round coordinates** (precision not critical)
-5. **Remove unnecessary fields** (internal state, metadata)
+1. **Calculate viewport bounds** (visible canvas area from camera + zoom)
+2. **Prioritize selected objects** (always included)
+3. **Include viewport objects** (visible in current view)
+4. **Filter visible/unlocked objects** (most relevant)
+5. **Limit to 100 objects max**
+6. **Round coordinates** (precision not critical)
+7. **Remove unnecessary fields** (internal state, metadata)
 
 ```typescript
 // Before: 500 objects, ~50K tokens
-// After: 100 objects, ~10K tokens (80% reduction)
+// After: 100 objects (viewport + selected), ~10K tokens (80% reduction)
 ```
+
+### Context Caching
+
+The `context-cache.ts` module provides in-memory caching:
+
+- **Cache key**: Hash of canvas state (objects + viewport)
+- **TTL**: 60 seconds
+- **Benefit**: Repeated commands skip re-optimization
+- **Typical savings**: 50-100ms per cached request
 
 ### Token Usage Tracking
 
@@ -590,25 +628,48 @@ firebase deploy --only functions
 - Consider switching to cheaper model
 - Add usage limits per user/canvas
 
+## Current Features (Implemented)
+
+### Conversation Memory ✅
+- LangGraph-based memory via thread_id
+- Maintains conversation history across commands
+- Allows contextual follow-ups ("make it bigger", "change that to red")
+
+### Viewport-Aware Object Creation ✅
+- Objects created in visible canvas area
+- Respects current zoom and pan position
+- Smart positioning based on viewport bounds
+
+### Context Optimization ✅
+- In-memory caching with 60s TTL
+- Viewport-based object filtering
+- Token usage reduced by 80%
+
+### Analytics & Monitoring ✅
+- Token usage tracking per command
+- Cost calculation and logging
+- Response time monitoring
+- Success/failure tracking
+
 ## Future Enhancements
 
 ### Planned Features
 
-- **Multi-turn conversations**: Remember context across commands
 - **Undo/redo AI actions**: Separate undo stack for AI changes
 - **Voice input**: Speech-to-text integration
 - **AI suggestions**: Proactive suggestions based on user actions
-- **Template library**: Predefined complex components
-- **Image generation**: DALL-E/Stable Diffusion integration
-- **Code export**: HTML/CSS/SVG generation from canvas
+- **Template library**: Predefined complex components (login forms, cards, etc.)
+- **Image generation**: DALL-E integration for creating images
+- **Code export**: HTML/CSS/React code generation from canvas
+- **Collaborative AI**: Multiple users can see AI thinking in real-time
 
 ### Architecture Improvements
 
-- **Streaming responses**: Stream tool execution progress to UI
-- **Batch operations**: Optimize multiple object creation
-- **Caching layer**: Redis cache for common command patterns
+- **Streaming responses**: Stream tool execution progress to UI (real-time feedback)
+- **Batch operations**: Optimize multiple object creation (parallel execution)
+- **Redis cache**: Persistent cache across function instances
 - **Webhook integration**: Trigger commands from external systems
-- **Plugin system**: Allow custom tool registration
+- **Plugin system**: Allow custom tool registration by users
 
 ## Resources
 

@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
   const [mode, setMode] = React.useState<AuthMode>(initialMode);
   const { login, signup } = useAuth();
+  const navigate = useNavigate();
 
   const isLogin = mode === 'login';
 
@@ -52,9 +54,14 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
 
   /**
    * Handles successful authentication
+   * Closes modal and redirects to projects page
    */
   function handleSuccess() {
     onClose();
+    // Small delay to let modal close gracefully
+    setTimeout(() => {
+      navigate('/projects');
+    }, 150);
   }
 
   /**

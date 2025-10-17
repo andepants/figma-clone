@@ -201,6 +201,7 @@ export const DimensionLabel = memo(function DimensionLabel({
   return (
     <Group
       ref={groupRef}
+      name="dimension-label" // Identifier for hiding during export
       x={x}
       y={y}
       rotation={rotation}

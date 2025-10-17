@@ -197,10 +197,20 @@ export function useResize(): UseResizeReturn {
         pointer
       );
 
-      // Get object to check if it's a circle
+      // Get object to check type and aspect ratio lock
       const objects = useCanvasStore.getState().objects;
       const object = objects.find((obj) => obj.id === objectId);
       const isCircle = object?.type === 'circle';
+      const isImage = object?.type === 'image';
+
+      // Check if aspect ratio should be locked:
+      // - Circles: always locked (must maintain 1:1 ratio)
+      // - Images: locked by default (lockAspectRatio !== false)
+      // - Other shapes with lockAspectRatio property: respect the flag
+      const hasAspectRatioLock =
+        isCircle ||
+        (isImage && (object as any).lockAspectRatio !== false) ||
+        (!isCircle && !isImage && (object as any)?.lockAspectRatio === true);
 
       // CIRCLES: Always enforce uniform scaling (maintain 1:1 aspect ratio)
       // Circles must maintain width === height to stay circular
@@ -235,8 +245,9 @@ export function useResize(): UseResizeReturn {
         }
       }
 
-      // Shift key: Lock aspect ratio (for non-circles)
-      if (isShiftPressed && startBoundsRef.current && !isCircle) {
+      // Shift key OR object's lockAspectRatio property: Lock aspect ratio (for non-circles)
+      // Images and rectangles can have lockAspectRatio property
+      if ((isShiftPressed || hasAspectRatioLock) && startBoundsRef.current && !isCircle) {
         const aspectRatio = startBoundsRef.current.width / startBoundsRef.current.height;
 
         // Determine which dimension to constrain based on resize direction
@@ -307,6 +318,15 @@ export function useResize(): UseResizeReturn {
       } else if (object.type === 'text') {
         // Text: Update x, y, width, and height
         // Text boxes are fixed-dimension containers like rectangles
+        shapeUpdates = {
+          x: newBounds.x,
+          y: newBounds.y,
+          width: newBounds.width,
+          height: newBounds.height,
+        };
+      } else if (object.type === 'image') {
+        // Image: Update x, y, width, and height (like rectangles)
+        // Images maintain aspect ratio by default via lockAspectRatio property
         shapeUpdates = {
           x: newBounds.x,
           y: newBounds.y,
@@ -386,6 +406,15 @@ export function useResize(): UseResizeReturn {
               width: object.width,
               points: object.points,
               rotation: object.rotation,
+            };
+            break;
+          case 'image':
+            // Image: x, y, width, height (fixed dimensions like rectangles)
+            finalUpdates = {
+              x: object.x,
+              y: object.y,
+              width: object.width,
+              height: object.height,
             };
             break;
           case 'group': {

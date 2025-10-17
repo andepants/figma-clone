@@ -108,6 +108,32 @@ export function generateExportPreview(
       return null;
     }
 
+    // Get layers
+    const layers = stage.getLayers();
+    const backgroundLayer = layers[0];
+    const objectsLayer = layers[1];
+    const cursorsLayer = layers[2];
+
+    // Store original visibility states
+    const wasBackgroundVisible = backgroundLayer?.visible() ?? false;
+    const wasCursorsVisible = cursorsLayer?.visible() ?? false;
+
+    // Temporarily hide background and cursors layers
+    if (isDev) console.log('Hiding background and cursors layers for preview...');
+    backgroundLayer?.hide();
+    cursorsLayer?.hide();
+
+    // Hide all dimension labels (UI overlays that shouldn't appear in preview)
+    // Dimension labels have name="dimension-label"
+    const dimensionLabels = objectsLayer?.find('.dimension-label') || [];
+    const dimensionLabelVisibility = dimensionLabels.map(label => label.visible());
+    if (isDev) console.log(`Hiding ${dimensionLabels.length} dimension labels for preview...`);
+    dimensionLabels.forEach(label => label.hide());
+
+    // Force layer redraw
+    if (isDev) console.log('Forcing layer redraw for preview...');
+    objectsLayer?.batchDraw();
+
     // Generate preview with configurable quality
     // Use scale parameter to match export quality (1x = fast, 2x/3x = accurate)
     if (isDev) {
@@ -127,6 +153,19 @@ export function generateExportPreview(
       height: bbox.height,
       pixelRatio: scale, // Match export scale for accurate preview
       mimeType: 'image/png',
+    });
+
+    // Restore layer visibility
+    if (isDev) console.log('Restoring layer visibility after preview...');
+    if (wasBackgroundVisible) backgroundLayer?.show();
+    if (wasCursorsVisible) cursorsLayer?.show();
+
+    // Restore dimension labels visibility
+    if (isDev) console.log('Restoring dimension labels after preview...');
+    dimensionLabels.forEach((label, index) => {
+      if (dimensionLabelVisibility[index]) {
+        label.show();
+      }
     });
 
     if (isDev) {

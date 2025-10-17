@@ -2,13 +2,112 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Canvas documents - authenticated users can read and write
-    match /canvases/{canvasId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Default deny for all other documents
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isPaidUser() {
+      return isAuthenticated() &&
+             getUserData().subscription.status in ['founders', 'pro'];
+    }
+
+    function isSubscriptionActive() {
+      let sub = getUserData().subscription;
+      return sub.status != 'free' &&
+             sub.currentPeriodEnd > request.time.toMillis();
+    }
+
+    // ========================================
+    // USERS COLLECTION
+    // ========================================
+
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId);
+
+      // Users can create their own profile on signup
+      allow create: if isOwner(userId) &&
+                       request.resource.data.id == userId &&
+                       request.resource.data.subscription.status == 'free';
+
+      // Users can update their own profile (excluding subscription)
+      allow update: if isOwner(userId) &&
+                       // Can't change subscription status directly (only via webhooks)
+                       request.resource.data.subscription.status == resource.data.subscription.status;
+
+      // Users can delete their own profile
+      allow delete: if isOwner(userId);
+    }
+
+    // ========================================
+    // PROJECTS COLLECTION
+    // ========================================
+
+    match /projects/{projectId} {
+      // Anyone can read public projects
+      // Owners and collaborators can read private projects
+      allow read: if resource.data.isPublic == true ||
+                     isOwner(resource.data.ownerId) ||
+                     (isAuthenticated() &&
+                      request.auth.uid in resource.data.collaborators);
+
+      // Only paid users can create projects
+      allow create: if isAuthenticated() &&
+                       isPaidUser() &&
+                       isSubscriptionActive() &&
+                       request.resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.id == projectId;
+
+      // Only project owners can update projects
+      allow update: if isOwner(resource.data.ownerId);
+
+      // Only project owners can delete projects
+      allow delete: if isOwner(resource.data.ownerId);
+    }
+
+    // ========================================
+    // CONFIG COLLECTION (Read-only for users)
+    // ========================================
+
+    match /config/{configId} {
+      // Everyone can read config (for founders deal banner)
+      allow read: if true;
+
+      // Only admin (Cloud Functions) can write config
+      // In production, this would check for admin role
+      allow write: if false;
+    }
+
+    // ========================================
+    // CANVAS DOCUMENTS (Legacy - from RTDB migration)
+    // ========================================
+
+    match /canvases/{canvasId} {
+      // Authenticated users can read and write canvas data
+      // This is legacy from Firestore sync before RTDB migration
+      // TODO: Remove after confirming RTDB is primary source
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // ========================================
+    // DEFAULT DENY
+    // ========================================
+
+    // Deny all other operations by default
     match /{document=**} {
       allow read, write: if false;
     }

@@ -14,3 +14,5 @@ export * from './useTextEditor';
 export * from './useGroupDrag';
 export * from './useDragToSelect';
 export * from './useArrowKeyPan';
+export * from './useImageUpload';
+export * from './useCanvasDropzone';

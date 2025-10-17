@@ -5,11 +5,13 @@
  * Displays available tools with icons and handles tool switching.
  */
 
-import { MousePointer2, Square, Circle as CircleIcon, Type, Minus, HelpCircle } from 'lucide-react';
+import { useState } from 'react';
+import { MousePointer2, Square, Circle as CircleIcon, Type, Minus, HelpCircle, Image as ImageIcon } from 'lucide-react';
 import { useToolStore } from '@/stores';
 import { ToolButton, ToolbarDivider } from './';
 import type { Tool, ToolType } from '@/types';
 import { TooltipProvider } from '@/components/ui';
+import { ImageUploadModal } from '@/features/canvas-core/components/ImageUploadModal';
 
 /**
  * Available tools configuration
@@ -67,6 +69,7 @@ interface ToolbarProps {
  */
 export function Toolbar({ onShowShortcuts }: ToolbarProps) {
   const { activeTool, setActiveTool } = useToolStore();
+  const [isImageUploadOpen, setIsImageUploadOpen] = useState(false);
 
   /**
    * Handle tool button click
@@ -75,6 +78,12 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
     setActiveTool(toolId);
   }
 
+  /**
+   * Handle image upload button click
+   */
+  function handleImageUpload() {
+    setIsImageUploadOpen(true);
+  }
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -93,12 +102,28 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
 
         <ToolbarDivider />
 
+        {/* Image upload button */}
+        <ToolButton
+          icon={ImageIcon}
+          label="Upload Image"
+          tooltip="Upload Image Shift+⌘I"
+          onClick={handleImageUpload}
+        />
+
+        <ToolbarDivider />
+
         {/* Keyboard shortcuts help button */}
         <ToolButton
           icon={HelpCircle}
           label="Keyboard shortcuts help"
           tooltip="Keyboard shortcuts ?"
           onClick={onShowShortcuts}
+        />
+
+        {/* Image Upload Modal */}
+        <ImageUploadModal
+          isOpen={isImageUploadOpen}
+          onClose={() => setIsImageUploadOpen(false)}
         />
       </div>
     </TooltipProvider>

@@ -1,4 +1,4 @@
-# CollabCanvas Development Guide
+# Canvas Icons Development Guide
 
 You are an expert in TypeScript, Node.js, Next.js App Router, React, Konva.js, Shadcn UI, Radix UI, Tailwind CSS, and Firebase.
 You specialize in building real-time collaborative applications with clean, scalable architecture.
@@ -8,7 +8,7 @@ Always familiarize yourself with existing files before creating new ones.
 
 ## Project Context
 
-CollabCanvas is a real-time collaborative canvas app (Figma clone) using Vertical Slice Architecture.
+Canvas Icons is a real-time collaborative canvas app (Figma clone) using Vertical Slice Architecture.
 The codebase is AI-first: modular, scalable, highly navigable, and easy to understand.
 
 ## Code Organization
@@ -61,7 +61,7 @@ The codebase is AI-first: modular, scalable, highly navigable, and easy to under
 
 ## Hierarchy System
 
-CollabCanvas supports parent-child relationships between canvas objects (like Figma's frames/groups).
+Canvas Icons supports parent-child relationships between canvas objects (like Figma's frames/groups).
 
 ### Key Concepts
 
@@ -164,7 +164,7 @@ See: `_docs/features/lock-system.md` for full documentation
 
 ## AI Assistant
 
-CollabCanvas includes an AI assistant for natural language canvas operations (powered by Firebase AI Logic).
+Canvas Icons includes an AI assistant for natural language canvas operations (powered by Firebase AI Logic).
 
 ### Key Concepts
 
@@ -212,7 +212,7 @@ For collapsible panel sections (properties, layers, etc.):
 
 ## Z-Index System
 
-CollabCanvas uses array position to control layer order (like Figma).
+Canvas Icons uses array position to control layer order (like Figma).
 
 ### Key Concepts
 
@@ -252,7 +252,7 @@ syncZIndexes(reordered); // Syncs to Firebase RTDB
 
 ## Grouping System
 
-CollabCanvas supports grouping objects using the existing parentId hierarchy (like Figma frames).
+Canvas Icons supports grouping objects using the existing parentId hierarchy (like Figma frames).
 
 ### Key Concepts
 
@@ -433,9 +433,9 @@ await exportCanvasToPNG(stageRef, selectedObjects, allObjects, {
 
 ### Export File Naming
 
-Format: `collabcanvas-YYYY-MM-DD-HH-MM-SS.png`
+Format: `canvasicons-YYYY-MM-DD-HH-MM-SS.png`
 
-Example: `collabcanvas-2025-10-16-14-30-45.png`
+Example: `canvasicons-2025-10-16-14-30-45.png`
 
 ### Export Location
 

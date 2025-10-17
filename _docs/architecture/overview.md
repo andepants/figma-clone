@@ -1,8 +1,10 @@
-# CollabCanvas: System Architecture
+# Canvas Icons: System Architecture
 
-**Version:** 1.0
+**Version:** 2.0
 **Purpose:** System design and architectural decisions
-**Scope:** MVP → Full Product (Phases 1-3)
+**Scope:** Current Production Implementation
+
+**Project:** Canvas Icons - Real-time collaborative canvas design tool
 
 ---
 
@@ -59,27 +61,51 @@ Each feature is a self-contained vertical slice with its own components, hooks, 
 
 ```
 src/features/
-├── canvas-core/        # Canvas rendering & shapes (Phase 1+)
-│   ├── components/     # CanvasStage, CanvasLayer, etc.
-│   ├── shapes/         # Rectangle, Circle, Text components
-│   ├── hooks/          # useCanvas, useShapes, etc.
-│   └── utils/          # Canvas calculations, transformations
+├── canvas-core/        # Canvas rendering & shapes (Implemented)
+│   ├── components/     # CanvasStage, DimensionLabel, ImageUploadModal
+│   ├── shapes/         # Rectangle, Circle, Text, Line, ImageShape
+│   ├── hooks/          # useCanvas, useResize, useImageUpload, useCanvasDropzone
+│   └── utils/          # imageFactory.ts
 │   └── index.ts        # Barrel export
-├── collaboration/      # Real-time multiplayer (Phase 1+)
+├── collaboration/      # Real-time multiplayer (Implemented)
 │   ├── components/     # Cursor, PresenceList, etc.
 │   ├── hooks/          # usePresence, useCursors, etc.
 │   └── utils/          # Cursor calculations
 │   └── index.ts        # Barrel export
-├── toolbar/           # Tools & controls (Phase 1+)
+├── toolbar/           # Tools & controls (Implemented)
 │   ├── components/     # Toolbar, ToolButton, etc.
-│   ├── hooks/          # useSelectedTool, etc.
+│   ├── hooks/          # useSelectedTool, useToolShortcuts
 │   └── index.ts        # Barrel export
-├── auth/             # Authentication (Phase 1)
+├── layers-panel/      # Hierarchy management (Implemented)
+│   ├── components/     # LayersPanel, LayerItem, etc.
+│   └── utils/          # hierarchy.ts, layerNaming.ts, contextMenu.ts
+│   └── index.ts        # Barrel export
+├── properties-panel/  # Object properties editing (Implemented)
+│   ├── components/     # PropertiesPanel, ImageSection, etc.
+│   └── utils/          # section-visibility.ts
+│   └── index.ts        # Barrel export
+├── export/            # Canvas export functionality (Implemented)
+│   ├── components/     # ExportModal
+│   └── utils/          # preview.ts
+│   └── index.ts        # Barrel export
+├── projects/          # Project management (Implemented)
+│   ├── components/     # ProjectsEmptyState, etc.
+│   └── index.ts        # Barrel export
+├── pricing/           # Subscription & pricing (Implemented)
+│   ├── components/     # PricingPage, PricingFAQ, etc.
+│   └── index.ts        # Barrel export
+├── navigation/        # App navigation (Implemented)
+│   ├── components/     # Navigation components
+│   └── index.ts        # Barrel export
+├── right-sidebar/     # Sidebar controls (Implemented)
+│   ├── components/     # Right sidebar components
+│   └── index.ts        # Barrel export
+├── auth/              # Authentication (Implemented)
 │   ├── components/     # AuthModal, LoginForm, SignupForm
 │   ├── hooks/          # useAuth, useUser
 │   └── utils/          # Auth helpers
 │   └── index.ts        # Barrel export
-└── ai-agent/         # AI commands (Phase 3)
+└── ai-agent/          # AI commands (Implemented)
     ├── components/     # AIPanel, AIChat, etc.
     ├── hooks/          # useAI, useCommands
     └── utils/          # AI parsing
@@ -110,14 +136,27 @@ src/stores/              # Zustand stores (shared state)
 
 src/lib/                 # Services & utilities (infrastructure)
 ├── firebase/            # Firebase config and services
-│   ├── config.ts
-│   ├── auth.ts
-│   ├── firestore.ts
-│   └── realtimedb.ts
-├── canvas/              # Canvas utilities
-│   └── calculations.ts
+│   ├── index.ts         # Main Firebase service exports
+│   ├── config.ts        # Firebase app configuration
+│   ├── auth.ts          # Authentication helpers
+│   ├── firestore.ts     # Firestore operations
+│   ├── storage.ts       # Firebase Storage operations
+│   ├── imageUploadService.ts  # Image upload handling
+│   ├── projectsService.ts     # Projects CRUD
+│   ├── usersService.ts        # User data management
+│   └── configService.ts       # Remote config
+├── stripe/              # Stripe payment integration
+│   ├── client.ts        # Stripe client setup
+│   └── checkout.ts      # Checkout operations
+├── animations/          # Framer Motion animations
+│   └── variants.ts      # Animation variants
 └── utils/               # General utilities
-    └── helpers.ts
+    ├── export.ts        # Canvas export utilities
+    ├── seo.ts           # SEO metadata
+    ├── image.ts         # Image processing
+    ├── imagePool.ts     # Image object pooling
+    ├── projectAccess.ts # Project permissions
+    └── geometry.ts      # Geometric calculations
 
 src/types/               # Shared TypeScript types
 src/constants/           # App constants
@@ -157,10 +196,10 @@ sequenceDiagram
 
 | Store | Purpose | Update Trigger |
 |-------|---------|----------------|
-| **canvasStore** | Canvas objects, selection | User actions |
-| **authStore** | User authentication | Auth changes |
-| **uiStore** | Modals, toasts | UI interactions |
-| **aiStore** | AI messages (Phase 3) | AI commands |
+| **canvasStore** | Canvas objects, selection, clipboard, zoom/pan, hierarchy | User actions |
+| **authStore** | User authentication, subscription status | Auth changes |
+| **uiStore** | Modals, toasts, UI state | UI interactions |
+| **aiStore** | AI messages, command history | AI commands |
 
 **Design:** Multiple focused stores, not one monolith
 
@@ -234,22 +273,25 @@ graph TB
 
 ---
 
-## AI Integration (Phase 3)
+## AI Integration (Implemented)
 
 ```mermaid
 graph LR
-    User[User Input] --> AI[AI Service<br/>OpenAI/Claude]
-    AI --> Func[Function Calls]
-    Func --> Store[Canvas Store]
-    Store --> Firebase[Sync]
-    Firebase -.-> All[All Users]
+    User[User Input] --> Func[Firebase Function<br/>processAICommand]
+    Func --> LLM[OpenAI GPT-4o-mini<br/>LangChain + LangGraph]
+    LLM --> Tools[Canvas Tools<br/>create/move/arrange]
+    Tools --> RTDB[Firebase RTDB]
+    RTDB -.-> All[All Users]
 
-    style AI fill:#f3e5f5
-    style Func fill:#e1bee7
+    style Func fill:#f3e5f5
+    style LLM fill:#e1bee7
+    style Tools fill:#c8e6c9
 ```
 
-**Functions:** createShape, moveShape, arrangeShapes, createLayout
-**Pattern:** Natural language → Function call → Store update → Firebase sync
+**Implementation:** OpenAI GPT-4o-mini with LangChain + LangGraph
+**Tools:** createRectangle, createCircle, createText, createLine, moveObject, arrangeInGrid, deleteObjects
+**Pattern:** Natural language → LangGraph agent → Tool execution → Firebase RTDB sync → Real-time broadcast
+**Features:** Conversation memory (thread-based), context optimization, viewport-aware object creation
 
 ---
 
@@ -257,7 +299,7 @@ graph LR
 
 ### Last Write Wins Strategy
 
-CollabCanvas uses a **"last write wins"** approach for all canvas operations - both manual edits and AI-generated changes.
+Canvas Icons uses a **"last write wins"** approach for all canvas operations - both manual edits and AI-generated changes.
 
 **How It Works:**
 - No optimistic locking or version numbers
@@ -356,7 +398,7 @@ Final result: { x: 100, y: 200 }
 | **AD-007** | 50ms Cursor Throttle | Smooth + performant | Total latency ~100-150ms (network adds 50-100ms) |
 | **AD-008** | 50ms Object Throttle | Fast sync + performant | Total latency ~100-150ms (network adds 50-100ms) |
 | **AD-009** | Max 3-5 Layers | Performance | Careful organization |
-| **AD-010** | OpenAI Function Calling | Natural language → commands | API costs, latency |
+| **AD-010** | OpenAI + LangGraph | Natural language → commands, conversation memory | API costs, latency |
 | **AD-011** | Vertical Slices from Phase 0 | Clean architecture from start, no refactor debt | Slightly more upfront planning |
 
 ### Alternatives Considered
@@ -406,6 +448,23 @@ Final result: { x: 100, y: 200 }
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025
-**Review:** After each phase completion
+**Version:** 2.0
+**Last Updated:** October 2025
+**Review:** After major feature additions
+
+## Recent Additions (v2.0)
+
+**New Features Implemented:**
+- Image upload and display (Firebase Storage + inline data URLs)
+- Project management and organization
+- Stripe subscription and payments integration
+- Export system with configurable options (PNG, 1x/2x/3x)
+- Hierarchy system (parent-child relationships, groups)
+- Lock system (prevent object editing)
+- Context menu in layers panel
+- AI assistant with conversation memory (LangGraph)
+- Landing page with animations
+- Pricing page with Stripe checkout
+- Z-index management
+- Copy/paste functionality
+- Viewport-aware AI object creation

@@ -33,6 +33,7 @@ export function getBaseName(type: ShapeType): string {
     text: 'Text',
     line: 'Line',
     group: 'Group',
+    image: 'Image',
   };
   return nameMap[type] || 'Object';
 }
