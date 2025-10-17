@@ -7,7 +7,7 @@
  * @see _docs/ux/user-flows.md - Flow 2: Paid User Journey
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { TEMPLATES, type ProjectTemplate } from '@/types/project.types';
 import { validateProjectName } from '@/types/project.types';
@@ -18,6 +18,7 @@ interface CreateProjectModalProps {
   onClose: () => void;
   onCreate: (name: string, template: ProjectTemplate, isPublic: boolean) => void;
   isCreating?: boolean;
+  defaultName?: string;
 }
 
 /**
@@ -39,12 +40,24 @@ export function CreateProjectModal({
   onClose,
   onCreate,
   isCreating = false,
+  defaultName = 'Project 1',
 }: CreateProjectModalProps) {
-  const [projectName, setProjectName] = useState('');
+  const [projectName, setProjectName] = useState(defaultName);
   const [selectedTemplate, setSelectedTemplate] =
     useState<ProjectTemplate>('blank');
   const [isPublic, setIsPublic] = useState(false);
   const [error, setError] = useState<string>('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-select text when modal opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      // Use setTimeout to ensure the input is focused and visible
+      setTimeout(() => {
+        inputRef.current?.select();
+      }, 0);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -65,7 +78,7 @@ export function CreateProjectModal({
 
   const handleClose = () => {
     if (!isCreating) {
-      setProjectName('');
+      setProjectName(defaultName);
       setSelectedTemplate('blank');
       setIsPublic(false);
       setError('');
@@ -108,6 +121,7 @@ export function CreateProjectModal({
               Project Name
             </label>
             <input
+              ref={inputRef}
               id="project-name"
               type="text"
               value={projectName}

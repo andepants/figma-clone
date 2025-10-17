@@ -1,3 +1,11 @@
+/**
+ * Dialog Component
+ *
+ * Modal dialog component with overlay, content, header, footer, title, and description subcomponents.
+ * Supports accessible keyboard navigation and focus management.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"

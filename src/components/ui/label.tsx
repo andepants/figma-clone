@@ -1,3 +1,10 @@
+/**
+ * Label Component
+ *
+ * Accessible form label component with proper ARIA associations and disabled state styling.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
 import { cva, type VariantProps } from "class-variance-authority"

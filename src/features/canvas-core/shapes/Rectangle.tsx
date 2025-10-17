@@ -37,6 +37,8 @@ interface RectangleProps {
   onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Optional drag state from another user (for real-time position updates) */
   remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
+  /** Project/canvas ID for Firebase sync (defaults to 'main' for legacy support) */
+  projectId?: string;
 }
 
 /**
@@ -64,10 +66,14 @@ export const Rectangle = memo(function Rectangle({
   isInMultiSelect = false,
   onSelect,
   remoteDragState,
+  projectId = 'main',
 }: RectangleProps) {
   const { activeTool } = useToolStore();
-  const { updateObject } = useCanvasStore();
+  const { projectId: storeProjectId, updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
+
+  // Use projectId from store if not provided via props
+  const effectiveProjectId = projectId || storeProjectId;
   const setHoveredObject = useUIStore((state) => state.setHoveredObject);
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
 
@@ -75,7 +81,7 @@ export const Rectangle = memo(function Rectangle({
   const isLocked = rectangle.locked === true;
 
   // Resize hook
-  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize(effectiveProjectId);
 
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
@@ -174,7 +180,7 @@ export const Rectangle = memo(function Rectangle({
     const color = getUserColor(currentUser.uid);
 
     const canDrag = await startDragging(
-      'main',
+      effectiveProjectId,
       rectangle.id,
       currentUser.uid,
       { x: rectangle.x, y: rectangle.y },
@@ -212,8 +218,8 @@ export const Rectangle = memo(function Rectangle({
 
     // Emit throttled updates to Realtime DB (50ms)
     // Update BOTH drag state AND object to keep them in perfect sync
-    throttledUpdateDragPosition('main', rectangle.id, position);
-    throttledUpdateCanvasObject('main', rectangle.id, position); // ← CRITICAL: Keep object current!
+    throttledUpdateDragPosition(effectiveProjectId, rectangle.id, position);
+    throttledUpdateCanvasObject(effectiveProjectId, rectangle.id, position); // ← CRITICAL: Keep object current!
 
     // Update cursor position during drag so other users see cursor moving with object
     if (stage && currentUser) {
@@ -222,7 +228,7 @@ export const Rectangle = memo(function Rectangle({
         const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
         const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
         const color = getUserColor(currentUser.uid);
-        throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
+        throttledUpdateCursor(effectiveProjectId, currentUser.uid, canvasCoords, username, color);
       }
     }
   }
@@ -251,11 +257,11 @@ export const Rectangle = memo(function Rectangle({
 
     // CRITICAL: Update object position IMMEDIATELY (no throttle)
     // This ensures RTDB has the correct position before drag state is cleared
-    await updateCanvasObject('main', rectangle.id, position);
+    await updateCanvasObject(effectiveProjectId, rectangle.id, position);
 
     // Clear drag state AFTER object update completes
     // This prevents flash-back: when drag state clears, object is already at correct position
-    await endDragging('main', rectangle.id);
+    await endDragging(effectiveProjectId, rectangle.id);
   }
 
   /**
@@ -353,6 +359,7 @@ export const Rectangle = memo(function Rectangle({
   return (
     <Fragment>
       <Rect
+        id={rectangle.id}
         ref={shapeRef}
         // Position adjusted for center-based offset: x,y in data model represents top-left,
         // but with offset we need to position at center, so add half dimensions

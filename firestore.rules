@@ -52,6 +52,22 @@ service cloud.firestore {
 
       // Users can delete their own profile
       allow delete: if isOwner(userId);
+
+      // Exports subcollection
+      match /exports/{exportId} {
+        // Users can read their own exports
+        allow read: if isOwner(userId);
+
+        // Users can create exports in their own collection
+        allow create: if isOwner(userId) &&
+                         request.resource.data.userId == userId;
+
+        // Users can update their own exports
+        allow update: if isOwner(userId);
+
+        // Users can delete their own exports
+        allow delete: if isOwner(userId);
+      }
     }
 
     // ========================================

@@ -58,26 +58,6 @@ export function isMobile(): boolean {
 }
 
 /**
- * Detects if the current device is a tablet (between mobile and desktop sizes).
- * Considers devices with screens between 768px and 1024px as tablets.
- *
- * @returns True if the screen width is between 768px and 1024px
- *
- * @example
- * if (isTablet()) {
- *   // Adjust UI for tablet-sized screens
- * }
- */
-export function isTablet(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const width = window.innerWidth;
-  return width >= 768 && width < 1024;
-}
-
-/**
  * Detects if the device is running iOS (iPhone, iPad, iPod).
  * Checks user agent string and specific iOS platform indicators.
  *
@@ -101,50 +81,4 @@ export function isIOS(): boolean {
   const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
 
   return isIOSUserAgent || isIPadOS;
-}
-
-/**
- * Detects if the device is running Android.
- * Checks user agent string for Android indicators.
- *
- * @returns True if the device is running Android
- *
- * @example
- * if (isAndroid()) {
- *   // Apply Android-specific optimizations
- * }
- */
-export function isAndroid(): boolean {
-  if (typeof navigator === 'undefined') {
-    return false;
-  }
-
-  return /android/.test(navigator.userAgent.toLowerCase());
-}
-
-/**
- * Gets the current device type as a string.
- * Useful for analytics or conditional rendering.
- *
- * @returns Device type: 'mobile', 'tablet', 'desktop', or 'touch-desktop'
- *
- * @example
- * const deviceType = getDeviceType();
- * // Use device type for conditional logic
- */
-export function getDeviceType(): 'mobile' | 'tablet' | 'desktop' | 'touch-desktop' {
-  if (isMobile()) {
-    return 'mobile';
-  }
-
-  if (isTablet()) {
-    return 'tablet';
-  }
-
-  // Desktop with touch (e.g., Surface, touchscreen laptops)
-  if (isTouchDevice()) {
-    return 'touch-desktop';
-  }
-
-  return 'desktop';
 }

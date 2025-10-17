@@ -1,3 +1,11 @@
+/**
+ * Button Component
+ *
+ * Flexible button component with multiple variants (default, destructive, outline, secondary, ghost, link)
+ * and sizes (default, sm, lg, icon). Supports rendering as a child via Slot pattern.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"

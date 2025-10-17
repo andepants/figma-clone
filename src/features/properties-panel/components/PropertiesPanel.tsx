@@ -22,6 +22,7 @@ import { ZoomDropdown } from './ZoomDropdown';
 import { AvatarStack, PresenceDropdown, type PresenceUser } from '@/features/collaboration/components';
 import { usePresence } from '@/features/collaboration/hooks';
 import { useAuth } from '@/features/auth/hooks';
+import { useCanvasStore } from '@/stores/canvas';
 
 export interface PropertiesPanelProps {
   onExport: () => void;
@@ -49,9 +50,10 @@ export interface PropertiesPanelProps {
 export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPanelProps) {
   const shape = useSelectedShape();
   const visibility = getSectionVisibility(shape);
+  const { projectId } = useCanvasStore();
 
   // Get presence data
-  const onlineUsers = usePresence('main');
+  const onlineUsers = usePresence(projectId);
   const { currentUser } = useAuth();
 
   // Map users to PresenceUser format with current user flag

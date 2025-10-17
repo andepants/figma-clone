@@ -19,7 +19,7 @@ import {
  * Get normalized dimensions for any shape type
  * Returns { width, height } or null if shape doesn't have dimensions
  *
- * - Rectangle/Text: Returns width and height directly (both have fixed dimensions)
+ * - Rectangle/Text/Image: Returns width and height directly (all have fixed dimensions)
  * - Circle: Returns diameter as both width and height
  * - Line: Returns width (line length) only, no height (1D shape)
  */
@@ -28,7 +28,7 @@ export function getNormalizedDimensions(shape: CanvasObject): {
   height?: number;
 } | null {
   if (hasDimensions(shape)) {
-    // Text and Rectangle shapes: both have width and height properties
+    // Rectangle, Text, and Image shapes: all have width and height properties
     return { width: shape.width, height: shape.height };
   }
 

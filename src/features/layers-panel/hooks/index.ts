@@ -1,1 +1,5 @@
-// Barrel exports - add exports as components are created
+/**
+ * Layers Panel Hook Exports
+ *
+ * Barrel exports for layers panel hooks.
+ */

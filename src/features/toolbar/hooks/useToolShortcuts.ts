@@ -74,7 +74,7 @@ function isInputFocused(): boolean {
 export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: () => void) {
   const { setActiveTool } = useToolStore();
   const { toggleAIChatCollapse, toggleLeftSidebar } = useUIStore();
-  const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility } = useCanvasStore();
+  const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, projectId } = useCanvasStore();
 
   useEffect(() => {
     /**
@@ -332,6 +332,7 @@ export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: (
       // Handle Cmd/Ctrl+G for group (without Shift)
       if (!event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'g') {
         event.preventDefault();
+        console.log('[Shortcut] Cmd/Ctrl+G pressed - calling groupObjects()');
         groupObjects();
         return;
       }
@@ -391,7 +392,7 @@ export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: (
 
               // Sync to Realtime Database
               for (const id of unlockedIdsToDelete) {
-                removeCanvasObject('main', id)
+                removeCanvasObject(projectId, id)
                   .catch(() => {
                     // Silently fail - RTDB subscription will restore correct state
                   });
@@ -419,5 +420,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: (
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, onShowShortcuts, onImageUpload]);
+  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, projectId, onShowShortcuts, onImageUpload]);
 }

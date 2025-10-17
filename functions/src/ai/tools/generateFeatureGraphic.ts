@@ -142,7 +142,7 @@ export class GenerateFeatureGraphicTool extends CanvasTool {
       // Step 4: Upload to Firebase Storage (OpenAI URLs expire in 1 hour)
       const uploadResult = await uploadImageFromUrl(
         imageResult.imageUrl,
-        this.context.userId,
+        this.context.canvasId,
         'feature'
       );
 

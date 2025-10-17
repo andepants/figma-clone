@@ -390,8 +390,8 @@ export interface RemoteSelection {
 /**
  * Type guard: Check if shape has dimensional properties (width, height)
  */
-export function hasDimensions(shape: CanvasObject): shape is Rectangle | Text {
-  return shape.type === 'rectangle' || shape.type === 'text';
+export function hasDimensions(shape: CanvasObject): shape is Rectangle | Text | ImageObject {
+  return shape.type === 'rectangle' || shape.type === 'text' || shape.type === 'image';
 }
 
 /**

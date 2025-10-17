@@ -27,7 +27,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 import { useUIStore } from '@/stores/uiStore';
 import { LayerItem } from './LayerItem';
 import { SectionHeader } from './SectionHeader';
@@ -73,6 +73,7 @@ export function LayersPanel() {
   const setObjects = useCanvasStore((state) => state.setObjects);
   const selectedIds = useCanvasStore((state) => state.selectedIds);
   const selectObjects = useCanvasStore((state) => state.selectObjects);
+  const projectId = useCanvasStore((state) => state.projectId);
   const leftSidebarOpen = useUIStore((state) => state.leftSidebarOpen);
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
   const setHoveredObject = useUIStore((state) => state.setHoveredObject);
@@ -250,7 +251,7 @@ export function LayersPanel() {
         }
 
         // Sync z-indexes to Firebase (async, fire-and-forget)
-        syncZIndexes('main', updated).catch(console.error);
+        syncZIndexes(projectId, updated).catch(console.error);
       }
       // Circular reference detected - silently prevented
     } else {
@@ -309,7 +310,7 @@ export function LayersPanel() {
       }
 
       // Sync z-indexes to Firebase (async, fire-and-forget)
-      syncZIndexes('main', reordered).catch(console.error);
+      syncZIndexes(projectId, reordered).catch(console.error);
     }
   };
 

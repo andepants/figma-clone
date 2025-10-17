@@ -146,6 +146,12 @@ export function getSelectionBounds(
       minY = Math.min(minY, obj.y);
       maxX = Math.max(maxX, obj.x + obj.width);
       maxY = Math.max(maxY, obj.y + obj.height);
+    } else if (obj.type === 'image') {
+      // Image: (x, y) is top-left corner
+      minX = Math.min(minX, obj.x);
+      minY = Math.min(minY, obj.y);
+      maxX = Math.max(maxX, obj.x + obj.width);
+      maxY = Math.max(maxY, obj.y + obj.height);
     } else if (obj.type === 'line') {
       // Line: (x, y) is bounding box top-left, endpoints are in points array
       const line = obj as Line;

@@ -1,3 +1,10 @@
+/**
+ * Skeleton Component
+ *
+ * Loading placeholder component with pulse animation for indicating content loading states.
+ * Based on shadcn/ui component library.
+ */
+
 import { cn } from "@/lib/utils/index"
 
 function Skeleton({

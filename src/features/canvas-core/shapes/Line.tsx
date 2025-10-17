@@ -36,6 +36,8 @@ interface LineProps {
   onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Optional drag state from another user (for real-time position updates) */
   remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
+  /** Project/canvas ID for Firebase sync (defaults to 'main' for legacy support) */
+  projectId?: string;
 }
 
 /**
@@ -63,10 +65,14 @@ export const Line = memo(function Line({
   isInMultiSelect = false,
   onSelect,
   remoteDragState,
+  projectId = 'main',
 }: LineProps) {
   const { activeTool } = useToolStore();
-  const { updateObject } = useCanvasStore();
+  const { projectId: storeProjectId, updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
+
+  // Use projectId from store if not provided via props
+  const effectiveProjectId = projectId || storeProjectId;
   const setHoveredObject = useUIStore((state) => state.setHoveredObject);
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
 
@@ -166,7 +172,7 @@ export const Line = memo(function Line({
     const color = getUserColor(currentUser.uid);
 
     const canDrag = await startDragging(
-      'main',
+      effectiveProjectId,
       line.id,
       currentUser.uid,
       { x: line.x, y: line.y },
@@ -204,8 +210,8 @@ export const Line = memo(function Line({
 
     // Emit throttled updates to Realtime DB (50ms)
     // Update BOTH drag state AND object to keep them in perfect sync
-    throttledUpdateDragPosition('main', line.id, position);
-    throttledUpdateCanvasObject('main', line.id, position);
+    throttledUpdateDragPosition(effectiveProjectId, line.id, position);
+    throttledUpdateCanvasObject(effectiveProjectId, line.id, position);
 
     // Update cursor position during drag so other users see cursor moving with object
     if (stage && currentUser) {
@@ -214,7 +220,7 @@ export const Line = memo(function Line({
         const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
         const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
         const color = getUserColor(currentUser.uid);
-        throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
+        throttledUpdateCursor(effectiveProjectId, currentUser.uid, canvasCoords, username, color);
       }
     }
   }
@@ -243,11 +249,11 @@ export const Line = memo(function Line({
 
     // CRITICAL: Update object position IMMEDIATELY (no throttle)
     // This ensures RTDB has the correct position before drag state is cleared
-    await updateCanvasObject('main', line.id, position);
+    await updateCanvasObject(effectiveProjectId, line.id, position);
 
     // Clear drag state AFTER object update completes
     // This prevents flash-back: when drag state clears, object is already at correct position
-    await endDragging('main', line.id);
+    await endDragging(effectiveProjectId, line.id);
   }
 
   /**
@@ -300,7 +306,7 @@ export const Line = memo(function Line({
     updateObject(line.id, newLineProps);
 
     // Update in Firebase
-    await updateCanvasObject('main', line.id, newLineProps);
+    await updateCanvasObject(effectiveProjectId, line.id, newLineProps);
   }
 
   // Determine stroke styling based on state
@@ -357,6 +363,7 @@ export const Line = memo(function Line({
   return (
     <Fragment>
       <KonvaLine
+        id={line.id}
         ref={shapeRef}
         // Position
         x={displayX}

@@ -9,6 +9,7 @@ import { useEffect, useRef } from 'react';
 import type Konva from 'konva';
 import type { Text } from '@/types';
 import { throttledUpdateLiveText, updateEditHeartbeat, endEditing } from '@/lib/firebase';
+import { useCanvasStore } from '@/stores';
 
 /**
  * useTextEditor hook parameters
@@ -60,6 +61,7 @@ export function useTextEditor({
   onSave,
   onCancel,
 }: UseTextEditorParams) {
+  const { projectId } = useCanvasStore();
   // Store textarea reference for cleanup
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   // Store original text for cancel
@@ -214,7 +216,7 @@ export function useTextEditor({
     // Set up heartbeat to keep edit lock alive
     // Update every 5 seconds to prevent timeout (30s timeout in textEditingService)
     heartbeatIntervalRef.current = setInterval(() => {
-      updateEditHeartbeat('main', capturedText.id);
+      updateEditHeartbeat(projectId, capturedText.id);
     }, 5000);
 
     /**
@@ -250,7 +252,7 @@ export function useTextEditor({
       textarea.style.height = `${textarea.scrollHeight + fontSize}px`;
 
       // Update live text in RTDB so other users can see typing (throttled to 100ms)
-      throttledUpdateLiveText('main', capturedText.id, textarea.value);
+      throttledUpdateLiveText(projectId, capturedText.id, textarea.value);
     }
 
     // Track whether outside click handler is active
@@ -295,7 +297,7 @@ export function useTextEditor({
       // This ensures the lock is released even if cleanup runs before
       // the normal save/cancel flow completes (e.g., component unmount, re-render)
       // This prevents "zombie locks" that block future edit attempts
-      endEditing('main', capturedText.id).catch(() => {});
+      endEditing(projectId, capturedText.id).catch(() => {});
 
       clearTimeout(outsideClickTimeout);
       textarea.removeEventListener('keydown', handleKeyDown);

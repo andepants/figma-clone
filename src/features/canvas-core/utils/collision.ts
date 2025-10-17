@@ -215,8 +215,9 @@ export function objectIntersectsRect(
 ): boolean {
   switch (obj.type) {
     case 'rectangle':
-    case 'text': {
-      // Treat text as rectangle for collision purposes
+    case 'text':
+    case 'image': {
+      // Treat text and images as rectangles for collision purposes
       const objRect = {
         x: obj.x,
         y: obj.y,
@@ -241,13 +242,13 @@ export function objectIntersectsRect(
 }
 
 /**
- * Point-in-rectangle test
+ * Point-in-rectangle test (internal helper)
  *
  * @param point - Point coordinates
  * @param rect - Rectangle bounds
  * @returns True if point is inside rectangle
  */
-export function pointInRect(
+function pointInRect(
   point: { x: number; y: number },
   rect: { x: number; y: number; width: number; height: number }
 ): boolean {
@@ -257,22 +258,6 @@ export function pointInRect(
     point.y >= rect.y &&
     point.y <= rect.y + rect.height
   );
-}
-
-/**
- * Point-in-circle test
- *
- * @param point - Point coordinates
- * @param circle - Circle center and radius
- * @returns True if point is inside circle
- */
-export function pointInCircle(
-  point: { x: number; y: number },
-  circle: { x: number; y: number; radius: number }
-): boolean {
-  const dx = point.x - circle.x;
-  const dy = point.y - circle.y;
-  return dx * dx + dy * dy <= circle.radius * circle.radius;
 }
 
 // Note: getSelectionBounds is exported from multiSelect.ts to avoid duplication

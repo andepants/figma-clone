@@ -17,6 +17,7 @@ import { Download, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -171,14 +172,6 @@ export function ExportModal({
       return;
     }
 
-    const isDev = import.meta.env.DEV;
-
-    if (isDev) {
-      console.log('Generating selection preview...', {
-        selectedObjectsCount: selectedObjects.length,
-      });
-    }
-
     try {
       // Generate selection preview at current export scale
       // This ensures preview matches final export quality
@@ -190,9 +183,8 @@ export function ExportModal({
       }
 
       setPreviewUrl(preview);
-      if (isDev) console.log('Preview generated:', preview ? 'success' : 'failed');
     } catch (error) {
-      if (isDev) console.error('Failed to generate preview:', error);
+      console.error('Failed to generate preview:', error);
       setPreviewUrl(null);
     }
   }, [isOpen, hasSelection, selectedObjects, allObjects, stageRef, options.scale, previewUrl]);
@@ -252,6 +244,9 @@ export function ExportModal({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm font-medium">Export Selection</DialogTitle>
+            <DialogDescription>
+              Select objects on the canvas to export them
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center py-12 px-4">
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
@@ -281,6 +276,9 @@ export function ExportModal({
         {/* Header with Tab Navigation */}
         <DialogHeader className="px-6 pt-5 pb-0 border-b border-gray-200">
           <DialogTitle className="text-sm font-medium mb-3">Export Selection</DialogTitle>
+          <DialogDescription className="sr-only">
+            Export your selected objects as PNG images with configurable resolution
+          </DialogDescription>
 
           {/* Tab Navigation */}
           <div className="flex gap-1 -mb-px" role="tablist" aria-label="Export options">

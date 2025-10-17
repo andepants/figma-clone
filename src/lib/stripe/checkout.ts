@@ -41,11 +41,6 @@ export async function redirectToCheckout(
   userEmail: string,
   userId: string
 ): Promise<void> {
-  console.log('=== STRIPE CHECKOUT (Modern API) ===');
-  console.log('💳 Price ID:', priceId);
-  console.log('📧 Email:', userEmail);
-  console.log('👤 User ID:', userId);
-
   try {
     // Initialize Firebase Functions
     const functions = getFunctions(app);
@@ -61,8 +56,6 @@ export async function redirectToCheckout(
       CreateCheckoutSessionResponse
     >(functions, 'createCheckoutSession');
 
-    console.log('⏳ Creating checkout session via Firebase Functions...');
-
     // Call Firebase Function to create checkout session
     const result = await createCheckoutSession({
       priceId,
@@ -72,9 +65,6 @@ export async function redirectToCheckout(
     });
 
     const { sessionId, url } = result.data;
-
-    console.log('✅ Checkout session created:', sessionId);
-    console.log('🚀 Redirecting to Stripe Checkout:', url);
 
     // Redirect to Stripe Checkout (direct navigation)
     window.location.href = url;

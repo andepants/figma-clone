@@ -145,6 +145,4 @@ export async function initializeFoundersDealConfig(): Promise<void> {
 
   const configRef = doc(firestore, 'config', 'founders-deal');
   await setDoc(configRef, config);
-
-  console.log('✅ Founders deal config initialized:', config);
 }

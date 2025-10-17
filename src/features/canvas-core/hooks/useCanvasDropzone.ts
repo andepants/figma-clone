@@ -148,24 +148,56 @@ export function useCanvasDropzone({
       }
 
       // Upload image
+      console.log('[useCanvasDropzone] Starting image upload:', {
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        position,
+      });
+
       const uploadedData = await uploadImage(file, position);
       if (!uploadedData) {
+        console.error('[useCanvasDropzone] Upload failed - no data returned');
         return;
       }
+
+      console.log('[useCanvasDropzone] Image uploaded successfully:', {
+        fileName: uploadedData.fileName,
+        width: uploadedData.width,
+        height: uploadedData.height,
+        naturalWidth: uploadedData.naturalWidth,
+        naturalHeight: uploadedData.naturalHeight,
+        storageType: uploadedData.storageType,
+        mimeType: uploadedData.mimeType,
+        srcPreview: uploadedData.src.substring(0, 100) + '...',
+      });
 
       // Create canvas object
       const imageObject = createImageObject(uploadedData, position, currentUser.uid, objects);
 
+      console.log('[useCanvasDropzone] Created image object:', {
+        id: imageObject.id,
+        type: imageObject.type,
+        x: imageObject.x,
+        y: imageObject.y,
+        width: imageObject.width,
+        height: imageObject.height,
+        fileName: imageObject.fileName,
+      });
+
       // Add to canvas store (optimistic update)
       addObject(imageObject);
+
+      console.log('[useCanvasDropzone] Added to canvas store, syncing to Firebase...');
 
       // Sync to Realtime Database (same pattern as rectangles/circles)
       // This ensures the image persists and can be moved/edited
       const { addCanvasObject } = await import('@/lib/firebase');
       try {
         await addCanvasObject(projectId, imageObject);
+        console.log('[useCanvasDropzone] Successfully synced to Firebase RTDB');
       } catch (error) {
-        console.error('Failed to sync image to Firebase:', error);
+        console.error('[useCanvasDropzone] Failed to sync image to Firebase:', error);
         // Rollback optimistic update on error
         const { removeObject } = useCanvasStore.getState();
         removeObject(imageObject.id);

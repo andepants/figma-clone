@@ -2,6 +2,19 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    // AI-generated images (public read access)
+    // These are created by Cloud Functions and should be publicly accessible
+    match /ai-generated/{projectId}/{type}/{fileName} {
+      // Allow public read for AI-generated images
+      allow read: if true;
+
+      // Only Cloud Functions can write (checked via admin SDK, not rules)
+      allow write: if false;
+
+      // Only Cloud Functions can delete
+      allow delete: if false;
+    }
+
     // Image uploads with strict validation
     match /images/{roomId}/{userId}/{fileName} {
       // Allow read for authenticated users
@@ -17,12 +30,26 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Legacy: Generic authenticated access (keep for backward compatibility)
-    // This can be removed once all files use the /images path structure
-    match /{allPaths=**} {
+    // Export files (PNG exports from canvas)
+    match /exports/{userId}/{fileName} {
+      // Allow read for authenticated users (could restrict to owner only if needed)
       allow read: if request.auth != null;
+
+      // Allow write only for the owning user with validation
       allow write: if request.auth != null
-                   && request.resource.size < 10 * 1024 * 1024;
+                   && request.auth.uid == userId
+                   && request.resource.size <= 20 * 1024 * 1024  // 20MB limit (larger for exports)
+                   && request.resource.contentType == 'image/png';  // PNG only
+
+      // Allow delete only for the owning user
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Deny all other paths by default (not matched by specific rules above)
+    // If you need to add more paths, create specific rules instead of using a catch-all
+    match /{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
     }
   }
 }

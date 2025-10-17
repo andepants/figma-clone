@@ -6,8 +6,8 @@
  */
 
 import * as logger from "firebase-functions/logger";
-import {getStripeInstance} from "./stripe-webhook.js";
-import {handleCheckoutCompleted} from "./stripe-webhook.js";
+import {getStripeInstance} from "./webhook-handlers/stripeHelpers.js";
+import {handleCheckoutCompleted} from "./webhook-handlers/checkoutCompleted.js";
 
 /**
  * Verify checkout session parameters

@@ -39,7 +39,7 @@ import { LayerIcon } from './LayerIcon';
 import { HierarchyArrow } from './HierarchyArrow';
 import { generateLayerName } from '@/features/layers-panel/utils';
 import { hasChildren, getAllDescendantIds, hasLockedParent } from '@/features/layers-panel/utils/hierarchy';
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 import { ContextMenu } from '@/components/common/ContextMenu';
 import { getContextMenuItems } from '@/features/layers-panel/utils/contextMenu';
 import { updateCanvasObject } from '@/lib/firebase';
@@ -160,6 +160,7 @@ export const LayerItem = memo(function LayerItem({
   const toggleLock = useCanvasStore((state) => state.toggleLock);
   const objects = useCanvasStore((state) => state.objects);
   const selectedIds = useCanvasStore((state) => state.selectedIds);
+  const projectId = useCanvasStore((state) => state.projectId);
 
   // Hierarchy support
   const hasChildObjects = hasChildren(object.id, objects);
@@ -238,7 +239,7 @@ export const LayerItem = memo(function LayerItem({
     updateObject(object.id, { name: finalName });
 
     // Sync to Firebase RTDB (async)
-    updateCanvasObject('main', object.id, { name: finalName }).catch(() => {
+    updateCanvasObject(projectId, object.id, { name: finalName }).catch(() => {
       // Silently fail - Firebase subscription will restore correct state if needed
     });
 

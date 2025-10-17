@@ -1,3 +1,11 @@
+/**
+ * Slider Component
+ *
+ * Range slider component with draggable thumb for selecting numeric values.
+ * Supports keyboard navigation and touch interactions.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 import * as SliderPrimitive from "@radix-ui/react-slider"
 

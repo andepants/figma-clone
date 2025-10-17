@@ -38,6 +38,8 @@ interface CircleProps {
   onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Optional drag state from another user (for real-time position updates) */
   remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
+  /** Project/canvas ID for Firebase sync (defaults to 'main' for legacy support) */
+  projectId?: string;
 }
 
 /**
@@ -67,10 +69,14 @@ export const Circle = memo(function Circle({
   isInMultiSelect = false,
   onSelect,
   remoteDragState,
+  projectId = 'main',
 }: CircleProps) {
   const { activeTool } = useToolStore();
-  const { updateObject } = useCanvasStore();
+  const { projectId: storeProjectId, updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
+
+  // Use projectId from store if not provided via props
+  const effectiveProjectId = projectId || storeProjectId;
   const setHoveredObject = useUIStore((state) => state.setHoveredObject);
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
 
@@ -78,7 +84,7 @@ export const Circle = memo(function Circle({
   const isLocked = circle.locked === true;
 
   // Resize hook
-  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize(effectiveProjectId);
 
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
@@ -173,7 +179,7 @@ export const Circle = memo(function Circle({
     const color = getUserColor(currentUser.uid);
 
     const canDrag = await startDragging(
-      'main',
+      effectiveProjectId,
       circle.id,
       currentUser.uid,
       { x: circle.x, y: circle.y },
@@ -207,8 +213,8 @@ export const Circle = memo(function Circle({
 
     // Emit throttled updates to Realtime DB (50ms)
     // Update BOTH drag state AND object to keep them in perfect sync
-    throttledUpdateDragPosition('main', circle.id, position);
-    throttledUpdateCanvasObject('main', circle.id, position); // ← CRITICAL: Keep object current!
+    throttledUpdateDragPosition(effectiveProjectId, circle.id, position);
+    throttledUpdateCanvasObject(effectiveProjectId, circle.id, position); // ← CRITICAL: Keep object current!
 
     // Update cursor position during drag so other users see cursor moving with object
     if (stage && currentUser) {
@@ -217,7 +223,7 @@ export const Circle = memo(function Circle({
         const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
         const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
         const color = getUserColor(currentUser.uid);
-        throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
+        throttledUpdateCursor(effectiveProjectId, currentUser.uid, canvasCoords, username, color);
       }
     }
   }
@@ -242,11 +248,11 @@ export const Circle = memo(function Circle({
 
     // CRITICAL: Update object position IMMEDIATELY (no throttle)
     // This ensures RTDB has the correct position before drag state is cleared
-    await updateCanvasObject('main', circle.id, position);
+    await updateCanvasObject(effectiveProjectId, circle.id, position);
 
     // Clear drag state AFTER object update completes
     // This prevents flash-back: when drag state clears, object is already at correct position
-    await endDragging('main', circle.id);
+    await endDragging(effectiveProjectId, circle.id);
   }
 
   /**
@@ -339,6 +345,7 @@ export const Circle = memo(function Circle({
   return (
     <Fragment>
       <KonvaCircle
+        id={circle.id}
         ref={shapeRef}
         x={displayX}
         y={displayY}

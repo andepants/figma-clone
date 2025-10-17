@@ -16,6 +16,7 @@ import { useMemo } from 'react'
 import { usePresence } from '../hooks'
 import { useAuth } from '@/features/auth/hooks'
 import { getUserDisplayName } from '@/lib/utils'
+import { useCanvasStore } from '@/stores'
 
 /**
  * Represents an active user with their display information
@@ -43,7 +44,8 @@ interface ActiveUser {
  * ```
  */
 export function ActiveUsers() {
-  const onlineUsers = usePresence('main')
+  const { projectId } = useCanvasStore()
+  const onlineUsers = usePresence(projectId)
   const { currentUser } = useAuth()
 
   /**

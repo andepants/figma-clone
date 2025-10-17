@@ -85,20 +85,31 @@ export {
   type PresenceWithUser,
 } from './presenceService'
 
-// Export Drag State Service
+// Export Drag State Service (single object dragging)
 export {
   startDragging,
   updateDragPosition,
   throttledUpdateDragPosition,
   endDragging,
-  checkDragLock,
   subscribeToDragStates,
-  cleanupStaleDragStates,
+} from './dragStateService'
+
+// Export Group Drag Service (multi-object dragging)
+export {
   startGroupDragging,
   updateGroupDragPositions,
   throttledUpdateGroupDragPositions,
   endGroupDragging,
-} from './dragStateService'
+} from './groupDragService'
+
+// Export Drag State Helpers (shared utilities)
+export {
+  checkDragLock,
+  cleanupStaleDragStates,
+  isDragStateStale,
+  isLockedByOtherUser,
+  STALE_STATE_THRESHOLD,
+} from './dragStateHelpers'
 
 // Export Selection Service
 export {

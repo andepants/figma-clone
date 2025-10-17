@@ -7,7 +7,7 @@
  * @see _docs/ux/user-flows.md - Flow 3: Projects Dashboard
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -20,17 +20,15 @@ import { ProjectsEmptyState } from '@/features/projects/components/ProjectsEmpty
 import { PublicProjectsSection } from '@/features/projects/components/PublicProjectsSection';
 import { PricingPageContent } from '@/features/pricing/components';
 import {
-  getUserProjects,
-  getPublicProjectsForUser,
   createProject,
   updateProject,
   deleteProject as deleteProjectFirestore,
   generateProjectId,
-  getFoundersDealConfig,
 } from '@/lib/firebase';
 import { redirectToCheckout } from '@/lib/stripe/checkout';
 import type { Project, ProjectTemplate } from '@/types/project.types';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useProjectsData, usePaymentStatus } from './projects/hooks';
 
 /**
  * Projects dashboard page.
@@ -39,11 +37,25 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 export default function ProjectsPage() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { canCreateProjects, badge, subscription, isPaid: isPaidUser, userProfile } = useSubscription();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [publicProjects, setPublicProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Data fetching hook
+  const {
+    projects,
+    publicProjects,
+    paidUserCount,
+    isLoading,
+    setProjects,
+  } = useProjectsData(currentUser?.uid || null, canCreateProjects);
+
+  // Payment status hook
+  const { paymentStatus, webhookTimeout, clearPaymentStatus } = usePaymentStatus(
+    isPaidUser,
+    subscription?.status || 'free',
+    canCreateProjects
+  );
+
+  // Local UI state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -51,126 +63,6 @@ export default function ProjectsPage() {
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [paidUserCount, setPaidUserCount] = useState<number>(0);
-  const [webhookTimeout, setWebhookTimeout] = useState(false);
-
-  // Payment status from URL query params
-  const paymentStatus = searchParams.get('payment');
-  const sessionId = searchParams.get('session_id');
-
-  // Fetch founders deal config on mount
-  useEffect(() => {
-    async function fetchFoundersDealConfig() {
-      try {
-        const config = await getFoundersDealConfig();
-        // Calculate paid users (total spots - remaining spots)
-        const paidUsers = config.spotsTotal - config.spotsRemaining;
-        setPaidUserCount(paidUsers);
-      } catch (error) {
-        console.error('Failed to fetch founders deal config:', error);
-        // Default to 0 (show founders pricing on error)
-        setPaidUserCount(0);
-      }
-    }
-
-    fetchFoundersDealConfig();
-  }, []);
-
-  // Fetch user's projects on mount
-  useEffect(() => {
-    async function fetchProjects() {
-      if (!currentUser) return;
-
-      try {
-        setIsLoading(true);
-
-        if (canCreateProjects) {
-          // Paid user: fetch owned projects
-          const userProjects = await getUserProjects(currentUser.uid);
-          setProjects(userProjects);
-          setPublicProjects([]); // Clear public projects
-        } else {
-          // Free user: fetch public projects they're in
-          const collabProjects = await getPublicProjectsForUser(currentUser.uid);
-          setPublicProjects(collabProjects);
-          setProjects([]); // No owned projects
-        }
-      } catch (error) {
-        console.error('Failed to fetch projects:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchProjects();
-  }, [currentUser, canCreateProjects]);
-
-  // Auto-dismiss payment success banner when subscription updates
-  useEffect(() => {
-    if (paymentStatus === 'success' && isPaidUser && subscription?.status !== 'free') {
-      // Clear URL params after subscription is confirmed active
-      const timer = setTimeout(() => {
-        setSearchParams({});
-      }, 3000); // Show success message for 3 seconds
-
-      return () => clearTimeout(timer);
-    }
-  }, [paymentStatus, isPaidUser, subscription, setSearchParams]);
-
-  // Webhook fallback: Manually verify session if webhook doesn't fire within 5 seconds
-  useEffect(() => {
-    if (paymentStatus === 'success' && !canCreateProjects && sessionId) {
-      const timer = setTimeout(async () => {
-        console.log('⚠️ Webhook did not fire within 5 seconds, manually verifying session...');
-        console.log('Session ID:', sessionId);
-
-        try {
-          // Dynamically import Firebase Functions
-          const { getFunctions, httpsCallable } = await import('firebase/functions');
-          const { app } = await import('@/lib/firebase');
-
-          const functions = getFunctions(app);
-          const verifyCheckoutSession = httpsCallable<
-            { sessionId: string },
-            { success: boolean; status: string; subscriptionUpdated: boolean; message: string }
-          >(functions, 'verifyCheckoutSession');
-
-          console.log('🔄 Calling verifyCheckoutSession function...');
-          const result = await verifyCheckoutSession({ sessionId });
-
-          console.log('✅ Verification result:', result.data);
-
-          if (result.data.success && result.data.subscriptionUpdated) {
-            console.log('✅ Subscription updated successfully via fallback');
-            // Subscription will update via Firestore listener
-          } else {
-            console.log('ℹ️ Subscription verification:', result.data.message);
-          }
-        } catch (error) {
-          console.error('❌ Failed to verify checkout session:', error);
-          // Continue waiting for webhook or show timeout error
-        }
-      }, 5000); // 5 second delay before manual verification
-
-      return () => clearTimeout(timer);
-    }
-  }, [paymentStatus, canCreateProjects, sessionId]);
-
-  // Webhook timeout handler: Show error if subscription not updated within 30 seconds
-  useEffect(() => {
-    if (paymentStatus === 'success' && !canCreateProjects && !webhookTimeout) {
-      const timer = setTimeout(() => {
-        setWebhookTimeout(true);
-      }, 30000); // 30 second timeout
-
-      return () => clearTimeout(timer);
-    }
-
-    // Reset timeout flag when subscription updates successfully
-    if (canCreateProjects && webhookTimeout) {
-      setWebhookTimeout(false);
-    }
-  }, [paymentStatus, canCreateProjects, webhookTimeout]);
 
   const handleCreateProject = async (
     name: string,
@@ -259,12 +151,6 @@ export default function ProjectsPage() {
   };
 
   const handleUpgrade = async () => {
-    console.log('=== UPGRADE TO CONTINUE CLICKED ===');
-    console.log('Environment:', import.meta.env.MODE);
-    console.log('Current user:', currentUser?.email, currentUser?.uid);
-    console.log('User profile:', userProfile);
-    console.log('Paid user count:', paidUserCount);
-
     if (!currentUser || !userProfile) {
       console.error('❌ No current user or user profile');
       return;
@@ -279,17 +165,8 @@ export default function ProjectsPage() {
         ? import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID // $10/year (founders - first 10 users)
         : import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID60; // $60/year (after 10 users)
 
-      console.log('🎯 Pricing tier:', isFoundersOffer ? 'Founders ($10/year)' : 'Pro ($60/year)');
-      console.log('📋 Selected price ID:', priceId);
-      console.log('🔑 Stripe publishable key exists:', !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-      console.log('🔑 Stripe publishable key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.substring(0, 20) + '...');
-
       if (!priceId) {
         console.error('❌ Price ID not found in environment variables!');
-        console.log('Available env vars:', {
-          VITE_STRIPE_FOUNDERS_PRICE_ID: import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID,
-          VITE_STRIPE_FOUNDERS_PRICE_ID60: import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID60,
-        });
         alert(`Stripe is not configured. Please add ${isFoundersOffer ? 'VITE_STRIPE_FOUNDERS_PRICE_ID' : 'VITE_STRIPE_FOUNDERS_PRICE_ID60'} to your .env file.`);
         return;
       }
@@ -300,20 +177,36 @@ export default function ProjectsPage() {
         return;
       }
 
-      console.log('✅ Redirecting to Stripe checkout...');
       await redirectToCheckout(
         priceId,
         currentUser.email!,
         currentUser.uid
       );
-      console.log('✅ Stripe checkout redirect completed');
     } catch (error) {
       console.error('❌ Upgrade failed:', error);
       alert('Failed to start upgrade. Please try again.');
     } finally {
       setIsUpgrading(false);
-      console.log('=== UPGRADE FLOW FINISHED ===');
     }
+  };
+
+  /**
+   * Generate default project name based on existing projects.
+   * Finds the highest "Project N" number and returns "Project N+1".
+   */
+  const getDefaultProjectName = (): string => {
+    // Find all project names that match "Project N" pattern
+    const projectNumbers = projects
+      .map((p) => {
+        const match = p.name.match(/^Project (\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter((n) => n > 0);
+
+    // Get the highest number, or default to 0
+    const maxNumber = projectNumbers.length > 0 ? Math.max(...projectNumbers) : 0;
+
+    return `Project ${maxNumber + 1}`;
   };
 
   return (
@@ -346,16 +239,8 @@ export default function ProjectsPage() {
               )}
             </div>
 
-            {/* Right side: Profile + Playground + New Project Button */}
+            {/* Right side: Playground + New Project Button + Profile */}
             <div className="flex items-center gap-3 sm:gap-4">
-              {/* Profile Dropdown */}
-              {currentUser && (
-                <ProfileDropdown
-                  username={userProfile?.username || currentUser.email || 'User'}
-                  onLogout={logout}
-                />
-              )}
-
               {/* Public Playground button */}
               <button
                 onClick={() => navigate('/canvas')}
@@ -375,6 +260,14 @@ export default function ProjectsPage() {
                   <span className="hidden sm:inline">New Project</span>
                   <span className="sm:hidden">New</span>
                 </button>
+              )}
+
+              {/* Profile Dropdown */}
+              {currentUser && (
+                <ProfileDropdown
+                  username={userProfile?.username || currentUser.email || 'User'}
+                  onLogout={logout}
+                />
               )}
             </div>
           </div>
@@ -396,7 +289,7 @@ export default function ProjectsPage() {
                 </p>
               </div>
               <button
-                onClick={() => setSearchParams({})}
+                onClick={clearPaymentStatus}
                 className="text-green-600 hover:text-green-800"
                 aria-label="Dismiss"
               >
@@ -427,7 +320,7 @@ export default function ProjectsPage() {
                 </p>
               </div>
               <button
-                onClick={() => setSearchParams({})}
+                onClick={clearPaymentStatus}
                 className="text-yellow-600 hover:text-yellow-800"
                 aria-label="Dismiss"
               >
@@ -538,6 +431,7 @@ export default function ProjectsPage() {
         onClose={() => setShowCreateModal(false)}
         onCreate={handleCreateProject}
         isCreating={isCreating}
+        defaultName={getDefaultProjectName()}
       />
 
       <ConfirmDeleteModal

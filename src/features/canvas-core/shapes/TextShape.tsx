@@ -6,28 +6,16 @@
  * Note: Text positioning uses (x, y) as TOP-LEFT point (same as Rectangle).
  */
 
-import { useState, useEffect, useRef, memo, Fragment, useCallback } from 'react';
-import { Text as KonvaText, Label, Tag, Text as KonvaTextLabel } from 'react-konva';
+import { useEffect, memo, Fragment } from 'react';
+import { Text as KonvaText } from 'react-konva';
 import type Konva from 'konva';
 import type { Text as TextType } from '@/types';
+import type { EditState } from '@/lib/firebase';
 import { useToolStore, useCanvasStore, useUIStore } from '@/stores';
-import {
-  updateCanvasObject,
-  throttledUpdateCanvasObject,
-  startDragging,
-  throttledUpdateDragPosition,
-  throttledUpdateCursor,
-  endDragging,
-  startEditing,
-  endEditing,
-  checkEditLock,
-  type EditState,
-} from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
-import { getUserColor } from '@/features/collaboration/utils';
-import { screenToCanvasCoords, getFontStyle, applyTextTransform, getTextShadowProps } from '../utils';
-import { ResizeHandles, TextSelectionBox, DimensionLabel } from '../components';
+import { getFontStyle, getTextShadowProps } from '../utils';
 import { useResize, useTextEditor } from '../hooks';
+import { useTextShapeState, useTextShapeHandlers, TextShapeOverlays } from './text';
 
 /**
  * TextShape component props
@@ -76,25 +64,13 @@ export const TextShape = memo(function TextShape({
   editState,
   isInMultiSelect = false,
 }: TextShapeProps) {
-  const { activeTool, setActiveTool } = useToolStore();
-  const { updateObject, removeObject, editingTextId, setEditingText } = useCanvasStore();
+  const { activeTool } = useToolStore();
+  const { editingTextId } = useCanvasStore();
   const { currentUser } = useAuth();
-  const setHoveredObject = useUIStore((state) => state.setHoveredObject);
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
 
   // Check if object is locked
   const isLocked = text.locked === true;
-
-  // Resize hook
-  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
-
-  // Hover state for preview interaction
-  const [isHovered, setIsHovered] = useState(false);
-
-  // Refs for animation and editing
-  const shapeRef = useRef<Konva.Text>(null);
-  const animationRef = useRef<Konva.Tween | null>(null);
-  const stageRef = useRef<Konva.Stage | null>(null);
 
   // Check if this text is being edited
   const isEditing = editingTextId === text.id;
@@ -114,63 +90,46 @@ export const TextShape = memo(function TextShape({
   const textWidth = text.width || 100;
   const textHeight = text.height || 40;
 
-  /**
-   * Handle text save from editor
-   * Updates text content and ends editing mode
-   * If text is empty or unchanged from placeholder, deletes the text object
-   * Switches tool back to move after editing completes
-   */
-  const handleTextSave = useCallback(async (newText: string) => {
-    // Trim whitespace (removes spaces, tabs, newlines from beginning and end)
-    const trimmedText = newText.trim();
+  // State management hook
+  const {
+    isHovered,
+    isRemoteEditing,
+    shapeRef,
+    stageRef,
+    getDisplayText,
+  } = useTextShapeState({
+    text,
+    isSelected,
+    isEditing,
+    editState,
+    currentUserId: currentUser?.uid,
+  });
 
-    // Check if text is empty or still the placeholder
-    const isEmpty = trimmedText === '';
-    const isPlaceholder = trimmedText === 'Start typing...';
+  // Event handlers hook
+  const {
+    handleTextSave,
+    handleTextCancel,
+    handleClick,
+    handleDoubleClick,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd,
+    handleMouseEnter,
+    handleMouseLeave,
+  } = useTextShapeHandlers({
+    text,
+    isSelected,
+    isEditing,
+    editState,
+    isRemoteEditing,
+    isLocked,
+    textWidth,
+    textHeight,
+    onSelect,
+  });
 
-    if (isEmpty || isPlaceholder) {
-      // Delete the text object
-      removeObject(text.id);
-
-      // Sync deletion to Firebase
-      const { removeCanvasObject } = await import('@/lib/firebase');
-      await removeCanvasObject('main', text.id);
-    } else {
-      // Update text content (trimmed, so no leading/trailing whitespace)
-      updateObject(text.id, { text: trimmedText });
-      await updateCanvasObject('main', text.id, { text: trimmedText });
-    }
-
-    // End editing
-    setEditingText(null);
-    await endEditing('main', text.id);
-
-    // Switch back to move tool after editing completes (Figma-style behavior)
-    setActiveTool('move');
-  }, [removeObject, text.id, updateObject, setEditingText, setActiveTool]);
-
-  /**
-   * Handle text edit cancel
-   * Closes editor without saving changes
-   * Switches tool back to move after editing completes
-   */
-  const handleTextCancel = useCallback(async () => {
-    // End editing without saving
-    setEditingText(null);
-    await endEditing('main', text.id);
-
-    // Switch back to move tool after editing completes (Figma-style behavior)
-    setActiveTool('move');
-  }, [text.id, setEditingText, setActiveTool]);
-
-  /**
-   * Update stage ref when component mounts or text node changes
-   */
-  useEffect(() => {
-    if (shapeRef.current) {
-      stageRef.current = shapeRef.current.getStage();
-    }
-  }, []);
+  // Resize hook
+  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
 
   /**
    * Text editor hook - manages textarea overlay
@@ -205,274 +164,12 @@ export const TextShape = memo(function TextShape({
     }
   }, [activeTool, isEditing, handleTextSave, handleTextCancel]);
 
-  /**
-   * Animate selection changes
-   * Smoothly transitions with a subtle scale pulse when selection state changes
-   * Skip animation when text is being edited (text is invisible during edit)
-   */
-  useEffect(() => {
-    const node = shapeRef.current;
-    if (!node) return;
-
-    // Cancel any previous animation to prevent buildup
-    if (animationRef.current) {
-      animationRef.current.destroy();
-      animationRef.current = null;
-    }
-
-    // Don't animate during editing (text is hidden anyway)
-    if (isEditing) return;
-
-    // Animate selection change
-    if (isSelected) {
-      // Animate to selected state (subtle scale pulse for Figma-style feedback)
-      node.to({
-        scaleX: 1.02,
-        scaleY: 1.02,
-        duration: 0.1,
-        onFinish: () => {
-          // Return to normal scale
-          node.to({
-            scaleX: 1,
-            scaleY: 1,
-            duration: 0.1,
-          });
-        },
-      });
-    }
-  }, [isSelected, isEditing]);
-
-  /**
-   * Handle click on text
-   * Only triggers selection when move tool is active
-   * Ignores clicks on locked objects
-   * Supports shift-click for multi-select
-   */
-  function handleClick(e: Konva.KonvaEventObject<MouseEvent>) {
-    // Ignore clicks on locked objects
-    if (isLocked) {
-      return;
-    }
-
-    if (activeTool === 'move') {
-      onSelect(e);
-    }
-  }
-
-  /**
-   * Handle double-click on text
-   * Enters edit mode if move tool is active and text is not locked
-   */
-  async function handleDoubleClick() {
-    // Can't edit locked objects
-    if (isLocked) {
-      return;
-    }
-
-    // Only allow editing in move tool mode
-    if (activeTool !== 'move') {
-      return;
-    }
-
-    if (!currentUser) {
-      return;
-    }
-
-    // Can't edit if already editing (prevents redundant lock acquisition)
-    if (isEditing) {
-      return;
-    }
-
-    // Can't edit if another user is already editing
-    if (isRemoteEditing) {
-      // TODO: Show toast notification
-      return;
-    }
-
-    // Check if text is locked by another user
-    const lockState = await checkEditLock('main', text.id, currentUser.uid);
-    if (lockState) {
-      // TODO: Show toast notification
-      return;
-    }
-
-    // Attempt to acquire editing lock
-    const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
-    const color = getUserColor(currentUser.uid);
-
-    const canEdit = await startEditing('main', text.id, currentUser.uid, username, color);
-
-    if (!canEdit) {
-      // TODO: Show toast notification
-      return;
-    }
-
-    // Select the text first (create fake event without shift key to ensure single selection for editing)
-    const fakeEvent = {
-      evt: { shiftKey: false },
-    } as Konva.KonvaEventObject<MouseEvent>;
-    onSelect(fakeEvent);
-
-    // Enter edit mode
-    setEditingText(text.id);
-  }
-
-  /**
-   * Handle drag start
-   * Checks for drag lock and prevents stage from dragging when dragging a shape
-   * Note: In multi-select mode, individual shapes are non-draggable; group drag is handled by invisible drag target
-   */
-  async function handleDragStart(e: Konva.KonvaEventObject<DragEvent>) {
-    // Prevent event from bubbling to stage (prevents stage drag)
-    e.cancelBubble = true;
-
-    if (!currentUser) return;
-
-    // Select object when drag starts (if not already selected)
-    // This ensures the dragged object becomes the selected object
-    if (!isSelected) {
-      // Create fake event without shift key to ensure single selection
-      const fakeEvent = {
-        evt: { shiftKey: false },
-      } as Konva.KonvaEventObject<MouseEvent>;
-      onSelect(fakeEvent);
-    }
-
-    // Attempt to acquire drag lock
-    const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
-    const color = getUserColor(currentUser.uid);
-
-    const canDrag = await startDragging(
-      'main',
-      text.id,
-      currentUser.uid,
-      { x: text.x, y: text.y },
-      username,
-      color
-    );
-
-    if (!canDrag) {
-      // Another user is dragging this object
-      // Cancel the drag
-      e.target.stopDrag();
-      return;
-    }
-  }
-
-  /**
-   * Handle drag move
-   * Emits throttled position updates to Realtime DB for real-time sync
-   * Also updates cursor position so other users see cursor moving with object
-   *
-   * CRITICAL: Updates BOTH drag state AND object position to keep them in sync
-   * This prevents flash-back bugs when drag ends.
-   */
-  function handleDragMove(e: Konva.KonvaEventObject<DragEvent>) {
-    const node = e.target;
-    const stage = node.getStage();
-    // With offset, node.x() returns CENTER position, subtract offset to get top-left
-    const position = {
-      x: node.x() - textWidth / 2,
-      y: node.y() - textHeight / 2
-    };
-
-    // Update local store immediately (optimistic update)
-    updateObject(text.id, position);
-
-    // Emit throttled updates to Realtime DB (50ms)
-    // Update BOTH drag state AND object to keep them in perfect sync
-    throttledUpdateDragPosition('main', text.id, position);
-    throttledUpdateCanvasObject('main', text.id, position); // ← CRITICAL: Keep object current!
-
-    // Update cursor position during drag so other users see cursor moving with object
-    if (stage && currentUser) {
-      const pointerPosition = stage.getPointerPosition();
-      if (pointerPosition) {
-        const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
-        const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
-        const color = getUserColor(currentUser.uid);
-        throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
-      }
-    }
-  }
-
-  /**
-   * Handle drag end
-   * Updates text position in store and syncs to Realtime Database
-   *
-   * CRITICAL FIX: Updates object IMMEDIATELY (no throttle) BEFORE clearing drag state
-   * This eliminates the flash-back bug by ensuring object position is current
-   * when remote users fall back from drag state to object position.
-   */
-  async function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {
-    // Prevent event from bubbling to stage (prevents stage drag)
-    e.cancelBubble = true;
-
-    const node = e.target;
-    // With offset, node.x() returns CENTER position, subtract offset to get top-left
-    const position = {
-      x: node.x() - textWidth / 2,
-      y: node.y() - textHeight / 2
-    };
-
-    // Update local store (optimistic update)
-    updateObject(text.id, position);
-
-    // CRITICAL: Update object position IMMEDIATELY (no throttle)
-    // This ensures RTDB has the correct position before drag state is cleared
-    await updateCanvasObject('main', text.id, position);
-
-    // Clear drag state AFTER object update completes
-    // This prevents flash-back: when drag state clears, object is already at correct position
-    await endDragging('main', text.id);
-  }
-
-  /**
-   * Handle mouse enter
-   * Changes cursor and sets hover state
-   * Syncs hover state to UI store for bidirectional sidebar sync
-   */
-  function handleMouseEnter(e: Konva.KonvaEventObject<MouseEvent>) {
-    const stage = e.target.getStage();
-    if (!stage) return;
-
-    // Set hover state for visual feedback
-    if (activeTool === 'move') {
-      setIsHovered(true);
-      stage.container().style.cursor = 'move';
-      // Sync to UI store for sidebar hover highlighting
-      setHoveredObject(text.id);
-    }
-  }
-
-  /**
-   * Handle mouse leave
-   * Resets cursor and hover state
-   * Clears UI store hover state if this object is still hovered (prevents race conditions)
-   */
-  function handleMouseLeave(e: Konva.KonvaEventObject<MouseEvent>) {
-    const stage = e.target.getStage();
-    if (!stage) return;
-
-    // Clear hover state
-    setIsHovered(false);
-
-    // Reset cursor based on active tool
-    stage.container().style.cursor = activeTool === 'move' ? 'pointer' : 'crosshair';
-
-    // Clear UI store hover only if this object is still the hovered one
-    // This prevents race conditions when quickly moving between objects
-    const current = useUIStore.getState().hoveredObjectId;
-    if (current === text.id) {
-      setHoveredObject(null);
-    }
-  }
 
   // Determine stroke styling based on state
   // NOTE: Selection and hover are now handled by TextSelectionBox, not stroke
   const getStroke = () => {
     // Remote editing: Show editor's color with dashed stroke (highest priority)
-    if (isRemoteEditing) return editState.color;
+    if (isRemoteEditing && editState) return editState.color;
     if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
     // Hover is now handled by TextSelectionBox underline
     return undefined; // Default: no stroke (selection/hover handled by TextSelectionBox)
@@ -482,26 +179,6 @@ export const TextShape = memo(function TextShape({
     if (isRemoteDragging) return 2; // Remote drag: medium border
     // Hover is now handled by TextSelectionBox underline
     return undefined; // Default: no border (selection/hover handled by TextSelectionBox)
-  };
-
-  /**
-   * Determine if this text is being edited by a remote user
-   */
-  const isRemoteEditing = editState && editState.userId !== currentUser?.uid;
-
-  /**
-   * Get the text content to display
-   * If another user is editing, show their live text
-   * Otherwise show the persisted text (with transforms)
-   */
-  const getDisplayText = () => {
-    // If being edited by another user and we have live text, show it
-    if (isRemoteEditing && editState.liveText !== undefined) {
-      return editState.liveText;
-    }
-
-    // Otherwise show persisted text (transformed)
-    return applyTextTransform(text.text, text.textTransform);
   };
 
   // Calculate final draggable state
@@ -515,6 +192,7 @@ export const TextShape = memo(function TextShape({
   return (
     <Fragment>
       <KonvaText
+        id={text.id}
         ref={shapeRef}
         // Position adjusted for center-based offset: x,y in data model represents top-left,
         // but with offset we need to position at center, so add half dimensions
@@ -566,76 +244,35 @@ export const TextShape = memo(function TextShape({
         onMouseLeave={handleMouseLeave}
       />
 
-      {/* Custom selection visualization for text shapes */}
-      {/* Shows underline with glow on hover, underline + bounding box on selection */}
-      <TextSelectionBox
+      {/* All visual overlays (selection, hover, resize, labels) */}
+      <TextShapeOverlays
         text={text}
-        isSelected={isSelected && !isEditing}
-        isHovered={(isHovered || isHoveredFromSidebar) && activeTool === 'move' && !isSelected && !isEditing}
-        color={isLocked && isSelected ? '#0ea5e9' : isInMultiSelect ? '#38bdf8' : '#0ea5e9'}
-        dash={undefined}
+        isSelected={isSelected}
+        isEditing={isEditing}
+        isHovered={isHovered}
+        isHoveredFromSidebar={isHoveredFromSidebar}
+        isInMultiSelect={isInMultiSelect}
+        isRemoteEditing={isRemoteEditing ?? false}
+        editState={editState}
+        isLocked={isLocked}
+        activeTool={activeTool}
+        isResizing={isResizing ?? false}
+        displayX={displayX}
+        displayY={displayY}
+        textWidth={textWidth}
+        textHeight={textHeight}
         textNodeRef={shapeRef}
+        onResizeStart={(handleType) =>
+          handleResizeStart(text.id, handleType, {
+            x: text.x,
+            y: text.y,
+            width: textWidth,
+            height: textHeight,
+          })
+        }
+        onResizeMove={(_, x, y) => handleResizeMove(text.id, x, y)}
+        onResizeEnd={() => handleResizeEnd(text.id)}
       />
-
-      {/* Remote editing indicator - show underline + label when being edited by another user */}
-      {isRemoteEditing && (
-        <>
-          {/* Show underline in editor's color (just like local editing) */}
-          <TextSelectionBox
-            text={text}
-            isSelected={true}
-            color={editState.color}
-            textNodeRef={shapeRef}
-          />
-
-          {/* Show username label above text */}
-          <Label
-            x={displayX}
-            y={displayY - 25} // Above text
-            opacity={0.9}
-          >
-            <Tag
-              fill={editState.color}
-              pointerDirection="down"
-              pointerWidth={6}
-              pointerHeight={6}
-              cornerRadius={3}
-            />
-            <KonvaTextLabel
-              text={`${editState.username} is editing...`}
-              fontSize={12}
-              fontFamily="Inter"
-              fill="#ffffff"
-              padding={6}
-            />
-          </Label>
-        </>
-      )}
-
-      {/* Resize Handles - only visible when selected, not editing, and not locked */}
-      {/* Text boxes have fixed dimensions that can be resized in both width and height */}
-      {!isLocked && (
-        <ResizeHandles
-          object={text}
-          isSelected={isSelected && activeTool === 'move' && !isEditing}
-          isResizing={isResizing}
-          onResizeStart={(handleType) =>
-            handleResizeStart(text.id, handleType, {
-              x: text.x,
-              y: text.y,
-              width: textWidth,
-              height: textHeight,
-            })
-          }
-          onResizeMove={(_, x, y) => handleResizeMove(text.id, x, y)}
-          onResizeEnd={() => handleResizeEnd(text.id)}
-        />
-      )}
-
-      {/* Dimension Label - shows width × height when selected, not editing, and not locked */}
-      {!isLocked && (
-        <DimensionLabel object={text} visible={isSelected && activeTool === 'move' && !isEditing} />
-      )}
     </Fragment>
   );
 });

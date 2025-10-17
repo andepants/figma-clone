@@ -176,13 +176,13 @@ export class GenerateAppIconTool extends CanvasTool {
       currentStep = 'storage_upload';
       logger.info('Step 4: Uploading image to Firebase Storage', {
         sourceUrl: imageResult.imageUrl.substring(0, 80) + '...',
-        userId: this.context.userId,
+        projectId: this.context.canvasId,
         type: 'icon',
       });
 
       const uploadResult = await uploadImageFromUrl(
         imageResult.imageUrl,
-        this.context.userId,
+        this.context.canvasId,
         'icon'
       );
 

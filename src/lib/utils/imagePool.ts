@@ -27,75 +27,66 @@ interface CacheEntry {
 }
 
 /**
- * Cache statistics for debugging
+ * Cache statistics
  */
-export interface CacheStats {
-  /** Number of images currently cached */
+interface CacheStats {
+  /** Number of cached images */
   count: number;
   /** Total memory usage in bytes */
   totalSize: number;
-  /** Total memory usage in MB */
-  totalSizeMB: number;
-  /** Cache hit rate (0-1) */
-  hitRate: number;
-  /** Total cache hits */
+  /** Number of cache hits */
   hits: number;
-  /** Total cache misses */
+  /** Number of cache misses */
   misses: number;
 }
 
 /**
- * Image Pool class implementing LRU cache
+ * Image pool interface
  */
-class ImagePool {
+interface ImagePoolAPI {
+  /** Get image from cache or load if not cached */
+  getImage: (src: string) => Promise<HTMLImageElement>;
+  /** Clear all cached images */
+  clear: () => void;
+  /** Remove specific image from cache */
+  remove: (src: string) => boolean;
+  /** Check if image is in cache */
+  has: (src: string) => boolean;
+  /** Get current cache size (number of images) */
+  size: number;
+  /** Get cache statistics for debugging */
+  getCacheStats: () => CacheStats;
+}
+
+/**
+ * Create an image pool with LRU caching
+ *
+ * Factory function that creates an image pool instance using closure
+ * to encapsulate private state.
+ *
+ * @returns Image pool API
+ *
+ * @example
+ * ```typescript
+ * const pool = createImagePool();
+ * const img = await pool.getImage('https://example.com/image.png');
+ * ```
+ */
+function createImagePool(): ImagePoolAPI {
   /** Maximum number of cached images */
-  private readonly MAX_IMAGES = 50;
+  const MAX_IMAGES = 50;
 
   /** Maximum total memory in bytes (200MB) */
-  private readonly MAX_MEMORY = 200 * 1024 * 1024;
+  const MAX_MEMORY = 200 * 1024 * 1024;
 
   /** Cache storage (Map maintains insertion order) */
-  private cache = new Map<string, CacheEntry>();
+  const cache = new Map<string, CacheEntry>();
 
   /** Cache hit counter */
-  private hits = 0;
+  let hits = 0;
 
   /** Cache miss counter */
-  private misses = 0;
-
-  /**
-   * Get image from cache or load if not cached
-   *
-   * @param src - Image source URL or data URL
-   * @returns Promise resolving to HTMLImageElement
-   *
-   * @example
-   * ```typescript
-   * const img = await imagePool.getImage('https://example.com/image.png');
-   * ```
-   */
-  async getImage(src: string): Promise<HTMLImageElement> {
-    // Check if image is in cache
-    const cached = this.cache.get(src);
-
-    if (cached) {
-      // Cache hit - update last accessed time and move to end (most recent)
-      this.hits++;
-      cached.lastAccessed = Date.now();
-      this.cache.delete(src);
-      this.cache.set(src, cached);
-      return cached.image;
-    }
-
-    // Cache miss - load image
-    this.misses++;
-    const image = await this.loadImage(src);
-
-    // Add to cache
-    this.addToCache(src, image);
-
-    return image;
-  }
+  let misses = 0;
 
   /**
    * Load image from URL
@@ -103,16 +94,89 @@ class ImagePool {
    * @param src - Image source URL or data URL
    * @returns Promise resolving to loaded HTMLImageElement
    */
-  private loadImage(src: string): Promise<HTMLImageElement> {
+  function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new window.Image();
       img.crossOrigin = 'anonymous'; // Allow cross-origin images from Firebase Storage
 
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      console.log('[ImagePool] Loading image:', {
+        srcPreview: src.substring(0, 100) + '...',
+        srcLength: src.length,
+        isDataURL: src.startsWith('data:'),
+      });
+
+      img.onload = () => {
+        console.log('[ImagePool] Image loaded successfully:', {
+          srcPreview: src.substring(0, 100) + '...',
+          width: img.width,
+          height: img.height,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+        });
+        resolve(img);
+      };
+
+      img.onerror = (error) => {
+        console.error('[ImagePool] Failed to load image:', {
+          srcPreview: src.substring(0, 100) + '...',
+          error,
+        });
+        reject(new Error(`Failed to load image: ${src.substring(0, 100)}...`));
+      };
 
       img.src = src;
     });
+  }
+
+  /**
+   * Calculate current cache statistics
+   * Helper for internal use
+   */
+  function getStats(): { count: number; totalSize: number } {
+    let totalSize = 0;
+
+    cache.forEach((entry) => {
+      totalSize += entry.size;
+    });
+
+    return {
+      count: cache.size,
+      totalSize,
+    };
+  }
+
+  /**
+   * Evict the oldest (least recently used) entry
+   * Map maintains insertion order, so first entry is the oldest
+   */
+  function evictOldest(): void {
+    // Get first (oldest) entry
+    const firstKey = cache.keys().next().value;
+    if (firstKey) {
+      cache.delete(firstKey);
+    }
+  }
+
+  /**
+   * Evict entries if cache limits exceeded
+   * Uses LRU policy: removes oldest accessed images first
+   */
+  function evictIfNeeded(): void {
+    // Check if eviction needed
+    const stats = getStats();
+
+    // Evict if count exceeds limit
+    while (cache.size > MAX_IMAGES) {
+      evictOldest();
+    }
+
+    // Evict if memory exceeds limit
+    let currentStats = stats;
+    while (currentStats.totalSize > MAX_MEMORY && cache.size > 0) {
+      evictOldest();
+      // Recalculate stats
+      currentStats = getStats();
+    }
   }
 
   /**
@@ -122,7 +186,7 @@ class ImagePool {
    * @param src - Image source URL
    * @param image - Loaded HTMLImageElement
    */
-  private addToCache(src: string, image: HTMLImageElement): void {
+  function addToCache(src: string, image: HTMLImageElement): void {
     // Estimate memory usage (width × height × 4 bytes per pixel)
     const size = image.width * image.height * 4;
 
@@ -135,88 +199,44 @@ class ImagePool {
     };
 
     // Add to cache
-    this.cache.set(src, entry);
+    cache.set(src, entry);
 
     // Evict if necessary
-    this.evictIfNeeded();
+    evictIfNeeded();
   }
 
   /**
-   * Evict entries if cache limits exceeded
-   * Uses LRU policy: removes oldest accessed images first
-   */
-  private evictIfNeeded(): void {
-    // Check if eviction needed
-    const stats = this.getStats();
-
-    // Evict if count exceeds limit
-    while (this.cache.size > this.MAX_IMAGES) {
-      this.evictOldest();
-    }
-
-    // Evict if memory exceeds limit
-    while (stats.totalSize > this.MAX_MEMORY && this.cache.size > 0) {
-      this.evictOldest();
-      // Recalculate stats
-      const newStats = this.getStats();
-      stats.totalSize = newStats.totalSize;
-    }
-  }
-
-  /**
-   * Evict the oldest (least recently used) entry
-   * Map maintains insertion order, so first entry is the oldest
-   */
-  private evictOldest(): void {
-    // Get first (oldest) entry
-    const firstKey = this.cache.keys().next().value;
-    if (firstKey) {
-      this.cache.delete(firstKey);
-    }
-  }
-
-  /**
-   * Get cache statistics for debugging
+   * Get image from cache or load if not cached
    *
-   * @returns Cache statistics
+   * @param src - Image source URL or data URL
+   * @returns Promise resolving to HTMLImageElement
    *
    * @example
    * ```typescript
-   * const stats = imagePool.getCacheStats();
-   * console.log(`Cache: ${stats.count} images, ${stats.totalSizeMB.toFixed(2)} MB`);
-   * console.log(`Hit rate: ${(stats.hitRate * 100).toFixed(1)}%`);
+   * const img = await imagePool.getImage('https://example.com/image.png');
    * ```
    */
-  getCacheStats(): CacheStats {
-    const stats = this.getStats();
-    const totalRequests = this.hits + this.misses;
-    const hitRate = totalRequests > 0 ? this.hits / totalRequests : 0;
+  async function getImage(src: string): Promise<HTMLImageElement> {
+    // Check if image is in cache
+    const cached = cache.get(src);
 
-    return {
-      count: stats.count,
-      totalSize: stats.totalSize,
-      totalSizeMB: stats.totalSize / (1024 * 1024),
-      hitRate,
-      hits: this.hits,
-      misses: this.misses,
-    };
-  }
-
-  /**
-   * Calculate current cache statistics
-   * Helper for internal use
-   */
-  private getStats(): { count: number; totalSize: number } {
-    let totalSize = 0;
-
-    for (const entry of this.cache.values()) {
-      totalSize += entry.size;
+    if (cached) {
+      // Cache hit - update last accessed time and move to end (most recent)
+      hits++;
+      cached.lastAccessed = Date.now();
+      cache.delete(src);
+      cache.set(src, cached);
+      return cached.image;
     }
 
-    return {
-      count: this.cache.size,
-      totalSize,
-    };
+    // Cache miss - load image
+    misses++;
+    const image = await loadImage(src);
+
+    // Add to cache
+    addToCache(src, image);
+
+    return image;
   }
 
   /**
@@ -228,10 +248,10 @@ class ImagePool {
    * imagePool.clear();
    * ```
    */
-  clear(): void {
-    this.cache.clear();
-    this.hits = 0;
-    this.misses = 0;
+  function clear(): void {
+    cache.clear();
+    hits = 0;
+    misses = 0;
   }
 
   /**
@@ -245,8 +265,8 @@ class ImagePool {
    * imagePool.remove('https://example.com/old-image.png');
    * ```
    */
-  remove(src: string): boolean {
-    return this.cache.delete(src);
+  function remove(src: string): boolean {
+    return cache.delete(src);
   }
 
   /**
@@ -262,41 +282,46 @@ class ImagePool {
    * }
    * ```
    */
-  has(src: string): boolean {
-    return this.cache.has(src);
+  function has(src: string): boolean {
+    return cache.has(src);
   }
 
   /**
-   * Get current cache size (number of images)
+   * Get cache statistics for debugging
    *
-   * @returns Number of cached images
+   * @returns Cache statistics including count, size, hits, and misses
+   *
+   * @example
+   * ```typescript
+   * const stats = imagePool.getCacheStats();
+   * console.log(`Cache: ${stats.count} images, ${stats.hits} hits, ${stats.misses} misses`);
+   * ```
    */
-  get size(): number {
-    return this.cache.size;
+  function getCacheStats(): CacheStats {
+    const stats = getStats();
+    return {
+      count: stats.count,
+      totalSize: stats.totalSize,
+      hits,
+      misses,
+    };
   }
+
+  // Return public API
+  return {
+    getImage,
+    clear,
+    remove,
+    has,
+    getCacheStats,
+    get size() {
+      return cache.size;
+    },
+  };
 }
 
 /**
  * Global image pool instance
  * Singleton pattern for shared cache across application
  */
-export const imagePool = new ImagePool();
-
-/**
- * Get cache statistics (convenience export)
- *
- * @returns Cache statistics
- *
- * @example
- * ```typescript
- * import { getCacheStats } from '@/lib/utils/imagePool';
- *
- * const stats = getCacheStats();
- * console.log(`Cached images: ${stats.count}`);
- * console.log(`Memory usage: ${stats.totalSizeMB.toFixed(2)} MB`);
- * console.log(`Hit rate: ${(stats.hitRate * 100).toFixed(1)}%`);
- * ```
- */
-export function getCacheStats(): CacheStats {
-  return imagePool.getCacheStats();
-}
+export const imagePool = createImagePool();

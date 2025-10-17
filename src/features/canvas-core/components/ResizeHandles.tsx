@@ -8,7 +8,7 @@
 import { memo } from 'react';
 import { Group, Label, Tag, Text as KonvaText } from 'react-konva';
 import { ResizeHandle } from './ResizeHandle';
-import type { CanvasObject, ResizeHandle as ResizeHandleType, Rectangle, Circle, Text, Line } from '@/types';
+import type { CanvasObject, ResizeHandle as ResizeHandleType, Rectangle, Circle, Text, Line, ImageObject } from '@/types';
 import { getHandlePosition } from '@/lib/utils';
 
 /**
@@ -36,6 +36,7 @@ interface ResizeHandlesProps {
  * - **Rectangle:** Uses (x, y) as top-left corner, returns x, y, width, height directly
  * - **Circle:** Uses (x, y) as CENTER, converts to bounding box by subtracting radius
  * - **Text:** Uses (x, y) as top-left corner, returns x, y, width, height directly (fixed dimensions)
+ * - **Image:** Uses (x, y) as top-left corner, returns x, y, width, height directly (same as rectangle)
  *
  * @param {CanvasObject} object - Canvas object
  * @returns {{ x: number; y: number; width: number; height: number }} Bounding box
@@ -53,6 +54,10 @@ interface ResizeHandlesProps {
  * // Text at (100, 100) with 200x100 size
  * getBounds({ type: 'text', x: 100, y: 100, width: 200, height: 100 })
  * // Returns: { x: 100, y: 100, width: 200, height: 100 }
+ *
+ * // Image at (100, 100) with 50x50 size
+ * getBounds({ type: 'image', x: 100, y: 100, width: 50, height: 50 })
+ * // Returns: { x: 100, y: 100, width: 50, height: 50 }
  * ```
  */
 function getBounds(object: CanvasObject): { x: number; y: number; width: number; height: number } {
@@ -79,6 +84,11 @@ function getBounds(object: CanvasObject): { x: number; y: number; width: number;
         width: text.width,
         height: text.height,
       };
+    }
+    case 'image': {
+      const img = object as ImageObject;
+      // Images use (x, y) as top-left corner, same as rectangles
+      return { x: img.x, y: img.y, width: img.width, height: img.height };
     }
     default:
       // Default fallback for unsupported types
@@ -242,6 +252,8 @@ export const ResizeHandles = memo(function ResizeHandles({
 
   return (
     <Group
+      // Add name for hiding during export/preview
+      name="resize-handles"
       // Position at shape's center for proper rotation/scale pivot
       x={centerX}
       y={centerY}

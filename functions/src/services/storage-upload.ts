@@ -5,8 +5,8 @@
  * and uploading them to Firebase Storage for permanent storage.
  *
  * Storage structure:
- * ai-generated/{userId}/icon/{timestamp}-{uuid}.png
- * ai-generated/{userId}/feature/{timestamp}-{uuid}.png
+ * ai-generated/{projectId}/icon/{timestamp}-{uuid}.png
+ * ai-generated/{projectId}/feature/{timestamp}-{uuid}.png
  *
  * @see https://firebase.google.com/docs/storage
  * @see functions/src/ai/tools/generateAppIcon.ts (usage example)
@@ -43,14 +43,14 @@ interface UploadImageResult {
  * Includes retry logic for transient network failures.
  *
  * @param imageUrl - OpenAI image URL (temporary, expires in 1 hour)
- * @param userId - User ID (for organizing storage)
+ * @param projectId - Project ID (for organizing storage)
  * @param type - Image type (for organizing storage and metadata)
  * @returns Upload result with public URL
  *
  * @example
  * const result = await uploadImageFromUrl(
  *   'https://oaidalleapiprodscus.blob.core.windows.net/...',
- *   'user123',
+ *   'project123',
  *   'icon'
  * );
  *
@@ -60,7 +60,7 @@ interface UploadImageResult {
  */
 export async function uploadImageFromUrl(
   imageUrl: string,
-  userId: string,
+  projectId: string,
   type: 'icon' | 'feature',
   retryCount = 0
 ): Promise<UploadImageResult> {
@@ -72,7 +72,7 @@ export async function uploadImageFromUrl(
     // Validate inputs
     logger.info('Starting image upload from URL', {
       urlPreview: imageUrl.substring(0, 80) + '...',
-      userId,
+      projectId,
       type,
       retry: retryCount,
     });
@@ -86,11 +86,11 @@ export async function uploadImageFromUrl(
       };
     }
 
-    if (!userId || userId.trim().length === 0) {
-      logger.error('Missing user ID');
+    if (!projectId || projectId.trim().length === 0) {
+      logger.error('Missing project ID');
       return {
         success: false,
-        error: 'User ID required',
+        error: 'Project ID required',
         errorCode: 'upload_failed',
       };
     }
@@ -98,7 +98,7 @@ export async function uploadImageFromUrl(
     currentStep = 'download';
     logger.info('Downloading image from OpenAI', {
       url: imageUrl.substring(0, 50) + '...',
-      userId,
+      projectId,
       type,
       retry: retryCount,
     });
@@ -153,11 +153,11 @@ export async function uploadImageFromUrl(
     currentStep = 'filename_generation';
     const timestamp = Date.now();
     const uniqueId = uuidv4().slice(0, 8);
-    const filename = `ai-generated/${userId}/${type}/${timestamp}-${uniqueId}.png`;
+    const filename = `ai-generated/${projectId}/${type}/${timestamp}-${uniqueId}.png`;
 
     logger.info('Generated filename', {
       filename,
-      userId,
+      projectId,
       type,
       timestamp,
       uniqueId,
@@ -166,7 +166,7 @@ export async function uploadImageFromUrl(
     currentStep = 'storage_initialization';
     logger.info('Uploading to Firebase Storage', {
       filename,
-      userId,
+      projectId,
       type,
     });
 
@@ -198,7 +198,7 @@ export async function uploadImageFromUrl(
         cacheControl: 'public, max-age=31536000', // Cache for 1 year
         metadata: {
           generatedBy: 'dalle-3',
-          userId,
+          projectId,
           type,
           timestamp: timestamp.toString(),
           generatedAt: new Date(timestamp).toISOString(),
@@ -208,17 +208,29 @@ export async function uploadImageFromUrl(
 
     logger.info('File saved to storage successfully', { filename });
 
-    // Make file publicly accessible
-    currentStep = 'make_public';
-    logger.info('Making file publicly accessible');
+    // Get public download URL
+    // Since Storage Rules allow public read for ai-generated/* files,
+    // we can use the public URL format instead of signed URLs
+    // This avoids the need for service account credentials (client_email)
+    currentStep = 'get_download_url';
+    logger.info('Generating public download URL');
 
-    await file.makePublic();
+    // Firebase Storage public URL format:
+    // Production: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media
+    // Emulator: http://127.0.0.1:9199/v0/b/{bucket}/o/{encodedPath}?alt=media
+    const bucketName = bucket.name;
+    const encodedPath = encodeURIComponent(filename);
 
-    logger.info('File made public successfully');
-
-    // Construct public URL
-    currentStep = 'url_construction';
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+    // Detect if running in emulator
+    // Check multiple environment variables since FIREBASE_STORAGE_EMULATOR_HOST
+    // might not be set even when storage emulator is running
+    const isEmulator =
+      process.env.FIREBASE_STORAGE_EMULATOR_HOST !== undefined ||
+      process.env.FIREBASE_DATABASE_EMULATOR_HOST !== undefined ||
+      process.env.FUNCTIONS_EMULATOR === 'true';
+    const publicUrl = isEmulator
+      ? `http://127.0.0.1:9199/v0/b/${bucketName}/o/${encodedPath}?alt=media`
+      : `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media`;
 
     const duration = Date.now() - startTime;
 
@@ -226,6 +238,10 @@ export async function uploadImageFromUrl(
       filename,
       publicUrl: publicUrl.substring(0, 80) + '...',
       publicUrlLength: publicUrl.length,
+      isEmulator,
+      storageEmulatorHost: process.env.FIREBASE_STORAGE_EMULATOR_HOST || 'not set',
+      databaseEmulatorHost: process.env.FIREBASE_DATABASE_EMULATOR_HOST || 'not set',
+      functionsEmulator: process.env.FUNCTIONS_EMULATOR || 'not set',
       duration: `${duration}ms`,
       sizeKB: Math.round(buffer.length / 1024),
       finalStep: currentStep,
@@ -251,7 +267,7 @@ export async function uploadImageFromUrl(
       errorName: errorObj.name,
       errorCode: errorObj.code,
       stack: errorObj.stack,
-      userId,
+      projectId,
       type,
       retry: retryCount,
       duration: `${duration}ms`,
@@ -273,7 +289,7 @@ export async function uploadImageFromUrl(
       });
       // Wait before retry (exponential backoff)
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-      return uploadImageFromUrl(imageUrl, userId, type, retryCount + 1);
+      return uploadImageFromUrl(imageUrl, projectId, type, retryCount + 1);
     }
 
     // Determine error code

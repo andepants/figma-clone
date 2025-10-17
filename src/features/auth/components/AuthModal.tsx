@@ -41,32 +41,18 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
   const [mode, setMode] = React.useState<AuthMode>(initialMode);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
-  const { login, signup, loginWithGoogle } = useAuth();
+  const [googleError, setGoogleError] = React.useState('');
+  const waitingForGoogleAuthRef = React.useRef(false);
+  const { login, signup, loginWithGoogle, currentUser } = useAuth();
   const navigate = useNavigate();
 
   const isLogin = mode === 'login';
 
   /**
-   * Sync mode with initialMode when modal opens or initialMode changes
-   */
-  React.useEffect(() => {
-    if (isOpen) {
-      setMode(initialMode);
-    }
-  }, [isOpen, initialMode]);
-
-  /**
-   * Toggles between login and signup modes
-   */
-  function toggleMode() {
-    setMode(isLogin ? 'signup' : 'login');
-  }
-
-  /**
    * Handles successful authentication
    * Closes modal and redirects to intended destination or projects page
    */
-  function handleSuccess() {
+  const handleSuccess = React.useCallback(() => {
     onClose();
     // Small delay to let modal close gracefully
     setTimeout(() => {
@@ -82,6 +68,36 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
         navigate('/projects');
       }
     }, 150);
+  }, [onClose, navigate]);
+
+  /**
+   * Sync mode with initialMode when modal opens or initialMode changes
+   */
+  React.useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setGoogleError('');
+    }
+  }, [isOpen, initialMode]);
+
+  /**
+   * Watch for auth state changes after Google sign-in
+   * Once user is authenticated, redirect to projects page
+   */
+  React.useEffect(() => {
+    if (waitingForGoogleAuthRef.current && currentUser) {
+      // User successfully authenticated via Google
+      waitingForGoogleAuthRef.current = false;
+      setIsGoogleLoading(false);
+      handleSuccess();
+    }
+  }, [currentUser, handleSuccess]);
+
+  /**
+   * Toggles between login and signup modes
+   */
+  function toggleMode() {
+    setMode(isLogin ? 'signup' : 'login');
   }
 
   /**
@@ -100,17 +116,23 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
 
   /**
    * Handles Google sign-in
+   * Sets a waiting flag and lets the useEffect handle success after auth state updates
    */
   async function handleGoogleSignIn() {
+    setGoogleError('');
     setIsGoogleLoading(true);
+    waitingForGoogleAuthRef.current = true;
+
     try {
       await loginWithGoogle();
-      handleSuccess();
+      // Don't call handleSuccess() here - let the useEffect handle it
+      // when currentUser updates
     } catch (error) {
-      // Error is already handled by useAuth hook
-      console.error('Google sign-in failed:', error);
-    } finally {
+      // Handle errors - display them to the user
+      waitingForGoogleAuthRef.current = false;
       setIsGoogleLoading(false);
+      const message = error instanceof Error ? error.message : 'Failed to sign in with Google';
+      setGoogleError(message);
     }
   }
 
@@ -157,6 +179,13 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
             </svg>
             {isGoogleLoading ? 'Signing in...' : 'Continue with Google'}
           </Button>
+
+          {/* Google Sign-In Error */}
+          {googleError && (
+            <div className="mt-3 text-sm text-error-600 bg-error-50 p-3 rounded-md">
+              {googleError}
+            </div>
+          )}
 
           {/* Divider */}
           <div className="relative my-6">

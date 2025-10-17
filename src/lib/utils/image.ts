@@ -145,13 +145,9 @@ export async function compressImage(file: File): Promise<File> {
 
     // Check if compression increased size (rare but possible with highly-optimized images)
     if (compressedFile.size > file.size) {
-      console.log(`Compression increased size, using original: ${file.name}`)
       return file // Use original
     }
 
-    console.log(
-      `Compressed ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB`
-    )
     return compressedFile
   } catch (error) {
     console.error('Compression failed, using original file:', error)
@@ -217,44 +213,45 @@ export function getImageDimensions(file: File): Promise<{ width: number; height:
 /**
  * Calculate display dimensions for an image on canvas
  *
- * Scales image to fit within max dimensions while maintaining aspect ratio.
+ * By default, returns the natural dimensions (no downsizing) to preserve image quality.
+ * Optionally scales image to fit within max dimensions while maintaining aspect ratio.
  * Ensures minimum dimensions of 1×1px to prevent rendering issues.
  *
  * @param naturalWidth - Original image width
  * @param naturalHeight - Original image height
- * @param maxWidth - Maximum display width (default: 400)
- * @param maxHeight - Maximum display height (default: 400)
+ * @param maxWidth - Maximum display width (default: undefined = no limit, use natural size)
+ * @param maxHeight - Maximum display height (default: undefined = no limit, use natural size)
  * @returns Display dimensions {width, height}
  *
  * @example
  * ```ts
- * // 2000×1000 image scaled to fit 400×400 canvas
+ * // Use natural dimensions (no downsizing)
  * const dims = calculateDisplayDimensions(2000, 1000)
- * // Result: {width: 400, height: 200}
+ * // Result: {width: 2000, height: 1000}
  *
- * // 10000×1 extremely wide image
- * const dims = calculateDisplayDimensions(10000, 1)
- * // Result: {width: 400, height: 1} (minimum 1px height)
+ * // Scale to fit within 400×400 (optional)
+ * const dims = calculateDisplayDimensions(2000, 1000, 400, 400)
+ * // Result: {width: 400, height: 200}
  * ```
  */
 export function calculateDisplayDimensions(
   naturalWidth: number,
   naturalHeight: number,
-  maxWidth: number = 400,
-  maxHeight: number = 400
+  maxWidth?: number,
+  maxHeight?: number
 ): { width: number; height: number } {
   const aspectRatio = naturalWidth / naturalHeight
 
   let width = naturalWidth
   let height = naturalHeight
 
-  // Scale down if larger than max dimensions
-  if (width > maxWidth) {
+  // Only scale down if max dimensions are specified
+  if (maxWidth !== undefined && width > maxWidth) {
     width = maxWidth
     height = width / aspectRatio
   }
 
-  if (height > maxHeight) {
+  if (maxHeight !== undefined && height > maxHeight) {
     height = maxHeight
     width = height * aspectRatio
   }

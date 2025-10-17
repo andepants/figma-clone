@@ -211,7 +211,6 @@ export function useAIAgent({ projectId }: UseAIAgentParams = {}): UseAIAgentRetu
             status: 'success',
             response: result.data.message,
           });
-          console.log('✅ AI command success:', result.data.message);
         } else {
           throw new Error(result.data.error || 'Command failed');
         }
