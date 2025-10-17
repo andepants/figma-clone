@@ -8,11 +8,11 @@
 import { useEffect, useRef } from 'react';
 import { Stage, Layer, Rect, Circle as KonvaCircle, Line as KonvaLine } from 'react-konva';
 import type Konva from 'konva';
-import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures, useGroupDrag, useDragToSelect, useArrowKeyPan } from '../hooks';
-import { Rectangle, Circle, TextShape, Line } from '../shapes';
+import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures, useGroupDrag, useDragToSelect, useArrowKeyPan, useCanvasDropzone } from '../hooks';
+import { Rectangle, Circle, TextShape, Line, ImageShape } from '../shapes';
 import { GroupBoundingBox } from '../components';
 import { useToolStore, useCanvasStore, usePageStore } from '@/stores';
-import type { Rectangle as RectangleType, Circle as CircleType, Text as TextType, Line as LineType } from '@/types';
+import type { Rectangle as RectangleType, Circle as CircleType, Text as TextType, Line as LineType, ImageObject } from '@/types';
 import { useCursors, useDragStates, useRemoteSelections, useRemoteResizes, useEditStates } from '@/features/collaboration/hooks';
 import { Cursor, SelectionOverlay, RemoteResizeOverlay } from '@/features/collaboration/components';
 import { getUserColor } from '@/features/collaboration/utils';
@@ -109,6 +109,15 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
     handleStageMouseUp: handleDragSelectMouseUp,
     selectionRect,
   } = useDragToSelect(stageRef);
+
+  // Canvas dropzone for drag-and-drop image uploads
+  const {
+    getRootProps,
+    getInputProps,
+    isDragActive: isImageDragActive,
+    isUploading: isImageUploading,
+    uploadProgress: imageUploadProgress,
+  } = useCanvasDropzone({ stageRef });
 
   /**
    * Sync local selection to Realtime DB
@@ -307,7 +316,35 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
   const selectionBounds = isInMultiSelect ? getSelectionBounds(objects, selectedIds) : null;
 
   return (
-    <Stage
+    <div {...getRootProps()} className="relative w-full h-full">
+      <input {...getInputProps()} />
+
+      {/* Drag-over overlay - shows when dragging image over canvas */}
+      {isImageDragActive && (
+        <div className="absolute inset-0 z-50 bg-blue-500/10 border-4 border-blue-500 border-dashed flex items-center justify-center pointer-events-none">
+          <div className="bg-white px-6 py-4 rounded-lg shadow-xl">
+            <p className="text-lg font-semibold text-gray-900">Drop image here to upload</p>
+          </div>
+        </div>
+      )}
+
+      {/* Upload progress overlay - shows during upload */}
+      {isImageUploading && (
+        <div className="absolute inset-0 z-50 bg-black/20 flex items-center justify-center pointer-events-none">
+          <div className="bg-white px-6 py-4 rounded-lg shadow-xl">
+            <p className="text-sm font-medium text-gray-900 mb-2">Uploading image...</p>
+            <div className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-all duration-300"
+                style={{ width: `${imageUploadProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1 text-center">{imageUploadProgress}%</p>
+          </div>
+        </div>
+      )}
+
+      <Stage
       ref={stageRef}
       width={dimensions.width}
       height={dimensions.height}
@@ -429,6 +466,23 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
                 remoteDragState={remoteDragState}
               />
             );
+          } else if (obj.type === 'image') {
+            return (
+              <ImageShape
+                key={obj.id}
+                image={obj as ImageObject}
+                isSelected={selectedIds.includes(obj.id)}
+                isInMultiSelect={selectedIds.length > 1 && selectedIds.includes(obj.id)}
+                onSelect={(e: Konva.KonvaEventObject<MouseEvent>) => {
+                  if (e.evt.shiftKey) {
+                    toggleSelection(obj.id);
+                  } else {
+                    selectObjects([obj.id]);
+                  }
+                }}
+                remoteDragState={remoteDragState}
+              />
+            );
           }
 
           // Skip unknown types (e.g., 'group' which is container-only)
@@ -445,9 +499,9 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
             // Check if this object is being actively dragged by another user
             const isBeingDragged = dragStates.some((state) => state.objectId === objectId);
 
-            // Skip overlay for rectangles/circles being dragged (object is already visible)
+            // Skip overlay for rectangles/circles/images being dragged (object is already visible)
             // Keep overlay for text shapes (dashed border is helpful even when dragging)
-            if (isBeingDragged && (object.type === 'rectangle' || object.type === 'circle')) {
+            if (isBeingDragged && (object.type === 'rectangle' || object.type === 'circle' || object.type === 'image')) {
               return null;
             }
 
@@ -563,5 +617,6 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
         ))}
       </Layer>
     </Stage>
+    </div>
   );
 }

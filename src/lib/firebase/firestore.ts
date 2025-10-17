@@ -15,11 +15,14 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
+  limit,
   onSnapshot,
   type DocumentData,
   type CollectionReference,
   type DocumentReference,
   type QueryConstraint,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { firestore } from './config'
 
@@ -37,6 +40,8 @@ export {
   deleteDoc,
   query,
   where,
+  orderBy,
+  limit,
   onSnapshot,
 }
 
@@ -46,4 +51,5 @@ export type {
   CollectionReference,
   DocumentReference,
   QueryConstraint,
+  Unsubscribe,
 }

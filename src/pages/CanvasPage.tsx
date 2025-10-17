@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import type Konva from 'konva';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
@@ -23,19 +24,36 @@ import {
   cleanupStaleDragStates,
   cleanupStaleCursors,
 } from '@/lib/firebase';
+import { getProject } from '@/lib/firebase/projectsService';
 import { useAuth } from '@/features/auth/hooks';
 import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
 import { hexToRgba, getUserDisplayName, exportCanvasToPNG } from '@/lib/utils';
 import { ExportModal, type ExportOptions } from '@/features/export';
+import { ImageUploadModal } from '@/features/canvas-core/components/ImageUploadModal';
+import { canUserAccessProject } from '@/types/project.types';
+import type { Project } from '@/types/project.types';
 
 function CanvasPage() {
+  // Get projectId from URL params (e.g., /canvas/:projectId)
+  // Falls back to 'main' for legacy /canvas route
+  const { projectId = 'main' } = useParams<{ projectId?: string }>();
+  const navigate = useNavigate();
+
+  // Get current user for access control
+  const { currentUser } = useAuth();
+
+  // Project state
+  const [project, setProject] = useState<Project | null>(null);
+  const [projectLoading, setProjectLoading] = useState(true);
+  const [projectError, setProjectError] = useState<string | null>(null);
+
   // Update SEO for canvas page
   useSEO({
-    title: 'Canvas - CollabCanvas | Real-time Design Collaboration',
+    title: `${project?.name || 'Canvas'} - Canvas Icons | Real-time Design Collaboration`,
     description: 'Create and design in real-time with your team. Collaborative canvas workspace with live cursors, instant sync, and multiplayer editing.',
-    url: 'https://collabcanvas.app/canvas',
+    url: `https://collabcanvas.app/canvas/${projectId}`,
     type: 'website',
   });
 
@@ -45,8 +63,14 @@ function CanvasPage() {
   // Export modal state
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  // Enable keyboard shortcuts for tools with callback to open shortcuts modal
-  useToolShortcuts(() => setIsShortcutsOpen(true));
+  // Image upload modal state
+  const [isImageUploadOpen, setIsImageUploadOpen] = useState(false);
+
+  // Enable keyboard shortcuts for tools with callbacks
+  useToolShortcuts(
+    () => setIsShortcutsOpen(true),
+    () => setIsImageUploadOpen(true)
+  );
 
   // Get canvas store setObjects method
   const { setObjects, objects, selectedIds } = useCanvasStore();
@@ -66,11 +90,58 @@ function CanvasPage() {
   // Get left sidebar state for layout adjustment
   const leftSidebarOpen = useUIStore((state) => state.leftSidebarOpen);
 
-  // Get current user for presence
-  const { currentUser } = useAuth();
-
   // Track initial loading state
   const [isLoading, setIsLoading] = useState(true);
+
+  /**
+   * Load project and verify access
+   * Redirects to projects page if user doesn't have access
+   */
+  useEffect(() => {
+    async function loadProject() {
+      if (!currentUser) {
+        setProjectLoading(false);
+        return;
+      }
+
+      // Legacy route: /canvas without projectId
+      if (projectId === 'main') {
+        setProject(null);
+        setProjectLoading(false);
+        return;
+      }
+
+      try {
+        const projectData = await getProject(projectId);
+
+        if (!projectData) {
+          setProjectError('Project not found');
+          setProjectLoading(false);
+          // Redirect to projects page after 2 seconds
+          setTimeout(() => navigate('/projects'), 2000);
+          return;
+        }
+
+        // Check if user has access to this project
+        if (!canUserAccessProject(projectData, currentUser.uid)) {
+          setProjectError('You do not have access to this project');
+          setProjectLoading(false);
+          // Redirect to projects page after 2 seconds
+          setTimeout(() => navigate('/projects'), 2000);
+          return;
+        }
+
+        setProject(projectData);
+        setProjectLoading(false);
+      } catch (error) {
+        console.error('Error loading project:', error);
+        setProjectError('Failed to load project');
+        setProjectLoading(false);
+      }
+    }
+
+    loadProject();
+  }, [projectId, currentUser, navigate]);
 
   // Track sync status for sync indicator
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
@@ -80,6 +151,54 @@ function CanvasPage() {
    * Exports objects based on user-configured settings
    */
   async function handleExportWithOptions(options: ExportOptions) {
+    const isDev = import.meta.env.DEV;
+
+    if (isDev) {
+      console.log('=== EXPORT BUTTON CLICKED ===');
+      console.log('Export options:', options);
+      console.log('Selected IDs:', selectedIds);
+      console.log('Selected objects from state:', selectedObjects.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        name: obj.name,
+        x: obj.x,
+        y: obj.y,
+        width: 'width' in obj ? obj.width : undefined,
+        height: 'height' in obj ? obj.height : undefined,
+        radius: 'radius' in obj ? obj.radius : undefined,
+        fill: 'fill' in obj ? obj.fill : undefined,
+      })));
+
+      // Also check what Konva nodes say their positions are
+      if (stageRef.current) {
+        const stage = stageRef.current;
+        const layers = stage.getLayers();
+        const objectsLayer = layers[1]; // Objects layer
+
+        if (objectsLayer) {
+          console.log('Konva nodes on canvas:');
+          selectedIds.forEach(selectedId => {
+            const node = objectsLayer.findOne(`#${selectedId}`);
+            if (node) {
+              console.log(`  Node ${selectedId}:`, {
+                x: node.x(),
+                y: node.y(),
+                width: node.width(),
+                height: node.height(),
+                absolutePosition: node.getAbsolutePosition(),
+                attrs: node.attrs,
+              });
+            } else {
+              console.log(`  Node ${selectedId}: NOT FOUND on canvas`);
+            }
+          });
+        }
+      }
+
+      console.log('All objects count:', objects.length);
+      console.log('=========================');
+    }
+
     try {
       await exportCanvasToPNG(stageRef, selectedObjects, objects, options);
     } catch (error) {
@@ -262,16 +381,16 @@ function CanvasPage() {
     const username = getUserDisplayName(currentUser.username, currentUser.email);
 
     // Set user online (includes automatic onDisconnect cleanup)
-    setOnline('main', currentUser.uid, username).catch(() => {});
+    setOnline(projectId, currentUser.uid, username).catch(() => {});
 
     // Clean up any stale drag states from previous sessions
-    cleanupStaleDragStates('main').catch(() => {});
+    cleanupStaleDragStates(projectId).catch(() => {});
 
     // Clean up any stale cursors from previous sessions
-    cleanupStaleCursors('main').catch(() => {});
+    cleanupStaleCursors(projectId).catch(() => {});
 
     // Note: No explicit cleanup needed - onDisconnect() handles it
-  }, [currentUser]);
+  }, [currentUser, projectId]);
 
   /**
    * Subscribe to drag states to track which objects current user is dragging
@@ -283,7 +402,7 @@ function CanvasPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const unsubscribe = subscribeToDragStates('main', (dragStates) => {
+    const unsubscribe = subscribeToDragStates(projectId, (dragStates) => {
       // Track which objects the current user is actively dragging
       Object.entries(dragStates).forEach(([objectId, dragState]) => {
         if (dragState.userId === currentUser.uid) {
@@ -295,7 +414,7 @@ function CanvasPage() {
     });
 
     return unsubscribe;
-  }, [currentUser]);
+  }, [currentUser, projectId]);
 
   /**
    * Subscribe to resize states to track which objects current user is resizing
@@ -307,7 +426,7 @@ function CanvasPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const unsubscribe = subscribeToResizeStates('main', (resizeStates) => {
+    const unsubscribe = subscribeToResizeStates(projectId, (resizeStates) => {
       // Track which objects the current user is actively resizing
       Object.entries(resizeStates).forEach(([objectId, resizeState]) => {
         if (resizeState.userId === currentUser.uid) {
@@ -319,7 +438,7 @@ function CanvasPage() {
     });
 
     return unsubscribe;
-  }, [currentUser]);
+  }, [currentUser, projectId]);
 
   /**
    * Subscribe to edit states to track which text objects current user is editing
@@ -329,7 +448,7 @@ function CanvasPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const unsubscribe = subscribeToEditStates('main', (editStates) => {
+    const unsubscribe = subscribeToEditStates(projectId, (editStates) => {
       // Track which text objects the current user is actively editing
       Object.entries(editStates).forEach(([textId, editState]) => {
         if (editState.userId === currentUser.uid) {
@@ -341,7 +460,7 @@ function CanvasPage() {
     });
 
     return unsubscribe;
-  }, [currentUser]);
+  }, [currentUser, projectId]);
 
   /**
    * Subscribe to Realtime Database for real-time canvas updates
@@ -355,8 +474,8 @@ function CanvasPage() {
     let isFirstLoad = true;
 
     try {
-      // Subscribe to 'main' canvas objects in RTDB
-      const unsubscribe = subscribeToCanvasObjects('main', (remoteObjects) => {
+      // Subscribe to project-specific canvas objects in RTDB
+      const unsubscribe = subscribeToCanvasObjects(projectId, (remoteObjects) => {
         // On first load, accept all remote objects
         if (isFirstLoad) {
           setObjects(remoteObjects);
@@ -413,17 +532,30 @@ function CanvasPage() {
       // Mark loading as complete even on error
       setIsLoading(false);
     }
-    // Empty dependency array - only run once on mount
+    // Re-subscribe when projectId changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [projectId]);
 
   // Calculate background color with opacity
   const backgroundColor = pageSettings.backgroundColor;
   const opacity = pageSettings.opacity / 100;
   const bgColorWithOpacity = hexToRgba(backgroundColor, opacity);
 
+  // Show project error if access denied or project not found
+  if (projectError) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center space-y-4 p-8">
+          <div className="text-6xl">🔒</div>
+          <h1 className="text-2xl font-bold text-gray-900">{projectError}</h1>
+          <p className="text-gray-600">Redirecting to projects page...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Show loading indicator during initial load
-  if (isLoading) {
+  if (isLoading || projectLoading) {
     return (
       <div
         className="relative h-screen w-screen overflow-hidden"
@@ -519,6 +651,12 @@ function CanvasPage() {
           stageRef={stageRef}
           selectedObjects={selectedObjects}
           allObjects={objects}
+        />
+
+        {/* Image Upload Modal */}
+        <ImageUploadModal
+          isOpen={isImageUploadOpen}
+          onClose={() => setIsImageUploadOpen(false)}
         />
       </div>
     );

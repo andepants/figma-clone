@@ -60,6 +60,17 @@ export async function exportCanvasToPNG(
     console.log('=== EXPORT START ===');
     console.log('Export options:', options);
     console.log('Selected objects count:', selectedObjects.length);
+    console.log('Selected objects received:', selectedObjects.map(obj => ({
+      id: obj.id,
+      type: obj.type,
+      name: obj.name,
+      x: obj.x,
+      y: obj.y,
+      width: 'width' in obj ? obj.width : undefined,
+      height: 'height' in obj ? obj.height : undefined,
+      radius: 'radius' in obj ? obj.radius : undefined,
+      fill: 'fill' in obj ? obj.fill : undefined,
+    })));
     console.log('All objects count:', allObjects.length);
   }
 
@@ -180,6 +191,13 @@ export async function exportCanvasToPNG(
   backgroundLayer?.hide();
   cursorsLayer?.hide();
 
+  // Hide all dimension labels (UI overlays that shouldn't appear in exports)
+  // Dimension labels have name="dimension-label"
+  const dimensionLabels = objectsLayer.find('.dimension-label');
+  const dimensionLabelVisibility = dimensionLabels.map(label => label.visible());
+  if (isDev) console.log(`Hiding ${dimensionLabels.length} dimension labels...`);
+  dimensionLabels.forEach(label => label.hide());
+
   // Force layer redraw to ensure all shapes are fully rendered
   if (isDev) console.log('Forcing layer redraw...');
   objectsLayer.batchDraw();
@@ -202,15 +220,23 @@ export async function exportCanvasToPNG(
   if (wasBackgroundVisible) backgroundLayer?.show();
   if (wasCursorsVisible) cursorsLayer?.show();
 
+  // Restore dimension labels visibility
+  if (isDev) console.log('Restoring dimension labels...');
+  dimensionLabels.forEach((label, index) => {
+    if (dimensionLabelVisibility[index]) {
+      label.show();
+    }
+  });
+
   // Generate filename with timestamp
-  // Format: collabcanvas-YYYY-MM-DD-HH-MM-SS.png
+  // Format: canvasicons-YYYY-MM-DD-HH-MM-SS.png
   const now = new Date();
   const timestamp = now
     .toISOString()
     .slice(0, 19)
     .replace('T', '-')
     .replace(/:/g, '-');
-  const filename = `collabcanvas-${timestamp}.png`;
+  const filename = `canvasicons-${timestamp}.png`;
 
   // Trigger browser download
   if (isDev) console.log('Triggering download with filename:', filename);

@@ -117,6 +117,23 @@ function areObjectArraysEqual(arr1: CanvasObject[], arr2: CanvasObject[]): boole
       ) {
         return false;
       }
+    } else if (obj1.type === 'image' && obj2.type === 'image') {
+      // Compare image-specific properties
+      if (
+        obj1.src !== obj2.src ||
+        obj1.width !== obj2.width ||
+        obj1.height !== obj2.height ||
+        obj1.naturalWidth !== obj2.naturalWidth ||
+        obj1.naturalHeight !== obj2.naturalHeight ||
+        obj1.fileName !== obj2.fileName ||
+        obj1.fileSize !== obj2.fileSize ||
+        obj1.mimeType !== obj2.mimeType ||
+        obj1.storageType !== obj2.storageType ||
+        obj1.storagePath !== obj2.storagePath ||
+        obj1.lockAspectRatio !== obj2.lockAspectRatio
+      ) {
+        return false;
+      }
     }
   }
 
@@ -454,6 +471,19 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       const objectToRemove = state.objects.find((obj) => obj.id === id);
       if (!objectToRemove) return state;
 
+      // Clean up image from Firebase Storage if needed
+      if (objectToRemove.type === 'image' && objectToRemove.storageType === 'storage' && objectToRemove.storagePath) {
+        // Dynamic import to avoid circular dependency
+        import('@/lib/firebase').then(async ({ deleteImageFromStorage }) => {
+          try {
+            await deleteImageFromStorage(objectToRemove.storagePath!);
+          } catch (error) {
+            console.error('Failed to delete image from storage:', error);
+            // Don't throw - image already removed from canvas, storage cleanup is best-effort
+          }
+        });
+      }
+
       // Remove the object
       let updatedObjects = state.objects.filter((obj) => obj.id !== id);
 
@@ -624,6 +654,11 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
           maxX = Math.max(maxX, obj.x + obj.radius);
           maxY = Math.max(maxY, obj.y + obj.radius);
         } else if (obj.type === 'text') {
+          minX = Math.min(minX, obj.x);
+          minY = Math.min(minY, obj.y);
+          maxX = Math.max(maxX, obj.x + obj.width);
+          maxY = Math.max(maxY, obj.y + obj.height);
+        } else if (obj.type === 'image') {
           minX = Math.min(minX, obj.x);
           minY = Math.min(minY, obj.y);
           maxX = Math.max(maxX, obj.x + obj.width);

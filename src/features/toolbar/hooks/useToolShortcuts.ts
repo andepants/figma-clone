@@ -38,6 +38,7 @@ function isInputFocused(): boolean {
  * - T: Text tool
  * - Cmd/Ctrl+K: Toggle AI chat panel
  * - Shift+Cmd/Ctrl+\: Toggle left sidebar (Minimize UI)
+ * - Shift+Cmd/Ctrl+I: Open image upload modal
  * - Cmd/Ctrl+C: Copy selected objects (supports multi-select, preserves hierarchy)
  * - Cmd/Ctrl+V: Paste copied objects (supports multi-select, preserves hierarchy)
  * - Cmd/Ctrl+G: Group selected objects (requires 2+ objects)
@@ -58,17 +59,19 @@ function isInputFocused(): boolean {
  * Shortcuts are disabled when user is typing in an input/textarea.
  *
  * @param {function} onShowShortcuts - Optional callback to show shortcuts modal
+ * @param {function} onImageUpload - Optional callback to open image upload modal
  *
  * @example
  * ```tsx
  * function CanvasPage() {
  *   const [showShortcuts, setShowShortcuts] = useState(false);
- *   useToolShortcuts(() => setShowShortcuts(true));
+ *   const [showImageUpload, setShowImageUpload] = useState(false);
+ *   useToolShortcuts(() => setShowShortcuts(true), () => setShowImageUpload(true));
  *   return <div>...</div>;
  * }
  * ```
  */
-export function useToolShortcuts(onShowShortcuts?: () => void) {
+export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: () => void) {
   const { setActiveTool } = useToolStore();
   const { toggleAIChatCollapse, toggleLeftSidebar } = useUIStore();
   const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility } = useCanvasStore();
@@ -96,6 +99,15 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
       if (event.shiftKey && (event.metaKey || event.ctrlKey) && key === '\\') {
         event.preventDefault();
         toggleLeftSidebar();
+        return;
+      }
+
+      // Handle Shift+Cmd/Ctrl+I for image upload
+      if (event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'i') {
+        event.preventDefault();
+        if (onImageUpload) {
+          onImageUpload();
+        }
         return;
       }
 
@@ -407,5 +419,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, onShowShortcuts]);
+  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, onShowShortcuts, onImageUpload]);
 }

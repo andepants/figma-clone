@@ -6,7 +6,7 @@
  */
 
 // Export Firebase app and core services
-export { app, auth, firestore, realtimeDb } from './config'
+export { app, auth, firestore, realtimeDb, storage } from './config'
 
 // Export authentication utilities
 export {
@@ -28,11 +28,14 @@ export {
   deleteDoc,
   query,
   where,
+  orderBy,
+  limit,
   onSnapshot,
   type DocumentData,
   type CollectionReference,
   type DocumentReference,
   type QueryConstraint,
+  type Unsubscribe,
 } from './firestore'
 
 // Export Realtime Database utilities
@@ -126,3 +129,61 @@ export {
   type EditState,
   type EditStateMap,
 } from './textEditingService'
+
+// Export Storage Service
+export {
+  createImageRef,
+  uploadImageToStorage,
+  deleteImageFromStorage,
+  getImageDownloadURL,
+  type UploadProgressCallback,
+  type UploadResult,
+} from './storage'
+
+// Export Projects Service
+export {
+  createProject,
+  getProject,
+  getUserProjects,
+  getPublicProjects,
+  updateProject,
+  deleteProject,
+  subscribeToProject,
+  subscribeToUserProjects,
+  canUserAccessProject,
+  canUserModifyProject,
+  generateProjectId,
+  createDefaultProject,
+} from './projectsService'
+
+// Export Users Service
+export {
+  createUser,
+  getUser,
+  isUsernameAvailable,
+  updateLastLogin,
+  updateUser,
+  deleteUser,
+  updateSubscription,
+  upgradeToPaidTier,
+  downgradeToFreeTier,
+  hasActivePaidSubscription,
+  updateOnboarding,
+  completeOnboardingStep,
+  skipOnboarding,
+  resetOnboarding,
+  subscribeToUser,
+  getSubscriptionTierCounts,
+  getFoundersUsers,
+} from './usersService'
+
+// Export Config Service
+export {
+  getFoundersDealConfig,
+  updateFoundersDealConfig,
+  decrementFoundersSpots,
+  subscribeToFoundersDeal,
+  isFoundersDealAvailable,
+  initializeFoundersDealConfig,
+  type FoundersDealConfig,
+} from './configService'

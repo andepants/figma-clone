@@ -9,3 +9,4 @@ export * from './Rectangle';
 export * from './Circle';
 export * from './TextShape';
 export * from './Line';
+export * from './ImageShape';

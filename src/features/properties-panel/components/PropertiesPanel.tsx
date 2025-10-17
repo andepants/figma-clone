@@ -6,7 +6,7 @@
  * Displays active users presence at the top.
  */
 
-import { Square, Circle as CircleIcon, Type, Minus, Download } from 'lucide-react';
+import { Square, Circle as CircleIcon, Type, Minus, Download, ImageIcon } from 'lucide-react';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { getSectionVisibility } from '../utils/section-visibility';
 import { PositionSection } from './PositionSection';
@@ -16,6 +16,7 @@ import { TypographySection } from './TypographySection';
 import { AppearanceSection } from './AppearanceSection';
 import { FillSection } from './FillSection';
 import { StrokeSection } from './StrokeSection';
+import { ImageSection } from './ImageSection';
 import { PageSection } from './PageSection';
 import { ZoomDropdown } from './ZoomDropdown';
 import { AvatarStack, PresenceDropdown, type PresenceUser } from '@/features/collaboration/components';
@@ -120,6 +121,8 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
         return <Type className="w-3.5 h-3.5 text-gray-600" />;
       case 'line':
         return <Minus className="w-3.5 h-3.5 text-gray-600" />;
+      case 'image':
+        return <ImageIcon className="w-3.5 h-3.5 text-gray-600" />;
       default:
         return null;
     }
@@ -169,6 +172,7 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
         {visibility.rotation && <RotationSection />}
         {visibility.layout && <LayoutSection />}
         {visibility.text && <TypographySection />}
+        {visibility.image && <ImageSection />}
         {visibility.appearance && <AppearanceSection />}
         {visibility.fill && <FillSection />}
         {visibility.stroke && <StrokeSection />}

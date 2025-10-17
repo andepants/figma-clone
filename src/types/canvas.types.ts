@@ -6,9 +6,9 @@
 
 /**
  * Available shape types on the canvas
- * @typedef {'rectangle' | 'circle' | 'text' | 'line' | 'group'} ShapeType
+ * @typedef {'rectangle' | 'circle' | 'text' | 'line' | 'group' | 'image'} ShapeType
  */
-export type ShapeType = 'rectangle' | 'circle' | 'text' | 'line' | 'group';
+export type ShapeType = 'rectangle' | 'circle' | 'text' | 'line' | 'group' | 'image';
 
 /**
  * Base properties shared by all canvas objects
@@ -209,6 +209,66 @@ export interface Line extends BaseCanvasObject, VisualProperties {
 }
 
 /**
+ * Image storage types
+ * @typedef {'dataURL' | 'storage'} ImageStorageType
+ *
+ * @remarks
+ * - 'dataURL': Image stored inline as base64 data URL (for small images <100KB)
+ * - 'storage': Image stored in Firebase Storage with URL reference (for larger images)
+ */
+export type ImageStorageType = 'dataURL' | 'storage';
+
+/**
+ * Image-specific properties
+ * @interface ImageProperties
+ * @property {boolean} [lockAspectRatio] - Maintain aspect ratio when resizing (default: true)
+ */
+export interface ImageProperties {
+  lockAspectRatio?: boolean;
+}
+
+/**
+ * Image shape object
+ * @interface ImageObject
+ * @extends BaseCanvasObject
+ * @extends VisualProperties
+ * @extends ImageProperties
+ * @property {'image'} type - Discriminator for type checking
+ * @property {string} src - Image source (data URL or Firebase Storage URL)
+ * @property {number} naturalWidth - Original image width in pixels
+ * @property {number} naturalHeight - Original image height in pixels
+ * @property {number} width - Display width on canvas
+ * @property {number} height - Display height on canvas
+ * @property {string} fileName - Original file name
+ * @property {number} fileSize - File size in bytes (max 10MB = 10485760)
+ * @property {string} mimeType - MIME type (e.g., 'image/png', 'image/jpeg')
+ * @property {ImageStorageType} storageType - Storage strategy ('dataURL' or 'storage')
+ * @property {string} [storagePath] - Firebase Storage path (only if storageType === 'storage')
+ *
+ * @remarks
+ * Images support two storage strategies:
+ * - Small images (<100KB): Stored inline as base64 data URLs in RTDB for fast loading
+ * - Large images (>=100KB): Stored in Firebase Storage, only URL stored in RTDB
+ *
+ * The lockAspectRatio property defaults to true to maintain image proportions.
+ * Unlike rectangles where aspect ratio lock is optional, images should almost always
+ * maintain their aspect ratio to prevent distortion.
+ */
+export interface ImageObject extends BaseCanvasObject, VisualProperties, ImageProperties {
+  type: 'image';
+  src: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  width: number;
+  height: number;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  storageType: ImageStorageType;
+  storagePath?: string;
+}
+
+/**
  * Group object (container for other objects)
  * @interface Group
  * @extends BaseCanvasObject
@@ -242,9 +302,9 @@ export interface Group extends BaseCanvasObject, VisualProperties {
 /**
  * Union type of all possible canvas objects
  * Discriminated union using the 'type' property
- * @typedef {Rectangle | Circle | Text | Line | Group} CanvasObject
+ * @typedef {Rectangle | Circle | Text | Line | Group | ImageObject} CanvasObject
  */
-export type CanvasObject = Rectangle | Circle | Text | Line | Group;
+export type CanvasObject = Rectangle | Circle | Text | Line | Group | ImageObject;
 
 /**
  * Helper type for objects with resolved children
@@ -352,7 +412,7 @@ export function hasCornerRadius(shape: CanvasObject): shape is Rectangle {
  * Type guard: Check if shape supports aspect ratio lock
  */
 export function supportsAspectRatioLock(shape: CanvasObject): boolean {
-  return shape.type === 'rectangle' || shape.type === 'text';
+  return shape.type === 'rectangle' || shape.type === 'text' || shape.type === 'image';
 }
 
 /**
@@ -374,4 +434,11 @@ export function isLineShape(shape: CanvasObject): shape is Line {
  */
 export function isGroupShape(shape: CanvasObject): shape is Group {
   return shape.type === 'group';
+}
+
+/**
+ * Type guard: Check if object is an image
+ */
+export function isImageShape(shape: CanvasObject): shape is ImageObject {
+  return shape.type === 'image';
 }
