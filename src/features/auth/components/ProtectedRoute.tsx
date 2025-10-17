@@ -6,7 +6,7 @@
  */
 
 import * as React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 /**
@@ -25,6 +25,7 @@ interface ProtectedRouteProps {
  */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { currentUser, loading } = useAuth();
+  const location = useLocation();
 
   // Show loading spinner while determining auth state
   // This prevents flash of content before redirect
@@ -46,8 +47,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   // Redirect to home if not authenticated
-  // Use replace to prevent back button from returning to protected route
+  // Store intended destination for post-login redirect
   if (!currentUser) {
+    // Save the current location (pathname + search) to sessionStorage
+    const returnUrl = location.pathname + location.search;
+    sessionStorage.setItem('returnUrl', returnUrl);
+
     return <Navigate to="/" replace />;
   }
 

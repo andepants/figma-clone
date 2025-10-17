@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, User } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/hooks';
+import { AccountModal } from '@/components/common';
 
 /**
  * Menu button component
@@ -28,6 +29,7 @@ import { useAuth } from '@/features/auth/hooks';
  *
  * Dropdown options:
  * - Back to home: Navigate to landing page
+ * - Account: Open account management modal
  * - Log out: Sign out current user
  *
  * @example
@@ -37,6 +39,7 @@ import { useAuth } from '@/features/auth/hooks';
  */
 export function MenuButton() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -45,6 +48,14 @@ export function MenuButton() {
    */
   function handleBackToHome() {
     navigate('/');
+  }
+
+  /**
+   * Handle account button click
+   * Opens account management modal
+   */
+  function handleAccountClick() {
+    setShowAccountModal(true);
   }
 
   /**
@@ -61,30 +72,42 @@ export function MenuButton() {
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <button
-          className={`
-            flex items-center justify-center rounded-lg p-2
-            transition-all duration-150
-            ${
-              isOpen
-                ? 'bg-[#0ea5e9] text-white'
-                : 'bg-transparent text-neutral-700 hover:bg-neutral-200'
-            }
-          `}
-          aria-label="Menu"
-        >
-          <LayoutGrid size={20} />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onClick={handleBackToHome}>
-          Back to home
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
+          <button
+            className={`
+              flex items-center justify-center rounded-lg p-2
+              transition-all duration-150
+              ${
+                isOpen
+                  ? 'bg-[#0ea5e9] text-white'
+                  : 'bg-transparent text-neutral-700 hover:bg-neutral-200'
+              }
+            `}
+            aria-label="Menu"
+          >
+            <LayoutGrid size={20} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuItem onClick={handleBackToHome}>
+            Back to home
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleAccountClick}>
+            <User className="w-4 h-4 mr-2" />
+            Account
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Account Modal */}
+      <AccountModal
+        isOpen={showAccountModal}
+        onClose={() => setShowAccountModal(false)}
+      />
+    </>
   );
 }

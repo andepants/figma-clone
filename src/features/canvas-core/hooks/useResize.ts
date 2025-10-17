@@ -207,10 +207,11 @@ export function useResize(): UseResizeReturn {
       // - Circles: always locked (must maintain 1:1 ratio)
       // - Images: locked by default (lockAspectRatio !== false)
       // - Other shapes with lockAspectRatio property: respect the flag
+      const objectWithLock = object as { lockAspectRatio?: boolean };
       const hasAspectRatioLock =
         isCircle ||
-        (isImage && (object as any).lockAspectRatio !== false) ||
-        (!isCircle && !isImage && (object as any)?.lockAspectRatio === true);
+        (isImage && objectWithLock.lockAspectRatio !== false) ||
+        (!isCircle && !isImage && objectWithLock.lockAspectRatio === true);
 
       // CIRCLES: Always enforce uniform scaling (maintain 1:1 aspect ratio)
       // Circles must maintain width === height to stay circular

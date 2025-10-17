@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Trash2, MoreVertical, Lock, Globe } from 'lucide-react';
+import { Pencil, Trash2, Lock, Globe } from 'lucide-react';
 import type { Project } from '@/types/project.types';
 import { cn } from '@/lib/utils';
 

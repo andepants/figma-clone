@@ -136,6 +136,9 @@ export {
   uploadImageToStorage,
   deleteImageFromStorage,
   getImageDownloadURL,
+  createExportRef,
+  uploadExportToStorage,
+  deleteExportFromStorage,
   type UploadProgressCallback,
   type UploadResult,
 } from './storage'
@@ -146,6 +149,7 @@ export {
   getProject,
   getUserProjects,
   getPublicProjects,
+  getPublicProjectsForUser,
   updateProject,
   deleteProject,
   subscribeToProject,
@@ -176,6 +180,16 @@ export {
   getSubscriptionTierCounts,
   getFoundersUsers,
 } from './usersService'
+
+// Export Exports Service
+export {
+  createExportRecord,
+  getExportRecord,
+  getUserExportRecords,
+  deleteExportRecord,
+  deleteAllExportRecords,
+} from './exportsService'
+export type { ExportRecord, CreateExportInput } from '@/features/export/types'
 
 // Export Config Service
 export {

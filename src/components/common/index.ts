@@ -16,3 +16,5 @@ export { AccessDenied, PrivateProjectAccessDenied, SubscriptionRequiredAccessDen
 export { EmptyState } from './EmptyState';
 export { Spinner } from './Spinner';
 export { Skeleton } from './Skeleton';
+export { AccountModal } from './AccountModal';
+export { ProfileDropdown } from './ProfileDropdown';

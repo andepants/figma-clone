@@ -73,7 +73,7 @@ export type StripeWebhookEvent =
 export interface WebhookPayload {
   type: StripeWebhookEvent;
   data: {
-    object: any; // Stripe object (typed per event)
+    object: unknown; // Stripe object (typed per event)
   };
 }
 

@@ -8,3 +8,4 @@ export { ProjectCard } from './ProjectCard';
 export { CreateProjectModal } from './CreateProjectModal';
 export { ConfirmDeleteModal } from './ConfirmDeleteModal';
 export { ProjectsEmptyState } from './ProjectsEmptyState';
+export { PublicProjectsSection } from './PublicProjectsSection';

@@ -10,7 +10,7 @@
  * - Automatic upload on drop
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useDropzone, type DropzoneOptions } from 'react-dropzone';
 import { useImageUpload } from './useImageUpload';
 import { createImageObject } from '../utils/imageFactory';
@@ -33,9 +33,9 @@ export interface UseCanvasDropzoneOptions {
  */
 export interface UseCanvasDropzoneReturn {
   /** react-dropzone props to spread on drop target */
-  getRootProps: () => any;
+  getRootProps: () => ReturnType<ReturnType<typeof useDropzone>['getRootProps']>;
   /** react-dropzone props for input element */
-  getInputProps: () => any;
+  getInputProps: () => ReturnType<ReturnType<typeof useDropzone>['getInputProps']>;
   /** Whether drag is currently over drop zone */
   isDragActive: boolean;
   /** Whether upload is in progress */
@@ -80,7 +80,6 @@ export function useCanvasDropzone({
   const { currentUser } = useAuth();
   const { objects, addObject } = useCanvasStore();
   const { uploadImage, isUploading, uploadProgress, uploadError } = useImageUpload();
-  const [dropPosition, setDropPosition] = useState<{ x: number; y: number } | null>(null);
 
   /**
    * Convert screen coordinates to canvas coordinates
@@ -123,7 +122,7 @@ export function useCanvasDropzone({
    * Uploads file and creates canvas object at drop position
    */
   const onDrop = useCallback(
-    async (acceptedFiles: File[], _fileRejections: any, event: any) => {
+    async (acceptedFiles: File[], _fileRejections: unknown, event: { clientX?: number; clientY?: number }) => {
       if (!currentUser) {
         console.error('User not authenticated');
         return;
@@ -145,13 +144,9 @@ export function useCanvasDropzone({
         position = { x: 400, y: 300 };
       }
 
-      // Save position for upload
-      setDropPosition(position);
-
       // Upload image
       const uploadedData = await uploadImage(file, position);
       if (!uploadedData) {
-        setDropPosition(null);
         return;
       }
 
@@ -160,9 +155,6 @@ export function useCanvasDropzone({
 
       // Add to canvas
       addObject(imageObject);
-
-      // Clear drop position
-      setDropPosition(null);
     },
     [currentUser, screenToCanvasCoords, uploadImage, objects, addObject]
   );

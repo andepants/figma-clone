@@ -137,11 +137,12 @@ export function useImageUpload(): UseImageUploadReturn {
    * Upload an image file
    *
    * @param file - Image file to upload
-   * @param position - Optional position on canvas
+   * @param _position - Optional position on canvas (unused, kept for API compatibility)
    * @returns Promise resolving to uploaded image data or null on error
    */
   const uploadImageFile = useCallback(
-    async (file: File, position?: { x: number; y: number }): Promise<UploadedImageData | null> => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async (file: File, _position?: { x: number; y: number }): Promise<UploadedImageData | null> => {
       if (!currentUser) {
         setUploadState({ isUploading: false, progress: 0, error: 'Not authenticated' })
         return null

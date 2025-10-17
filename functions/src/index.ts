@@ -21,6 +21,7 @@ import {
 
 // Define secrets (for production deployment)
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
+const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
 // Global options for all functions
@@ -324,8 +325,16 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
     } catch (error) {
       const responseTime = Date.now() - startTime;
 
+      // Extract detailed error information
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      const errorName = error instanceof Error ? error.name : undefined;
+
       logger.error("Error processing AI command", {
         error,
+        errorMessage,
+        errorStack,
+        errorName,
         userId: auth.uid,
         canvasId: data.canvasId,
         responseTime: `${responseTime}ms`,
@@ -357,10 +366,103 @@ export const processAICommand = onCall<ProcessAICommandRequest>(
         }
       })();
 
-      // Return user-friendly error
+      // Return user-friendly error with detailed message
       throw new HttpsError(
         "internal",
-        `Failed to process AI command: ${error}`
+        `Failed to process AI command: ${errorMessage || error}`
+      );
+    }
+  }
+);
+
+/**
+ * Create Stripe Checkout Session
+ *
+ * Callable function to create a new Stripe Checkout Session for subscription payments.
+ * Returns the session URL for client-side redirect.
+ *
+ * Replaces deprecated `stripe.redirectToCheckout()` method with server-side session creation.
+ *
+ * @param request - Contains auth context and checkout parameters
+ * @returns Session ID and URL for redirect
+ */
+export const createCheckoutSession = onCall(
+  {
+    secrets: [stripeSecretKey],
+  },
+  async (request) => {
+    const {auth, data} = request;
+
+    // Authentication check
+    if (!auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "User must be authenticated to create checkout session"
+      );
+    }
+
+    // Validate required fields
+    if (!data.priceId || typeof data.priceId !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing or invalid 'priceId' field"
+      );
+    }
+
+    if (!data.userEmail || typeof data.userEmail !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing or invalid 'userEmail' field"
+      );
+    }
+
+    if (!data.successUrl || typeof data.successUrl !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing or invalid 'successUrl' field"
+      );
+    }
+
+    if (!data.cancelUrl || typeof data.cancelUrl !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing or invalid 'cancelUrl' field"
+      );
+    }
+
+    logger.info("Creating checkout session for user", {
+      userId: auth.uid,
+      priceId: data.priceId,
+      email: data.userEmail,
+    });
+
+    try {
+      const {createCheckoutSession: createSession} =
+        await import("./services/create-checkout-session.js");
+
+      const result = await createSession({
+        priceId: data.priceId,
+        userEmail: data.userEmail,
+        userId: auth.uid,
+        successUrl: data.successUrl,
+        cancelUrl: data.cancelUrl,
+      });
+
+      logger.info("Checkout session created successfully", {
+        userId: auth.uid,
+        sessionId: result.sessionId,
+      });
+
+      return result;
+    } catch (error) {
+      logger.error("Failed to create checkout session", {
+        userId: auth.uid,
+        error,
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Failed to create checkout session: ${error}`
       );
     }
   }

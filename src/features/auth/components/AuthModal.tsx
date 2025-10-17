@@ -54,13 +54,23 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
 
   /**
    * Handles successful authentication
-   * Closes modal and redirects to projects page
+   * Closes modal and redirects to intended destination or projects page
    */
   function handleSuccess() {
     onClose();
     // Small delay to let modal close gracefully
     setTimeout(() => {
-      navigate('/projects');
+      // Check for stored return URL from protected route redirect
+      const returnUrl = sessionStorage.getItem('returnUrl');
+
+      if (returnUrl) {
+        // Clear the stored URL and redirect to it
+        sessionStorage.removeItem('returnUrl');
+        navigate(returnUrl);
+      } else {
+        // Default to projects page
+        navigate('/projects');
+      }
     }, 150);
   }
 

@@ -29,54 +29,29 @@ interface FAQItem {
 
 const faqData: FAQItem[] = [
   {
-    question: "What happens when I sign up for free?",
+    question: "How do I get added to a project?",
     answer:
-      "You can immediately join any public project and start collaborating. You will have access to all editing tools, real-time collaboration, and can export high-resolution files. The only limitation is that you cannot create your own projects but you can contribute to unlimited public projects.",
+      "Ask the project owner to share your username with them. They can add you as a collaborator in project settings. Once added, you'll see the project in your \"Public Projects You're In\" section.",
   },
   {
-    question: "What if the Founders deal sells out?",
+    question: "What happens when I upgrade?",
     answer:
-      "Once all 10 Founders spots are claimed, the deal closes permanently. Future pricing will be $90/year or $10/month for the Pro tier. If you are on the fence, we recommend securing your spot now and you will lock in $9.99/year forever.",
+      "You'll unlock the ability to create unlimited private projects, generate icons and feature graphics, and access all premium features. Your upgrade is instant.",
   },
   {
-    question: "Can I upgrade from Free to Founders later?",
+    question: "Can I get a refund anytime?",
     answer:
-      "Yes, but only if spots are still available. The Founders deal is limited to the first 10 users. Once sold out, you can upgrade to Pro tier at regular pricing ($90/year or $10/month).",
+      "Yes! We offer a 100% money-back satisfaction guarantee. If you're not happy for any reason, you can get a full refund at any time—no questions asked. Just email andrewsheim@gmail.com and we'll process your refund immediately.",
   },
   {
-    question: "Do I need to know design to use Canvas Icons?",
+    question: "Can I cancel my subscription?",
     answer:
-      "Not at all! Canvas Icons is built for developers and non-designers. We provide templates for app icons, feature graphics, and screenshots just customize colors, text, and shapes. If you can drag and drop, you can create professional graphics.",
+      "Absolutely! You can cancel with one click from your account settings. Your access continues until the end of your billing period, and you won't be charged again.",
   },
   {
-    question: "How does real-time collaboration work?",
+    question: "Is the founders pricing limited?",
     answer:
-      "When you join a project, you see cursors, selections, and changes from all team members in real-time (synced within 150ms). It feels like Google Docs for design. Free users can collaborate on public projects, while Founders users can invite teammates to private projects.",
-  },
-  {
-    question: "What file formats can I export?",
-    answer:
-      "You can export PNG files at 1x, 2x, or 3x resolution for perfect quality on any device. SVG export is also available for vector graphics. We are working on batch export and additional formats (JPG, WebP) for Founders users.",
-  },
-  {
-    question: "Is the Founders price really lifetime?",
-    answer:
-      "Yes! Once you claim a Founders spot at $9.99/year, that price is locked in forever. Even if we raise prices to $90/year later, you will continue paying $9.99/year as long as your subscription is active. This is our way of rewarding early supporters.",
-  },
-  {
-    question: "Can I cancel anytime?",
-    answer:
-      "Yes, you can cancel your Founders subscription anytime from your account settings. You will retain access until the end of your current billing period. If you cancel and rejoin later, you will need to pay current pricing (no longer $9.99/year).",
-  },
-  {
-    question: "What payment methods do you accept?",
-    answer:
-      "We accept all major credit and debit cards (Visa, Mastercard, Amex, Discover) through Stripe. We do not currently support PayPal, cryptocurrency, or bank transfers but may add these options based on demand.",
-  },
-  {
-    question: "Do you offer refunds?",
-    answer:
-      "Yes! If you are not satisfied within the first 30 days, we offer a full refund with no questions asked. Just email support@canvasicons.app with your request.",
+      "Yes, founders pricing at $10/year is only available for the first 10 users. After that, the price increases to $60/year (still less than $5/month).",
   },
 ];
 
@@ -92,16 +67,13 @@ export function PricingFAQ() {
   };
 
   return (
-    <section className="py-16 px-4" data-testid="pricing-faq">
+    <section className="py-16 px-4 bg-gray-50" data-testid="pricing-faq">
       <div className="max-w-3xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12" data-testid="faq-header">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
-            Frequently Asked Questions
+            Questions?
           </h2>
-          <p className="text-lg text-gray-600">
-            Everything you need to know about pricing and plans
-          </p>
         </div>
 
         {/* FAQ Accordion */}
@@ -145,13 +117,15 @@ export function PricingFAQ() {
 
         {/* Contact CTA */}
         <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">Still have questions?</p>
-          <a
-            href="mailto:support@canvasicons.app"
-            className="inline-block px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 hover:border-gray-400 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-          >
-            Contact Support
-          </a>
+          <p className="text-gray-600">
+            Still have questions?{' '}
+            <a
+              href="mailto:andrewsheim@gmail.com"
+              className="text-blue-600 hover:text-blue-700 underline font-medium"
+            >
+              Email us
+            </a>
+          </p>
         </div>
       </div>
     </section>

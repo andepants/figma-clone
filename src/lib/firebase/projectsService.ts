@@ -18,13 +18,12 @@ import {
   query,
   where,
   onSnapshot,
-  type DocumentData,
   type Unsubscribe,
   orderBy,
   limit as queryLimit,
 } from 'firebase/firestore';
 import { firestore } from './config';
-import type { Project, ProjectTemplate } from '@/types/project.types';
+import type { Project } from '@/types/project.types';
 
 /**
  * Create a new project in Firestore
@@ -106,6 +105,26 @@ export async function getPublicProjects(limit?: number): Promise<Project[]> {
   const querySnapshot = await getDocs(q);
 
   return querySnapshot.docs.map((doc) => doc.data() as Project);
+}
+
+/**
+ * Get public projects where user is a collaborator
+ *
+ * @param userId - User ID to check collaborator status
+ * @returns Array of public projects where user is a collaborator
+ */
+export async function getPublicProjectsForUser(
+  userId: string
+): Promise<Project[]> {
+  const projectsRef = collection(firestore, 'projects');
+  const q = query(
+    projectsRef,
+    where('isPublic', '==', true),
+    where('collaborators', 'array-contains', userId)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => doc.data() as Project);
 }
 
 /**

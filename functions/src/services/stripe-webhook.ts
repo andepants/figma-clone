@@ -14,10 +14,18 @@ import {getFirestore} from "./firebase-admin.js";
 /**
  * Initialize Stripe with API key
  * Uses environment variable or Firebase secret
+ *
+ * Priority order (for local development):
+ * 1. STRIPE_TEST_SECRET_KEY (from .env.local) - forces test mode
+ * 2. STRIPE_SECRET_KEY (from .env.local or Firebase Secret)
+ *
+ * This ensures emulators use test keys even if Firebase Secrets are set.
  */
 export function getStripeInstance(): Stripe {
+  // In development, prioritize STRIPE_TEST_SECRET_KEY from .env.local
+  // This prevents Firebase Secrets from overriding local test config
   const stripeSecretKey =
-    process.env.STRIPE_SECRET_KEY || process.env.STRIPE_TEST_SECRET_KEY;
+    process.env.STRIPE_TEST_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
 
   if (!stripeSecretKey) {
     throw new Error(
@@ -123,14 +131,23 @@ export async function handleCheckoutCompleted(
     // Extract price ID (should match founders or pro tier)
     const priceData = subscription.items.data[0]?.price;
     priceId = priceData?.id;
-    // TODO: Stripe types may need updating - property exists at runtime
-    currentPeriodEnd = (subscription as any).current_period_end;
+    // Stripe types may need updating - property exists at runtime
+    currentPeriodEnd = subscription.current_period_end;
 
     logger.info("Subscription retrieved", {
       subscriptionId,
       priceId,
       currentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000).toISOString() : undefined,
     });
+
+    // Check for free tier subscription - skip processing
+    if (priceId === "price_1SJGvHGag53vyQGAppC8KBkE") {
+      logger.info("Free tier subscription event, skipping upgrade logic", {
+        userId,
+        priceId,
+      });
+      return;
+    }
   }
 
   // Determine subscription tier based on price ID
@@ -157,6 +174,46 @@ export async function handleCheckoutCompleted(
       customerId,
       priceId,
     });
+
+    // Decrement founders spots if this was a founders tier purchase
+    if (tier === "founders") {
+      try {
+        const configRef = db.collection("config").doc("founders-deal");
+        const configSnap = await configRef.get();
+
+        if (configSnap.exists) {
+          const config = configSnap.data();
+          const spotsRemaining = config?.spotsRemaining ?? 0;
+
+          if (spotsRemaining > 0) {
+            await configRef.update({
+              spotsRemaining: spotsRemaining - 1,
+              lastUpdated: Date.now(),
+            });
+
+            logger.info("Decremented founders spots", {
+              spotsRemaining: spotsRemaining - 1,
+              userId,
+            });
+          } else {
+            logger.warn("Founders deal sold out, but payment succeeded", {
+              userId,
+              priceId,
+            });
+          }
+        } else {
+          logger.warn("Founders deal config not found, skipping decrement", {
+            userId,
+          });
+        }
+      } catch (configError) {
+        logger.error("Failed to decrement founders spots", {
+          userId,
+          error: configError,
+        });
+        // Don't throw - user payment already succeeded
+      }
+    }
   } catch (error) {
     logger.error("Failed to update user subscription", {
       userId,
@@ -199,9 +256,18 @@ export async function handleSubscriptionUpdated(
 
   // Extract subscription details
   const priceId = subscription.items.data[0]?.price.id;
-  // TODO: Stripe types may need updating - properties exist at runtime
-  const currentPeriodEnd = (subscription as any).current_period_end;
-  const cancelAtPeriodEnd = (subscription as any).cancel_at_period_end;
+  // Stripe types may need updating - properties exist at runtime
+  const currentPeriodEnd = subscription.current_period_end;
+  const cancelAtPeriodEnd = subscription.cancel_at_period_end;
+
+  // Check for free tier subscription - skip processing
+  if (priceId === "price_1SJGvHGag53vyQGAppC8KBkE") {
+    logger.info("Free tier subscription update event, skipping upgrade logic", {
+      userId,
+      priceId,
+    });
+    return;
+  }
 
   // Determine subscription tier
   const tier = determineTierFromPriceId(priceId);
@@ -418,10 +484,15 @@ function determineTierFromPriceId(
   }
 
   // Get price IDs from environment
+  const freePriceId = "price_1SJGvHGag53vyQGAppC8KBkE"; // Free tier price
   const foundersPriceId = process.env.STRIPE_FOUNDERS_PRICE_ID;
   const proPriceId = process.env.STRIPE_PRO_PRICE_ID;
 
   // Match against known price IDs
+  if (priceId === freePriceId) {
+    return "free";
+  }
+
   if (priceId === foundersPriceId) {
     return "founders";
   }

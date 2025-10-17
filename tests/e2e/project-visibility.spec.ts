@@ -9,6 +9,8 @@
  * - Empty states with public projects mentions
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { test, expect } from '@playwright/test';
 
 test.describe('Project Visibility Controls', () => {

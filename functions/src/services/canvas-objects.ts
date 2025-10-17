@@ -25,10 +25,10 @@ import * as logger from 'firebase-functions/logger';
  */
 export interface CreateObjectParams {
   canvasId: string;
-  type: 'rectangle' | 'circle' | 'text' | 'line';
+  type: 'rectangle' | 'circle' | 'text' | 'line' | 'image';
   position: { x: number; y: number };
 
-  // Dimension-based properties (rectangle, text)
+  // Dimension-based properties (rectangle, text, image)
   dimensions?: { width: number; height: number };
 
   // Circle-specific
@@ -41,6 +41,9 @@ export interface CreateObjectParams {
 
   // Line-specific
   points?: [number, number, number, number];
+
+  // Image-specific
+  imageUrl?: string;
 
   // Visual properties
   appearance: {
@@ -163,6 +166,18 @@ export async function createCanvasObject(params: CreateObjectParams): Promise<st
       canvasObject.strokeWidth = params.appearance.strokeWidth || 2;
       break;
     }
+
+    case 'image':
+      if (!params.imageUrl) {
+        throw new Error('Image requires imageUrl');
+      }
+      if (!params.dimensions) {
+        throw new Error('Image requires dimensions (width, height)');
+      }
+      canvasObject.imageUrl = params.imageUrl;
+      canvasObject.width = params.dimensions.width;
+      canvasObject.height = params.dimensions.height;
+      break;
   }
 
   // Add optional appearance properties
@@ -292,6 +307,14 @@ export async function batchCreateObjects(
         canvasObject.strokeWidth = obj.appearance.strokeWidth || 2;
         break;
       }
+
+      case 'image':
+        if (!obj.imageUrl) throw new Error('Image requires imageUrl');
+        if (!obj.dimensions) throw new Error('Image requires dimensions');
+        canvasObject.imageUrl = obj.imageUrl;
+        canvasObject.width = obj.dimensions.width;
+        canvasObject.height = obj.dimensions.height;
+        break;
     }
 
     // Add optional properties

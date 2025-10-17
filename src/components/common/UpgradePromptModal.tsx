@@ -242,7 +242,7 @@ export function InlineUpgradePrompt({
       </button>
 
       <p className="text-sm text-gray-500 mt-4">
-        From $10/year • Cancel anytime
+        From $10/year (first 10 users) • Cancel anytime
       </p>
     </div>
   );

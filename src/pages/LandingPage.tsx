@@ -6,7 +6,7 @@
  * Features hero section, feature list, and professional layout.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Square, Twitter } from 'lucide-react';
 import { AuthModal } from '@/features/auth/components';
@@ -18,7 +18,7 @@ import type { AuthMode } from '@/types';
 function LandingPage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
   const navigate = useNavigate();
 
   // Update SEO for landing page
@@ -29,6 +29,15 @@ function LandingPage() {
     url: 'https://collabcanvas.app/',
     type: 'website',
   });
+
+  /**
+   * Auto-redirect authenticated users to projects page
+   */
+  useEffect(() => {
+    if (!loading && currentUser) {
+      navigate('/projects', { replace: true });
+    }
+  }, [currentUser, loading, navigate]);
 
   /**
    * Opens auth modal in specified mode

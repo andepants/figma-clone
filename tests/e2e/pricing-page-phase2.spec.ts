@@ -9,6 +9,8 @@
  * - Accessibility features
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { test, expect } from '@playwright/test';
 
 test.describe('Pricing Page - Phase 2 Features', () => {

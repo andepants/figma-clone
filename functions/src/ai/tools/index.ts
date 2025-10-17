@@ -22,6 +22,8 @@ import {ArrangeInColumnTool} from "./arrangeInColumn";
 import {ArrangeInGridTool} from "./arrangeInGrid";
 import {GetViewportCenterTool} from "./getViewportCenter.js";
 import {FindEmptySpaceTool} from "./findEmptySpace.js";
+import {GenerateAppIconTool} from "./generateAppIcon";
+import {GenerateFeatureGraphicTool} from "./generateFeatureGraphic";
 
 /**
  * Get all available canvas tools
@@ -57,6 +59,10 @@ export function getTools(context: CanvasToolContext): DynamicStructuredTool[] {
     // Spatial awareness tools
     new GetViewportCenterTool(context),
     new FindEmptySpaceTool(context),
+
+    // AI Image Generation tools
+    new GenerateAppIconTool(context),
+    new GenerateFeatureGraphicTool(context),
 
     // TODO Phase 4: Add grouping tool
     // - groupObjects (parent-child relationships)

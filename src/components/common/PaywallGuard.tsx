@@ -98,6 +98,7 @@ export function PaywallGuard({
  * const shouldPrompt = useShowUpgradePrompt('create_projects');
  * ```
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useShowUpgradePrompt(
   feature: 'create_projects' | 'private_projects' | 'templates'
 ): boolean {

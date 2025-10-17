@@ -7,9 +7,35 @@
 
 import type Konva from 'konva';
 import type { CanvasObject } from '@/types';
-import type { ExportOptions } from '@/features/export';
+import type { ExportOptions, ExportFormat, ExportScale, ExportScope } from '@/features/export';
 import { calculateBoundingBox } from './geometry';
 import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
+
+/**
+ * Export result data
+ * Contains all information needed to save export to Firebase
+ */
+export interface ExportResult {
+  /** Base64 data URL of exported PNG */
+  dataUrl: string
+  /** Generated filename */
+  filename: string
+  /** Export metadata */
+  metadata: {
+    /** Export format (currently always 'png') */
+    format: ExportFormat
+    /** Resolution multiplier (1x, 2x, 3x) */
+    scale: ExportScale
+    /** What was exported (selection or all objects) */
+    scope: ExportScope
+    /** Number of objects exported */
+    objectCount: number
+    /** Exported image width in pixels */
+    width: number
+    /** Exported image height in pixels */
+    height: number
+  }
+}
 
 /**
  * Export canvas to PNG file
@@ -25,7 +51,7 @@ import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
  * @param selectedObjects - Currently selected objects (if any)
  * @param allObjects - All canvas objects (used for group expansion)
  * @param options - Export options (format, scale, scope)
- * @returns Promise that resolves when download starts
+ * @returns Promise resolving to export result data (dataUrl, filename, metadata)
  *
  * @throws {Error} If stage ref is not available
  * @throws {Error} If no objects to export
@@ -34,14 +60,15 @@ import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
  * @example
  * ```tsx
  * // Export selected objects at 2x resolution
- * await exportCanvasToPNG(stageRef, selectedObjects, allObjects, {
+ * const result = await exportCanvasToPNG(stageRef, selectedObjects, allObjects, {
  *   format: 'png',
  *   scale: 2,
  *   scope: 'selection'
  * });
+ * console.log('Export result:', result);
  *
  * // Export entire canvas at 3x resolution
- * await exportCanvasToPNG(stageRef, [], allObjects, {
+ * const result = await exportCanvasToPNG(stageRef, [], allObjects, {
  *   format: 'png',
  *   scale: 3,
  *   scope: 'all'
@@ -53,7 +80,7 @@ export async function exportCanvasToPNG(
   selectedObjects: CanvasObject[],
   allObjects: CanvasObject[],
   options: ExportOptions = { format: 'png', scale: 2, scope: 'selection' }
-): Promise<void> {
+): Promise<ExportResult> {
   const isDev = import.meta.env.DEV;
 
   if (isDev) {
@@ -238,6 +265,20 @@ export async function exportCanvasToPNG(
     .replace(/:/g, '-');
   const filename = `canvasicons-${timestamp}.png`;
 
+  // Collect export result data (for Firebase upload)
+  const result: ExportResult = {
+    dataUrl: dataURL,
+    filename,
+    metadata: {
+      format: 'png',
+      scale: options.scale,
+      scope: options.scope,
+      objectCount: visibleObjects.length,
+      width: Math.round(bbox.width * options.scale),
+      height: Math.round(bbox.height * options.scale),
+    }
+  };
+
   // Trigger browser download
   if (isDev) console.log('Triggering download with filename:', filename);
   const link = document.createElement('a');
@@ -253,6 +294,10 @@ export async function exportCanvasToPNG(
     console.log('Export scope:', options.scope);
     console.log('Export scale:', options.scale + 'x');
     console.log('Filename:', filename);
+    console.log('Result metadata:', result.metadata);
     console.log('=======================');
   }
+
+  // Return result for Firebase upload
+  return result;
 }

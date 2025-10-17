@@ -200,7 +200,11 @@ function CanvasPage() {
     }
 
     try {
-      await exportCanvasToPNG(stageRef, selectedObjects, objects, options);
+      // exportCanvasToPNG now returns ExportResult
+      const result = await exportCanvasToPNG(stageRef, selectedObjects, objects, options);
+
+      // Return result for Firebase upload in ExportModal
+      return result;
     } catch (error) {
       // Provide helpful error messages based on error type
       let message = 'Unknown error occurred';
