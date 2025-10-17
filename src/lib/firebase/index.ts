@@ -12,6 +12,7 @@ export { app, auth, firestore, realtimeDb, storage } from './config'
 export {
   signUpWithEmail,
   signInWithEmail,
+  signInWithGoogle,
   signOutUser,
   getAuthErrorMessage,
   type User,

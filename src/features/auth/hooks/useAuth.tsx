@@ -7,7 +7,7 @@
 
 import * as React from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, signUpWithEmail, signInWithEmail, signOutUser, getAuthErrorMessage, createUser, getUser, updateLastLogin } from '@/lib/firebase';
+import { auth, signUpWithEmail, signInWithEmail, signInWithGoogle, signOutUser, getAuthErrorMessage, createUser, getUser, updateLastLogin } from '@/lib/firebase';
 import type { User } from '@/types';
 
 /**
@@ -17,6 +17,7 @@ import type { User } from '@/types';
  * @property {boolean} loading - Whether auth state is being determined
  * @property {(email: string, password: string) => Promise<void>} login - Login function
  * @property {(email: string, password: string, username: string) => Promise<void>} signup - Signup function
+ * @property {() => Promise<void>} loginWithGoogle - Google login function
  * @property {() => Promise<void>} logout - Logout function
  */
 interface AuthContextValue {
@@ -24,6 +25,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, username: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -74,6 +76,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   async function signup(email: string, password: string, username: string): Promise<void> {
     try {
       await signUpWithEmail(email, password, username);
+    } catch (error) {
+      const message = getAuthErrorMessage(error);
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * Sign in with Google account
+   * Uses popup flow for OAuth authentication
+   */
+  async function loginWithGoogle(): Promise<void> {
+    try {
+      await signInWithGoogle();
     } catch (error) {
       const message = getAuthErrorMessage(error);
       throw new Error(message);
@@ -141,6 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     login,
     signup,
+    loginWithGoogle,
     logout,
   };
 

@@ -44,6 +44,13 @@ export interface CreateObjectParams {
 
   // Image-specific
   imageUrl?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  storageType?: 'dataURL' | 'storage';
+  storagePath?: string;
 
   // Visual properties
   appearance: {
@@ -174,9 +181,38 @@ export async function createCanvasObject(params: CreateObjectParams): Promise<st
       if (!params.dimensions) {
         throw new Error('Image requires dimensions (width, height)');
       }
-      canvasObject.imageUrl = params.imageUrl;
+      if (!params.naturalWidth || !params.naturalHeight) {
+        throw new Error('Image requires naturalWidth and naturalHeight');
+      }
+      if (!params.fileName) {
+        throw new Error('Image requires fileName');
+      }
+      if (params.fileSize === undefined) {
+        throw new Error('Image requires fileSize');
+      }
+      if (!params.mimeType) {
+        throw new Error('Image requires mimeType');
+      }
+      if (!params.storageType) {
+        throw new Error('Image requires storageType');
+      }
+
+      // Use 'src' to match ImageObject interface (not 'imageUrl')
+      canvasObject.src = params.imageUrl;
       canvasObject.width = params.dimensions.width;
       canvasObject.height = params.dimensions.height;
+      canvasObject.naturalWidth = params.naturalWidth;
+      canvasObject.naturalHeight = params.naturalHeight;
+      canvasObject.fileName = params.fileName;
+      canvasObject.fileSize = params.fileSize;
+      canvasObject.mimeType = params.mimeType;
+      canvasObject.storageType = params.storageType;
+      canvasObject.lockAspectRatio = true; // Default to locked for images
+
+      // Optional: storagePath (only for 'storage' type)
+      if (params.storagePath) {
+        canvasObject.storagePath = params.storagePath;
+      }
       break;
   }
 
@@ -311,9 +347,27 @@ export async function batchCreateObjects(
       case 'image':
         if (!obj.imageUrl) throw new Error('Image requires imageUrl');
         if (!obj.dimensions) throw new Error('Image requires dimensions');
-        canvasObject.imageUrl = obj.imageUrl;
+        if (!obj.naturalWidth || !obj.naturalHeight) throw new Error('Image requires naturalWidth and naturalHeight');
+        if (!obj.fileName) throw new Error('Image requires fileName');
+        if (obj.fileSize === undefined) throw new Error('Image requires fileSize');
+        if (!obj.mimeType) throw new Error('Image requires mimeType');
+        if (!obj.storageType) throw new Error('Image requires storageType');
+
+        // Use 'src' to match ImageObject interface
+        canvasObject.src = obj.imageUrl;
         canvasObject.width = obj.dimensions.width;
         canvasObject.height = obj.dimensions.height;
+        canvasObject.naturalWidth = obj.naturalWidth;
+        canvasObject.naturalHeight = obj.naturalHeight;
+        canvasObject.fileName = obj.fileName;
+        canvasObject.fileSize = obj.fileSize;
+        canvasObject.mimeType = obj.mimeType;
+        canvasObject.storageType = obj.storageType;
+        canvasObject.lockAspectRatio = true;
+
+        if (obj.storagePath) {
+          canvasObject.storagePath = obj.storagePath;
+        }
         break;
     }
 

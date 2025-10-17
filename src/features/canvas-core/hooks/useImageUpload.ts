@@ -24,6 +24,14 @@ export interface UploadState {
 }
 
 /**
+ * useImageUpload hook options
+ */
+export interface UseImageUploadOptions {
+  /** Project/canvas ID for Firebase storage path (defaults to 'main' for legacy support) */
+  projectId?: string
+}
+
+/**
  * useImageUpload hook return type
  */
 export interface UseImageUploadReturn {
@@ -45,12 +53,13 @@ export interface UseImageUploadReturn {
  * - Automatic cleanup on component unmount
  * - Retry logic (3 attempts with exponential backoff)
  *
+ * @param {UseImageUploadOptions} [options] - Hook options
  * @returns Upload functions and state
  *
  * @example
  * ```tsx
  * function ImageUploadButton() {
- *   const { uploadImage, isUploading, uploadProgress, uploadError } = useImageUpload()
+ *   const { uploadImage, isUploading, uploadProgress, uploadError } = useImageUpload({ projectId: 'my-project' })
  *
  *   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
  *     const file = e.target.files?.[0]
@@ -73,7 +82,8 @@ export interface UseImageUploadReturn {
  * }
  * ```
  */
-export function useImageUpload(): UseImageUploadReturn {
+export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUploadReturn {
+  const { projectId = 'main' } = options
   const { currentUser } = useAuth()
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
@@ -155,7 +165,7 @@ export function useImageUpload(): UseImageUploadReturn {
       try {
         const result = await uploadWithRetry(
           file,
-          'main', // Default room ID (could be parameterized later)
+          projectId, // Use project-specific storage path
           currentUser.uid,
           (progress) => {
             setUploadState((prev) => ({ ...prev, progress: Math.round(progress) }))
@@ -180,7 +190,7 @@ export function useImageUpload(): UseImageUploadReturn {
         abortControllerRef.current = null
       }
     },
-    [currentUser, uploadWithRetry]
+    [currentUser, uploadWithRetry, projectId]
   )
 
   /**

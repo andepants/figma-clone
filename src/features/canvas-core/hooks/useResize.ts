@@ -61,11 +61,12 @@ interface UseResizeReturn {
  * Provides handlers for resize start, move, and end events.
  * Manages anchor point calculations and Firebase sync.
  *
+ * @param {string} projectId - Project/canvas ID for Firebase sync (defaults to 'main')
  * @returns {UseResizeReturn} Resize state and handlers
  *
  * @example
  * ```tsx
- * const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+ * const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize('my-project');
  *
  * <ResizeHandles
  *   object={rectangle}
@@ -76,7 +77,7 @@ interface UseResizeReturn {
  * />
  * ```
  */
-export function useResize(): UseResizeReturn {
+export function useResize(projectId: string = 'main'): UseResizeReturn {
   const { updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
 
@@ -148,7 +149,7 @@ export function useResize(): UseResizeReturn {
       // Start resize in Firebase (sets up onDisconnect cleanup)
       try {
         await startResizing(
-          'main',
+          projectId,
           objectId,
           currentUser.uid,
           handle,
@@ -167,7 +168,7 @@ export function useResize(): UseResizeReturn {
         setAnchor(null);
       }
     },
-    [currentUser]
+    [currentUser, projectId]
   );
 
   /**
@@ -344,10 +345,10 @@ export function useResize(): UseResizeReturn {
 
       // Sync to Firebase (throttled to 50ms)
       // Update BOTH resize state AND object position to keep them in perfect sync
-      throttledUpdateResizePosition('main', objectId, newBounds);
-      throttledUpdateCanvasObject('main', objectId, shapeUpdates); // ← CRITICAL: Keep object current!
+      throttledUpdateResizePosition(projectId, objectId, newBounds);
+      throttledUpdateCanvasObject(projectId, objectId, shapeUpdates); // ← CRITICAL: Keep object current!
     },
-    [isShiftPressed, isAltPressed, updateObject]
+    [isShiftPressed, isAltPressed, updateObject, projectId]
   );
 
   /**
@@ -441,11 +442,11 @@ export function useResize(): UseResizeReturn {
         try {
           // CRITICAL: Update object position IMMEDIATELY (no throttle)
           // This ensures RTDB has the correct position before resize state is cleared
-          await updateCanvasObject('main', objectId, finalUpdates);
+          await updateCanvasObject(projectId, objectId, finalUpdates);
 
           // Clear resize state AFTER object update completes
           // This prevents flash-back: when resize state clears, object is already at correct position
-          await endResizing('main', objectId);
+          await endResizing(projectId, objectId);
         } catch {
           // Silently fail
         }
@@ -460,7 +461,7 @@ export function useResize(): UseResizeReturn {
       setActiveHandle(null);
       setAnchor(null);
     },
-    []
+    [projectId]
   );
 
   return {

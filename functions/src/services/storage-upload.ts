@@ -12,7 +12,7 @@
  * @see functions/src/ai/tools/generateAppIcon.ts (usage example)
  */
 
-import { getStorage } from 'firebase-admin/storage';
+import { getStorage } from './firebase-admin';
 import fetch from 'node-fetch';
 import * as logger from 'firebase-functions/logger';
 import { v4 as uuidv4 } from 'uuid';

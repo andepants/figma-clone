@@ -48,8 +48,17 @@ export function isPaidUser(subscription: Subscription): boolean {
 
 export function isSubscriptionActive(subscription: Subscription): boolean {
   if (!isPaidUser(subscription)) return false;
-  if (!subscription.currentPeriodEnd) return false;
-  return subscription.currentPeriodEnd > Date.now();
+
+  // If no period end is set, assume active (for lifetime/founders subscriptions)
+  if (!subscription.currentPeriodEnd) return true;
+
+  // Check if subscription hasn't expired
+  // Stripe provides timestamps in seconds, but we store in milliseconds
+  const periodEndMs = subscription.currentPeriodEnd > 9999999999
+    ? subscription.currentPeriodEnd  // Already in milliseconds
+    : subscription.currentPeriodEnd * 1000;  // Convert from seconds
+
+  return periodEndMs > Date.now();
 }
 
 /**

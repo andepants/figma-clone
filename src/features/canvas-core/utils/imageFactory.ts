@@ -71,7 +71,7 @@ export function createImageObject(
     scaleY: 1,
     skewX: 0,
     skewY: 0,
-    stroke: undefined,
+    // Note: stroke omitted - images don't need stroke by default
     strokeWidth: 0,
     strokeEnabled: false,
     shadowColor: 'black',
@@ -91,13 +91,13 @@ export function createImageObject(
     fileSize: uploadedData.fileSize,
     mimeType: uploadedData.mimeType,
     storageType: uploadedData.storageType,
-    storagePath: uploadedData.storagePath,
+    storagePath: uploadedData.storagePath ?? null, // Firebase RTDB doesn't allow undefined - use null
     lockAspectRatio: true, // Default to locked aspect ratio
 
     // Organizational properties
     visible: true,
     locked: false,
-    parentId: undefined,
+    // Note: parentId omitted - Firebase RTDB doesn't accept undefined values
     isCollapsed: false,
   };
 }

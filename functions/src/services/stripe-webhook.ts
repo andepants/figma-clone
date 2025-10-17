@@ -131,13 +131,20 @@ export async function handleCheckoutCompleted(
     // Extract price ID (should match founders or pro tier)
     const priceData = subscription.items.data[0]?.price;
     priceId = priceData?.id;
-    // Stripe types may need updating - property exists at runtime
-    currentPeriodEnd = subscription.current_period_end;
+
+    // Get current period end (Stripe provides in seconds, we convert to milliseconds)
+    // Note: Stripe types may be outdated, property exists at runtime
+    const periodEndSeconds = subscription.current_period_end as number | undefined;
+    if (periodEndSeconds) {
+      currentPeriodEnd = periodEndSeconds * 1000; // Convert to milliseconds
+    }
 
     logger.info("Subscription retrieved", {
       subscriptionId,
       priceId,
-      currentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000).toISOString() : undefined,
+      currentPeriodEndSeconds: periodEndSeconds,
+      currentPeriodEndMs: currentPeriodEnd,
+      currentPeriodEndDate: currentPeriodEnd ? new Date(currentPeriodEnd).toISOString() : undefined,
     });
 
     // Check for free tier subscription - skip processing
@@ -159,14 +166,23 @@ export async function handleCheckoutCompleted(
   const userRef = db.collection("users").doc(userId);
 
   try {
-    await userRef.update({
+    // Build update object, excluding undefined values (Firestore doesn't accept undefined)
+    const updateData: Record<string, string | number | boolean> = {
       "subscription.status": tier,
       "subscription.stripeCustomerId": customerId,
-      "subscription.stripePriceId": priceId,
-      "subscription.currentPeriodEnd": currentPeriodEnd,
       "subscription.cancelAtPeriodEnd": false,
       updatedAt: Date.now(),
-    });
+    };
+
+    // Only include optional fields if they have values
+    if (priceId !== undefined) {
+      updateData["subscription.stripePriceId"] = priceId;
+    }
+    if (currentPeriodEnd !== undefined) {
+      updateData["subscription.currentPeriodEnd"] = currentPeriodEnd;
+    }
+
+    await userRef.update(updateData);
 
     logger.info("User subscription updated", {
       userId,
@@ -256,8 +272,12 @@ export async function handleSubscriptionUpdated(
 
   // Extract subscription details
   const priceId = subscription.items.data[0]?.price.id;
-  // Stripe types may need updating - properties exist at runtime
-  const currentPeriodEnd = subscription.current_period_end;
+
+  // Get current period end (Stripe provides in seconds, convert to milliseconds)
+  // Note: Stripe types may be outdated, property exists at runtime
+  const periodEndSeconds = subscription.current_period_end as number | undefined;
+  const currentPeriodEnd = periodEndSeconds ? periodEndSeconds * 1000 : undefined;
+
   const cancelAtPeriodEnd = subscription.cancel_at_period_end;
 
   // Check for free tier subscription - skip processing
@@ -277,13 +297,22 @@ export async function handleSubscriptionUpdated(
   const userRef = db.collection("users").doc(userId);
 
   try {
-    await userRef.update({
+    // Build update object, excluding undefined values (Firestore doesn't accept undefined)
+    const updateData: Record<string, string | number | boolean> = {
       "subscription.status": tier,
-      "subscription.stripePriceId": priceId,
-      "subscription.currentPeriodEnd": currentPeriodEnd,
       "subscription.cancelAtPeriodEnd": cancelAtPeriodEnd,
       updatedAt: Date.now(),
-    });
+    };
+
+    // Only include optional fields if they have values
+    if (priceId !== undefined) {
+      updateData["subscription.stripePriceId"] = priceId;
+    }
+    if (currentPeriodEnd !== undefined) {
+      updateData["subscription.currentPeriodEnd"] = currentPeriodEnd;
+    }
+
+    await userRef.update(updateData);
 
     logger.info("Subscription updated", {
       userId,
@@ -488,6 +517,18 @@ function determineTierFromPriceId(
   const foundersPriceId = process.env.STRIPE_FOUNDERS_PRICE_ID;
   const proPriceId = process.env.STRIPE_PRO_PRICE_ID;
 
+  logger.info("Price ID matching", {
+    receivedPriceId: priceId,
+    foundersPriceId,
+    proPriceId,
+    freePriceId,
+    matches: {
+      free: priceId === freePriceId,
+      founders: priceId === foundersPriceId,
+      pro: priceId === proPriceId,
+    },
+  });
+
   // Match against known price IDs
   if (priceId === freePriceId) {
     return "free";
@@ -502,7 +543,11 @@ function determineTierFromPriceId(
   }
 
   // Default to free if unrecognized
-  logger.warn("Unrecognized price ID, defaulting to free", {priceId});
+  logger.warn("Unrecognized price ID, defaulting to free", {
+    priceId,
+    foundersPriceId,
+    proPriceId,
+  });
   return "free";
 }
 

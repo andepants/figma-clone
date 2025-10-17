@@ -26,6 +26,8 @@ export interface UseCanvasDropzoneOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
   /** Whether dropzone is disabled */
   disabled?: boolean;
+  /** Project/canvas ID for Firebase storage (defaults to 'main' for legacy support) */
+  projectId?: string;
 }
 
 /**
@@ -76,10 +78,11 @@ export interface UseCanvasDropzoneReturn {
 export function useCanvasDropzone({
   stageRef,
   disabled = false,
+  projectId = 'main',
 }: UseCanvasDropzoneOptions): UseCanvasDropzoneReturn {
   const { currentUser } = useAuth();
   const { objects, addObject } = useCanvasStore();
-  const { uploadImage, isUploading, uploadProgress, uploadError } = useImageUpload();
+  const { uploadImage, isUploading, uploadProgress, uploadError } = useImageUpload({ projectId });
 
   /**
    * Convert screen coordinates to canvas coordinates
@@ -153,10 +156,22 @@ export function useCanvasDropzone({
       // Create canvas object
       const imageObject = createImageObject(uploadedData, position, currentUser.uid, objects);
 
-      // Add to canvas
+      // Add to canvas store (optimistic update)
       addObject(imageObject);
+
+      // Sync to Realtime Database (same pattern as rectangles/circles)
+      // This ensures the image persists and can be moved/edited
+      const { addCanvasObject } = await import('@/lib/firebase');
+      try {
+        await addCanvasObject(projectId, imageObject);
+      } catch (error) {
+        console.error('Failed to sync image to Firebase:', error);
+        // Rollback optimistic update on error
+        const { removeObject } = useCanvasStore.getState();
+        removeObject(imageObject.id);
+      }
     },
-    [currentUser, screenToCanvasCoords, uploadImage, objects, addObject]
+    [currentUser, screenToCanvasCoords, uploadImage, objects, addObject, projectId]
   );
 
   /**

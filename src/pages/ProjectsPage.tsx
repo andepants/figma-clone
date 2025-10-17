@@ -56,6 +56,7 @@ export default function ProjectsPage() {
 
   // Payment status from URL query params
   const paymentStatus = searchParams.get('payment');
+  const sessionId = searchParams.get('session_id');
 
   // Fetch founders deal config on mount
   useEffect(() => {
@@ -115,6 +116,45 @@ export default function ProjectsPage() {
       return () => clearTimeout(timer);
     }
   }, [paymentStatus, isPaidUser, subscription, setSearchParams]);
+
+  // Webhook fallback: Manually verify session if webhook doesn't fire within 5 seconds
+  useEffect(() => {
+    if (paymentStatus === 'success' && !canCreateProjects && sessionId) {
+      const timer = setTimeout(async () => {
+        console.log('⚠️ Webhook did not fire within 5 seconds, manually verifying session...');
+        console.log('Session ID:', sessionId);
+
+        try {
+          // Dynamically import Firebase Functions
+          const { getFunctions, httpsCallable } = await import('firebase/functions');
+          const { app } = await import('@/lib/firebase');
+
+          const functions = getFunctions(app);
+          const verifyCheckoutSession = httpsCallable<
+            { sessionId: string },
+            { success: boolean; status: string; subscriptionUpdated: boolean; message: string }
+          >(functions, 'verifyCheckoutSession');
+
+          console.log('🔄 Calling verifyCheckoutSession function...');
+          const result = await verifyCheckoutSession({ sessionId });
+
+          console.log('✅ Verification result:', result.data);
+
+          if (result.data.success && result.data.subscriptionUpdated) {
+            console.log('✅ Subscription updated successfully via fallback');
+            // Subscription will update via Firestore listener
+          } else {
+            console.log('ℹ️ Subscription verification:', result.data.message);
+          }
+        } catch (error) {
+          console.error('❌ Failed to verify checkout session:', error);
+          // Continue waiting for webhook or show timeout error
+        }
+      }, 5000); // 5 second delay before manual verification
+
+      return () => clearTimeout(timer);
+    }
+  }, [paymentStatus, canCreateProjects, sessionId]);
 
   // Webhook timeout handler: Show error if subscription not updated within 30 seconds
   useEffect(() => {
@@ -306,7 +346,7 @@ export default function ProjectsPage() {
               )}
             </div>
 
-            {/* Right side: Profile + New Project Button */}
+            {/* Right side: Profile + Playground + New Project Button */}
             <div className="flex items-center gap-3 sm:gap-4">
               {/* Profile Dropdown */}
               {currentUser && (
@@ -315,6 +355,15 @@ export default function ProjectsPage() {
                   onLogout={logout}
                 />
               )}
+
+              {/* Public Playground button */}
+              <button
+                onClick={() => navigate('/canvas')}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+              >
+                <span className="hidden sm:inline">🎨 Playground</span>
+                <span className="sm:hidden">🎨</span>
+              </button>
 
               {/* New Project button */}
               {canCreateProjects && (

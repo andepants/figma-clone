@@ -38,6 +38,8 @@ interface ImageShapeProps {
   onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Optional drag state from another user (for real-time position updates) */
   remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
+  /** Project/canvas ID for Firebase sync (defaults to 'main' for legacy support) */
+  projectId?: string;
 }
 
 /**
@@ -65,6 +67,7 @@ export const ImageShape = memo(function ImageShape({
   isInMultiSelect = false,
   onSelect,
   remoteDragState,
+  projectId = 'main',
 }: ImageShapeProps) {
   const { activeTool } = useToolStore();
   const { updateObject } = useCanvasStore();
@@ -76,7 +79,7 @@ export const ImageShape = memo(function ImageShape({
   const isLocked = image.locked === true;
 
   // Resize hook
-  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize(projectId);
 
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
@@ -220,7 +223,7 @@ export const ImageShape = memo(function ImageShape({
     const color = getUserColor(currentUser.uid);
 
     const canDrag = await startDragging(
-      'main',
+      projectId,
       image.id,
       currentUser.uid,
       { x: image.x, y: image.y },
@@ -258,8 +261,8 @@ export const ImageShape = memo(function ImageShape({
 
     // Emit throttled updates to Realtime DB (50ms)
     // Update BOTH drag state AND object to keep them in perfect sync
-    throttledUpdateDragPosition('main', image.id, position);
-    throttledUpdateCanvasObject('main', image.id, position); // ← CRITICAL: Keep object current!
+    throttledUpdateDragPosition(projectId, image.id, position);
+    throttledUpdateCanvasObject(projectId, image.id, position); // ← CRITICAL: Keep object current!
 
     // Update cursor position during drag so other users see cursor moving with object
     if (stage && currentUser) {
@@ -268,7 +271,7 @@ export const ImageShape = memo(function ImageShape({
         const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
         const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
         const color = getUserColor(currentUser.uid);
-        throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
+        throttledUpdateCursor(projectId, currentUser.uid, canvasCoords, username, color);
       }
     }
   }
@@ -297,11 +300,11 @@ export const ImageShape = memo(function ImageShape({
 
     // CRITICAL: Update object position IMMEDIATELY (no throttle)
     // This ensures RTDB has the correct position before drag state is cleared
-    await updateCanvasObject('main', image.id, position);
+    await updateCanvasObject(projectId, image.id, position);
 
     // Clear drag state AFTER object update completes
     // This prevents flash-back: when drag state clears, object is already at correct position
-    await endDragging('main', image.id);
+    await endDragging(projectId, image.id);
   }
 
   /**

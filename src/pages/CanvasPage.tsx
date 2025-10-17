@@ -34,6 +34,7 @@ import { ExportModal, type ExportOptions } from '@/features/export';
 import { ImageUploadModal } from '@/features/canvas-core/components/ImageUploadModal';
 import { canUserAccessProject } from '@/types/project.types';
 import type { Project } from '@/types/project.types';
+import { PUBLIC_PLAYGROUND_ID } from '@/config/constants';
 
 function CanvasPage() {
   // Get projectId from URL params (e.g., /canvas/:projectId)
@@ -96,10 +97,18 @@ function CanvasPage() {
   /**
    * Load project and verify access
    * Redirects to projects page if user doesn't have access
+   * Public playground bypasses access checks
    */
   useEffect(() => {
     async function loadProject() {
       if (!currentUser) {
+        setProjectLoading(false);
+        return;
+      }
+
+      // Public playground: Allow all authenticated users
+      if (projectId === PUBLIC_PLAYGROUND_ID) {
+        setProject(null); // No project metadata needed for playground
         setProjectLoading(false);
         return;
       }
@@ -609,12 +618,24 @@ function CanvasPage() {
     );
   }
 
+  // Check if this is the public playground
+  const isPublicPlayground = projectId === PUBLIC_PLAYGROUND_ID;
+
   try {
     return (
       <div
         className="relative h-screen w-screen overflow-hidden"
         style={{ backgroundColor: bgColorWithOpacity }}
       >
+        {/* Public Playground Banner */}
+        {isPublicPlayground && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg flex items-center gap-2">
+            <span className="text-sm font-medium">
+              🎨 Public Playground - Changes visible to all users
+            </span>
+          </div>
+        )}
+
         {/* Layers Panel - fixed left sidebar */}
         <LayersPanel />
 
@@ -630,13 +651,14 @@ function CanvasPage() {
           <SyncIndicator status={syncStatus} className="!top-4 !right-[256px]" />
           {/* Canvas Stage - adjusted for right sidebar (240px right margin) */}
           <div className="absolute top-0 left-0 right-[240px] bottom-0">
-            <CanvasStage stageRef={stageRef} />
+            <CanvasStage stageRef={stageRef} projectId={projectId} />
           </div>
           {/* Right Sidebar - unified properties + AI chat */}
           <RightSidebar
             onExport={handleExport}
             hasObjects={objects.length > 0}
             hasSelection={selectedIds.length > 0}
+            projectId={projectId}
           />
         </div>
 
@@ -661,6 +683,7 @@ function CanvasPage() {
         <ImageUploadModal
           isOpen={isImageUploadOpen}
           onClose={() => setIsImageUploadOpen(false)}
+          projectId={projectId}
         />
       </div>
     );

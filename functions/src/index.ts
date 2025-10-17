@@ -42,6 +42,8 @@ setGlobalOptions({
 export const processAICommand = onCall<ProcessAICommandRequest>(
   {
     secrets: [openaiApiKey],
+    timeoutSeconds: 300, // 5 minutes (AI image generation can take 30-60s)
+    memory: "512MiB", // Increased memory for AI processing
   },
   async (request) => {
     const {auth, data} = request;
@@ -469,6 +471,74 @@ export const createCheckoutSession = onCall(
 );
 
 /**
+ * Verify Checkout Session (Manual Fallback)
+ *
+ * Callable function to manually verify a checkout session and update subscription.
+ * Used as fallback when webhooks don't fire reliably in development/emulator.
+ *
+ * @param request - Contains auth context and session ID
+ * @returns Verification result with subscription status
+ */
+export const verifyCheckoutSession = onCall(
+  {
+    secrets: [stripeSecretKey],
+  },
+  async (request) => {
+    const {auth, data} = request;
+
+    // Authentication check
+    if (!auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "User must be authenticated to verify checkout session"
+      );
+    }
+
+    // Validate required fields
+    if (!data.sessionId || typeof data.sessionId !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing or invalid 'sessionId' field"
+      );
+    }
+
+    logger.info("Verifying checkout session for user", {
+      userId: auth.uid,
+      sessionId: data.sessionId,
+    });
+
+    try {
+      const {verifyCheckoutSession: verify} =
+        await import("./services/verify-checkout-session.js");
+
+      const result = await verify({
+        sessionId: data.sessionId,
+      });
+
+      logger.info("Checkout session verified", {
+        userId: auth.uid,
+        sessionId: data.sessionId,
+        status: result.status,
+        subscriptionUpdated: result.subscriptionUpdated,
+      });
+
+      return result;
+    } catch (error) {
+      logger.error("Failed to verify checkout session", {
+        userId: auth.uid,
+        sessionId: data.sessionId,
+        error,
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Failed to verify checkout session: ${error}`
+      );
+    }
+  }
+);
+
+/**
  * Stripe Webhook Handler
  *
  * Processes Stripe webhook events for subscription management.
@@ -516,20 +586,50 @@ export const stripeWebhook = onRequest(
       return;
     }
 
+    logger.info("Webhook secret loaded", {
+      source: process.env.STRIPE_WEBHOOK_SECRET ? "env" : "secret",
+      secretPrefix: webhookSecret.substring(0, 10),
+    });
+
     try {
       // Import webhook service
       const {verifyWebhookSignature, processWebhookEvent} =
         await import("./services/stripe-webhook.js");
 
       // Get raw body for signature verification
-      // Firebase Functions v2 provides rawBody
-      const rawBody = req.rawBody;
+      // Firebase Functions v2: rawBody is available on the request object
+      // It's the raw Buffer before any parsing
+      let rawBody = req.rawBody;
 
+      // Fallback: if rawBody not available, try to use body
       if (!rawBody) {
-        logger.error("Missing raw body for signature verification");
-        res.status(400).send("Missing request body");
-        return;
+        logger.warn("rawBody not available, attempting fallback", {
+          hasBody: !!req.body,
+          bodyType: typeof req.body,
+          contentType: req.headers["content-type"],
+        });
+
+        // Try to use req.body if it's a Buffer
+        if (Buffer.isBuffer(req.body)) {
+          rawBody = req.body;
+        } else if (typeof req.body === "string") {
+          rawBody = Buffer.from(req.body);
+        } else if (req.body) {
+          // If body is already parsed JSON, we can't verify signature
+          logger.error("Body was already parsed as JSON, cannot verify signature");
+          res.status(400).send("Request body was pre-parsed, raw body required");
+          return;
+        } else {
+          logger.error("No request body available");
+          res.status(400).send("Missing request body");
+          return;
+        }
       }
+
+      logger.info("Raw body available", {
+        bodyLength: rawBody.length,
+        contentType: req.headers["content-type"],
+      });
 
       // Verify webhook signature
       logger.info("Verifying webhook signature");

@@ -36,9 +36,11 @@ interface Position {
  * CanvasStage component props
  * @interface CanvasStageProps
  * @property {React.RefObject<Konva.Stage | null>} [stageRef] - Optional external ref to access the stage
+ * @property {string} [projectId] - Project/canvas ID (defaults to 'main' for legacy support)
  */
 interface CanvasStageProps {
   stageRef?: React.RefObject<Konva.Stage | null>;
+  projectId?: string;
 }
 
 /**
@@ -47,7 +49,7 @@ interface CanvasStageProps {
  * @param {CanvasStageProps} props - Component props
  * @returns {JSX.Element} Canvas stage component
  */
-export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {}) {
+export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: CanvasStageProps = {}) {
   // Get active tool to control canvas behavior
   const { activeTool } = useToolStore();
 
@@ -63,11 +65,11 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
 
   // Auth and collaboration
   const { currentUser } = useAuth();
-  const cursors = useCursors('main');
-  const dragStates = useDragStates('main');
-  const remoteSelections = useRemoteSelections('main');
-  const remoteResizes = useRemoteResizes('main');
-  const editStates = useEditStates('main');
+  const cursors = useCursors(projectId);
+  const dragStates = useDragStates(projectId);
+  const remoteSelections = useRemoteSelections(projectId);
+  const remoteResizes = useRemoteResizes(projectId);
+  const editStates = useEditStates(projectId);
 
   // Canvas dimensions (full window size with debounced resize)
   const dimensions = useWindowResize(100);
@@ -117,7 +119,7 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
     isDragActive: isImageDragActive,
     isUploading: isImageUploading,
     uploadProgress: imageUploadProgress,
-  } = useCanvasDropzone({ stageRef });
+  } = useCanvasDropzone({ stageRef, projectId });
 
   /**
    * Sync local selection to Realtime DB
@@ -127,8 +129,8 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
     if (!currentUser) return;
 
     // Update selection in Realtime DB (supports multi-select)
-    updateSelection('main', currentUser.uid, selectedIds);
-  }, [selectedIds, currentUser]);
+    updateSelection(projectId, currentUser.uid, selectedIds);
+  }, [selectedIds, currentUser, projectId]);
 
   /**
    * Handle mouse wheel for panning and zooming
@@ -294,7 +296,7 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
     const username = getUserDisplayName(currentUser.username, currentUser.email);
     const color = getUserColor(currentUser.uid);
 
-    throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
+    throttledUpdateCursor(projectId, currentUser.uid, canvasCoords, username, color);
   }
 
   // Stage is draggable when spacebar is pressed
@@ -481,6 +483,7 @@ export function CanvasStage({ stageRef: externalStageRef }: CanvasStageProps = {
                   }
                 }}
                 remoteDragState={remoteDragState}
+                projectId={projectId}
               />
             );
           }

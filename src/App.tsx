@@ -8,6 +8,7 @@ import LandingPage from './pages/LandingPage'
 import ProjectsPage from './pages/ProjectsPage'
 import PublicProjectsPage from './pages/PublicProjectsPage'
 import CanvasPage from './pages/CanvasPage'
+import PublicPlaygroundPage from './pages/PublicPlaygroundPage'
 import { ProtectedRoute } from './features/auth/components'
 import { ErrorBoundary } from './components/common'
 
@@ -34,7 +35,7 @@ function App() {
             path="/canvas"
             element={
               <ProtectedRoute>
-                <CanvasPage />
+                <PublicPlaygroundPage />
               </ProtectedRoute>
             }
           />

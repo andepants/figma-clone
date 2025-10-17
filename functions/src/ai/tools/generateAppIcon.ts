@@ -276,16 +276,25 @@ export class GenerateAppIconTool extends CanvasTool {
         logger.info('No position adjustment needed - no overlap detected');
       }
 
-      // Step 6: Extract keyword for labels (first 2 words, capitalized)
+      // Step 6: Extract keyword for labels and prepare metadata (first 2 words, capitalized)
       currentStep = 'keyword_extraction';
       const words = input.description.trim().split(/\s+/).filter(w => w.length > 0);
       const keyword = words.slice(0, 2).join(' ').toLowerCase();
       const capitalizedKeyword = keyword.charAt(0).toUpperCase() + keyword.slice(1);
 
-      logger.info('Step 6: Extracted keyword for labels', {
+      // Generate filename for metadata
+      const timestamp = Date.now();
+      const fileName = `${keyword.replace(/\s+/g, '-')}-icon-${timestamp}.png`;
+
+      // Estimate file size for 1024x1024 PNG (typically 50-200KB, we'll use 100KB as estimate)
+      const estimatedFileSize = 100 * 1024; // 100KB
+
+      logger.info('Step 6: Extracted keyword and prepared metadata', {
         description: input.description,
         wordCount: words.length,
         keyword: capitalizedKeyword,
+        fileName,
+        estimatedFileSize,
       });
 
       // Step 7: Create iOS icon (1024x1024) on canvas
@@ -305,6 +314,13 @@ export class GenerateAppIconTool extends CanvasTool {
         dimensions: { width: 1024, height: 1024 },
         appearance: {},
         imageUrl: uploadResult.publicUrl,
+        naturalWidth: 1024,
+        naturalHeight: 1024,
+        fileName: `iOS-${fileName}`,
+        fileSize: estimatedFileSize,
+        mimeType: 'image/png',
+        storageType: 'storage',
+        storagePath: uploadResult.storagePath,
         name: `iOS - ${capitalizedKeyword}`,
         userId: this.context.userId,
       });
@@ -337,6 +353,13 @@ export class GenerateAppIconTool extends CanvasTool {
         dimensions: { width: 512, height: 512 },
         appearance: {},
         imageUrl: uploadResult.publicUrl, // Same image, different size
+        naturalWidth: 1024, // Original image is 1024x1024, we scale to 512 for display
+        naturalHeight: 1024,
+        fileName: `Android-${fileName}`,
+        fileSize: estimatedFileSize,
+        mimeType: 'image/png',
+        storageType: 'storage',
+        storagePath: uploadResult.storagePath,
         name: `Android - ${capitalizedKeyword}`,
         userId: this.context.userId,
       });

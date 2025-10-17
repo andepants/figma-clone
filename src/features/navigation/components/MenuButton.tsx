@@ -28,7 +28,7 @@ import { AccountModal } from '@/components/common';
  * - Active/Open: Blue background with white icon
  *
  * Dropdown options:
- * - Back to home: Navigate to landing page
+ * - Back to projects: Navigate to projects page
  * - Account: Open account management modal
  * - Log out: Sign out current user
  *
@@ -44,10 +44,10 @@ export function MenuButton() {
   const { logout } = useAuth();
 
   /**
-   * Handle navigation to home page
+   * Handle navigation to projects page
    */
-  function handleBackToHome() {
-    navigate('/');
+  function handleBackToProjects() {
+    navigate('/projects');
   }
 
   /**
@@ -91,8 +91,8 @@ export function MenuButton() {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuItem onClick={handleBackToHome}>
-            Back to home
+          <DropdownMenuItem onClick={handleBackToProjects}>
+            Back to projects
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleAccountClick}>

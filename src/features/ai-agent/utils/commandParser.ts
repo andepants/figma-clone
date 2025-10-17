@@ -61,15 +61,20 @@ export function hasCommandPrefix(input: string): boolean {
  * Returns empty array if no match or if command already complete
  *
  * @param input - Current input value
- * @returns Array of matching commands, empty if no matches
+ * @param isPlayground - Whether user is in public playground (disables image gen commands)
+ * @returns Array of matching commands with disabled state, empty if no matches
  *
  * @example
  * getCommandSuggestions('/') // Returns all commands
  * getCommandSuggestions('/ic') // Returns [/icon]
  * getCommandSuggestions('/icon') // Returns [/icon]
  * getCommandSuggestions('/icon coffee') // Returns [] (command complete)
+ * getCommandSuggestions('/icon', true) // Returns [/icon] with disabled: true
  */
-export function getCommandSuggestions(input: string): AICommand[] {
+export function getCommandSuggestions(
+  input: string,
+  isPlayground = false
+): Array<AICommand & { disabled?: boolean; disabledReason?: string }> {
   if (!hasCommandPrefix(input)) {
     return [];
   }
@@ -82,9 +87,22 @@ export function getCommandSuggestions(input: string): AICommand[] {
   }
 
   // Match commands that start with the input
-  return AI_COMMANDS.filter(cmd =>
+  const matches = AI_COMMANDS.filter(cmd =>
     cmd.command.toLowerCase().startsWith(trimmed)
   );
+
+  // Mark image generation commands as disabled in playground
+  if (isPlayground) {
+    return matches.map(cmd => ({
+      ...cmd,
+      disabled: cmd.category === 'Image Generation',
+      disabledReason: cmd.category === 'Image Generation'
+        ? 'Disabled in playground. Create your own project to use this.'
+        : undefined,
+    }));
+  }
+
+  return matches;
 }
 
 /**

@@ -20,6 +20,7 @@ export interface RightSidebarProps {
   onExport: () => void;
   hasObjects: boolean;
   hasSelection: boolean;
+  projectId?: string;
 }
 
 /**
@@ -45,9 +46,10 @@ export interface RightSidebarProps {
  * @param {Function} props.onExport - Export handler function
  * @param {boolean} props.hasObjects - Whether canvas has objects to export
  * @param {boolean} props.hasSelection - Whether user has objects selected
+ * @param {string} [props.projectId] - Current project ID (optional, used to block AI features in playground)
  * @returns {JSX.Element} Right sidebar container
  */
-export function RightSidebar({ onExport, hasObjects, hasSelection }: RightSidebarProps) {
+export function RightSidebar({ onExport, hasObjects, hasSelection, projectId }: RightSidebarProps) {
   const { aiPanelHeight, isAIChatCollapsed, isResizingAIPanel } = useUIStore();
 
   return (
@@ -92,7 +94,7 @@ export function RightSidebar({ onExport, hasObjects, hasSelection }: RightSideba
           zIndex: 10,
         }}
       >
-        <ChatInput />
+        <ChatInput projectId={projectId} />
       </div>
     </div>
   );

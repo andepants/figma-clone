@@ -24,18 +24,32 @@ import {
   hasCommandPrefix
 } from '../utils/commandParser';
 import { CommandAutocomplete } from './CommandAutocomplete';
+import { PUBLIC_PLAYGROUND_ID } from '@/config/constants';
+
+/**
+ * Chat input props
+ * @interface ChatInputProps
+ * @property {string} [projectId] - Current project ID (optional, used to block certain features in playground)
+ */
+export interface ChatInputProps {
+  projectId?: string;
+}
 
 /**
  * Chat input field component
+ * @param {ChatInputProps} props - Component props
  * @returns {JSX.Element} Input field with submit button and autocomplete
  */
-export function ChatInput() {
+export function ChatInput({ projectId }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState<ReturnType<typeof getCommandSuggestions>>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { sendCommand, isProcessing } = useAIAgent();
+  const { sendCommand, isProcessing } = useAIAgent({ projectId });
+
+  // Check if in playground
+  const isPlayground = projectId === PUBLIC_PLAYGROUND_ID;
 
   /**
    * Update suggestions whenever input changes
@@ -44,10 +58,10 @@ export function ChatInput() {
    * highlight first suggestion.
    */
   useEffect(() => {
-    const newSuggestions = getCommandSuggestions(input);
+    const newSuggestions = getCommandSuggestions(input, isPlayground);
     setSuggestions(newSuggestions);
     setSelectedIndex(0);
-  }, [input]);
+  }, [input, isPlayground]);
 
   /**
    * Handle keyboard navigation and submission
