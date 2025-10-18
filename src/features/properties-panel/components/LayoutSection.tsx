@@ -12,7 +12,8 @@ import { PropertySection } from './PropertySection';
 import { NumberInput, Label, Button } from '@/components/ui';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { useShapeDimensions } from '../hooks/useShapeDimensions';
-import { hasRadius, isTextShape, isLineShape } from '@/types/canvas.types';
+import { hasRadius, isTextShape, isLineShape, isImageShape, getImageLocked } from '@/types/canvas.types';
+import { useCanvasStore } from '@/stores/canvas';
 
 /**
  * LayoutSection Component
@@ -30,6 +31,7 @@ import { hasRadius, isTextShape, isLineShape } from '@/types/canvas.types';
 export function LayoutSection() {
   const shape = useSelectedShape();
   const dimensions = useShapeDimensions(shape);
+  const updateObject = useCanvasStore((state) => state.updateObject);
 
   if (!shape) return null;
 
@@ -137,6 +139,81 @@ export function LayoutSection() {
               />
             </div>
           </div>
+        </div>
+      </PropertySection>
+    );
+  }
+
+  // Render for images - layout bounds with lock
+  if (isImageShape(shape)) {
+    const imageLocked = getImageLocked(shape);
+
+    return (
+      <PropertySection
+        title="Layout"
+        icon={<Maximize2 className="w-3.5 h-3.5" />}
+        storageKey="props-layout"
+      >
+        <div>
+          <Label className="text-[11px] text-gray-600 mb-0.5 block">Dimensions</Label>
+          <div className="flex gap-1.5 items-center">
+            <div className="flex-1">
+              <NumberInput
+                value={dimensions.width!}
+                onChange={dimensions.updateWidth}
+                min={1}
+                step={1}
+                precision={0}
+                unit="px"
+                placeholder="W"
+              />
+            </div>
+
+            <span className="text-gray-400">×</span>
+
+            <div className="flex-1">
+              <NumberInput
+                value={dimensions.height!}
+                onChange={dimensions.updateHeight}
+                min={1}
+                step={1}
+                precision={0}
+                unit="px"
+                placeholder="H"
+              />
+            </div>
+
+            {/* Image Lock Toggle */}
+            <Button
+              variant={imageLocked ? 'default' : 'outline'}
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={() => {
+                // Toggle imageLocked property
+                updateObject(shape.id, { imageLocked: !imageLocked });
+              }}
+              title={
+                imageLocked
+                  ? 'Unlock aspect ratio (fill mode)'
+                  : 'Lock aspect ratio'
+              }
+            >
+              {imageLocked ? (
+                <Lock className="w-2.5 h-2.5" />
+              ) : (
+                <Unlock className="w-2.5 h-2.5" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Info text explaining lock behavior */}
+        <div className="flex items-center gap-1 text-[11px] text-gray-400 italic">
+          {imageLocked ? (
+            <span>Locked: maintains aspect ratio</span>
+          ) : (
+            <span>Unlocked: image fills layout bounds</span>
+          )}
         </div>
       </PropertySection>
     );

@@ -15,6 +15,7 @@ import {
   hasDimensions,
   hasRadius,
 } from '@/lib/utils';
+import { isImageShape, getImageLocked, getImageDimensions } from '@/types/canvas.types';
 import { usePropertyUpdate } from './usePropertyUpdate';
 
 export interface ShapeDimensionsReturn {
@@ -80,6 +81,77 @@ export function useShapeDimensions(shape: CanvasObject | null): ShapeDimensionsR
       hasAspectRatioLock: false,
       supportsAspectRatioLock: false,
       toggleAspectRatioLock: () => {},
+    };
+  }
+
+  // Handle image dimensions separately (new crop system)
+  if (isImageShape(shape)) {
+    const imageLocked = getImageLocked(shape);
+    const { imageWidth, imageHeight } = getImageDimensions(shape);
+
+    function updateImageWidth(newWidth: number) {
+      if (newWidth < 1 || !shape || !('width' in shape) || !('height' in shape)) return;
+
+      if (imageLocked) {
+        // Locked: scale height proportionally
+        const aspectRatio = shape.height / shape.width;
+        const newHeight = newWidth * aspectRatio;
+
+        // Also scale image proportionally
+        const imageScale = newWidth / shape.width;
+        updateShapeProperty(shape.id, {
+          width: newWidth,
+          height: newHeight,
+          imageWidth: imageWidth * imageScale,
+          imageHeight: imageHeight * imageScale,
+        });
+      } else {
+        // Unlocked: only change width, image stretches to fill
+        updateShapeProperty(shape.id, {
+          width: newWidth,
+          imageWidth: newWidth,
+        });
+      }
+    }
+
+    function updateImageHeight(newHeight: number) {
+      if (newHeight < 1 || !shape || !('width' in shape) || !('height' in shape)) return;
+
+      if (imageLocked) {
+        // Locked: scale width proportionally
+        const aspectRatio = shape.width / shape.height;
+        const newWidth = newHeight * aspectRatio;
+
+        // Also scale image proportionally
+        const imageScale = newHeight / shape.height;
+        updateShapeProperty(shape.id, {
+          width: newWidth,
+          height: newHeight,
+          imageWidth: imageWidth * imageScale,
+          imageHeight: imageHeight * imageScale,
+        });
+      } else {
+        // Unlocked: only change height, image stretches to fill
+        updateShapeProperty(shape.id, {
+          height: newHeight,
+          imageHeight: newHeight,
+        });
+      }
+    }
+
+    return {
+      width: shape.width,
+      height: shape.height,
+      radius: null,
+      diameter: null,
+      primaryLabel: 'Width',
+      secondaryLabel: 'Height',
+      updateWidth: updateImageWidth,
+      updateHeight: updateImageHeight,
+      updateRadius: () => {},
+      hasAspectRatioLock: imageLocked,
+      supportsAspectRatioLock: false, // Images use imageLocked instead
+      toggleAspectRatioLock: () => {}, // Handled by button in LayoutSection
     };
   }
 

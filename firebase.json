@@ -62,33 +62,16 @@
     }
   ],
   "emulators": {
-    "auth": {
-      "port": 9099
-    },
-    "functions": {
-      "port": 5001
-    },
-    "firestore": {
-      "port": 9150
-    },
-    "database": {
-      "port": 9000
-    },
-    "hosting": {
-      "port": 5002
-    },
-    "pubsub": {
-      "port": 8085
-    },
-    "storage": {
-      "port": 9199
-    },
-    "eventarc": {
-      "port": 9299
-    },
+    "auth": {},
+    "functions": {},
+    "firestore": {},
+    "database": {},
+    "hosting": {},
+    "pubsub": {},
+    "storage": {},
+    "eventarc": {},
     "ui": {
-      "enabled": true,
-      "port": 4000
+      "enabled": true
     },
     "singleProjectMode": true
   }
