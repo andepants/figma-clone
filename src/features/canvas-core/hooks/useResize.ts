@@ -61,11 +61,12 @@ interface UseResizeReturn {
  * Provides handlers for resize start, move, and end events.
  * Manages anchor point calculations and Firebase sync.
  *
+ * @param {string} projectId - Project/canvas ID for Firebase sync (defaults to 'main')
  * @returns {UseResizeReturn} Resize state and handlers
  *
  * @example
  * ```tsx
- * const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+ * const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize('my-project');
  *
  * <ResizeHandles
  *   object={rectangle}
@@ -76,9 +77,12 @@ interface UseResizeReturn {
  * />
  * ```
  */
-export function useResize(): UseResizeReturn {
-  const { updateObject } = useCanvasStore();
+export function useResize(projectId: string = 'main'): UseResizeReturn {
+  const { updateObject, projectId: storeProjectId } = useCanvasStore();
   const { currentUser } = useAuth();
+
+  // Use projectId from store, fall back to parameter (which defaults to 'main')
+  const effectiveProjectId = storeProjectId || projectId;
 
   // Resize state - use refs for synchronous updates in drag handlers
   // This prevents race conditions where drag events fire before React state updates
@@ -148,7 +152,7 @@ export function useResize(): UseResizeReturn {
       // Start resize in Firebase (sets up onDisconnect cleanup)
       try {
         await startResizing(
-          'main',
+          effectiveProjectId,
           objectId,
           currentUser.uid,
           handle,
@@ -167,7 +171,7 @@ export function useResize(): UseResizeReturn {
         setAnchor(null);
       }
     },
-    [currentUser]
+    [currentUser, effectiveProjectId]
   );
 
   /**
@@ -207,10 +211,11 @@ export function useResize(): UseResizeReturn {
       // - Circles: always locked (must maintain 1:1 ratio)
       // - Images: locked by default (lockAspectRatio !== false)
       // - Other shapes with lockAspectRatio property: respect the flag
+      const objectWithLock = object as { lockAspectRatio?: boolean };
       const hasAspectRatioLock =
         isCircle ||
-        (isImage && (object as any).lockAspectRatio !== false) ||
-        (!isCircle && !isImage && (object as any)?.lockAspectRatio === true);
+        (isImage && objectWithLock.lockAspectRatio !== false) ||
+        (!isCircle && !isImage && objectWithLock.lockAspectRatio === true);
 
       // CIRCLES: Always enforce uniform scaling (maintain 1:1 aspect ratio)
       // Circles must maintain width === height to stay circular
@@ -343,10 +348,10 @@ export function useResize(): UseResizeReturn {
 
       // Sync to Firebase (throttled to 50ms)
       // Update BOTH resize state AND object position to keep them in perfect sync
-      throttledUpdateResizePosition('main', objectId, newBounds);
-      throttledUpdateCanvasObject('main', objectId, shapeUpdates); // ← CRITICAL: Keep object current!
+      throttledUpdateResizePosition(effectiveProjectId, objectId, newBounds);
+      throttledUpdateCanvasObject(effectiveProjectId, objectId, shapeUpdates); // ← CRITICAL: Keep object current!
     },
-    [isShiftPressed, isAltPressed, updateObject]
+    [isShiftPressed, isAltPressed, updateObject, effectiveProjectId]
   );
 
   /**
@@ -440,11 +445,11 @@ export function useResize(): UseResizeReturn {
         try {
           // CRITICAL: Update object position IMMEDIATELY (no throttle)
           // This ensures RTDB has the correct position before resize state is cleared
-          await updateCanvasObject('main', objectId, finalUpdates);
+          await updateCanvasObject(effectiveProjectId, objectId, finalUpdates);
 
           // Clear resize state AFTER object update completes
           // This prevents flash-back: when resize state clears, object is already at correct position
-          await endResizing('main', objectId);
+          await endResizing(effectiveProjectId, objectId);
         } catch {
           // Silently fail
         }
@@ -459,7 +464,7 @@ export function useResize(): UseResizeReturn {
       setActiveHandle(null);
       setAnchor(null);
     },
-    []
+    [effectiveProjectId]
   );
 
   return {

@@ -7,7 +7,6 @@
 
 import type Konva from 'konva';
 import type { CanvasObject } from '@/types';
-import { calculateBoundingBox } from '@/lib/utils/geometry';
 import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
 
 /**
@@ -48,22 +47,7 @@ export function generateExportPreview(
     return null;
   }
 
-  const isDev = import.meta.env.DEV;
-
   try {
-    if (isDev) {
-      console.log('=== PREVIEW GENERATION START ===');
-      console.log('Objects to export:', objectsToExport.map(obj => ({
-        id: obj.id,
-        type: obj.type,
-        name: obj.name,
-        x: obj.x,
-        y: obj.y,
-        width: 'width' in obj ? obj.width : 'radius' in obj ? obj.radius * 2 : undefined,
-        height: 'height' in obj ? obj.height : 'radius' in obj ? obj.radius * 2 : undefined,
-      })));
-    }
-
     // Expand groups: if a group is in export list, include its descendants
     const expandedIds = new Set<string>();
     objectsToExport.forEach(obj => {
@@ -84,42 +68,75 @@ export function generateExportPreview(
       return null;
     }
 
-    if (isDev) {
-      console.log('Visible objects for preview:', visibleObjects.map(obj => ({
-        id: obj.id,
-        type: obj.type,
-        name: obj.name,
-        x: obj.x,
-        y: obj.y,
-        width: 'width' in obj ? obj.width : 'radius' in obj ? obj.radius * 2 : undefined,
-        height: 'height' in obj ? obj.height : 'radius' in obj ? obj.radius * 2 : undefined,
-      })));
-    }
-
-    // Calculate bounding box
-    const bbox = calculateBoundingBox(visibleObjects, allObjects);
-
-    if (isDev) {
-      console.log('Preview bounding box:', bbox);
-    }
-
-    // Validate bounding box
-    if (!isFinite(bbox.x) || !isFinite(bbox.y) || bbox.width <= 0 || bbox.height <= 0) {
-      return null;
-    }
-
     // Get layers
     const layers = stage.getLayers();
     const backgroundLayer = layers[0];
     const objectsLayer = layers[1];
     const cursorsLayer = layers[2];
 
+    if (!objectsLayer) {
+      return null;
+    }
+
+    /**
+     * Calculate bounding box from actual Konva nodes
+     *
+     * Use Konva's getClientRect() to get ACTUAL rendered bounds
+     * This matches the export logic exactly!
+     */
+
+    // Get IDs of objects to export
+    const idsToExport = new Set(visibleObjects.map(obj => obj.id));
+
+    // Find all Konva nodes that match our object IDs
+    const nodesToExport: Konva.Node[] = [];
+    objectsLayer.getChildren().forEach((node) => {
+      const nodeId = node.id();
+      if (nodeId && idsToExport.has(nodeId)) {
+        nodesToExport.push(node);
+      }
+    });
+
+    if (nodesToExport.length === 0) {
+      return null;
+    }
+
+    // Calculate bounding box from actual rendered nodes
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    nodesToExport.forEach((node) => {
+      const rect = node.getClientRect({
+        skipTransform: false,
+        skipShadow: false,
+        skipStroke: false,
+      });
+
+      minX = Math.min(minX, rect.x);
+      minY = Math.min(minY, rect.y);
+      maxX = Math.max(maxX, rect.x + rect.width);
+      maxY = Math.max(maxY, rect.y + rect.height);
+    });
+
+    const bbox = {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+
+    // Validate bounding box
+    if (!isFinite(bbox.x) || !isFinite(bbox.y) || bbox.width <= 0 || bbox.height <= 0) {
+      return null;
+    }
+
     // Store original visibility states
     const wasBackgroundVisible = backgroundLayer?.visible() ?? false;
     const wasCursorsVisible = cursorsLayer?.visible() ?? false;
 
     // Temporarily hide background and cursors layers
-    if (isDev) console.log('Hiding background and cursors layers for preview...');
     backgroundLayer?.hide();
     cursorsLayer?.hide();
 
@@ -127,25 +144,93 @@ export function generateExportPreview(
     // Dimension labels have name="dimension-label"
     const dimensionLabels = objectsLayer?.find('.dimension-label') || [];
     const dimensionLabelVisibility = dimensionLabels.map(label => label.visible());
-    if (isDev) console.log(`Hiding ${dimensionLabels.length} dimension labels for preview...`);
     dimensionLabels.forEach(label => label.hide());
 
-    // Force layer redraw
-    if (isDev) console.log('Forcing layer redraw for preview...');
+    // Hide all resize handles (UI overlays that shouldn't appear in preview)
+    // Resize handles have name="resize-handles"
+    const resizeHandles = objectsLayer?.find('.resize-handles') || [];
+    const resizeHandlesVisibility = resizeHandles.map(handle => handle.visible());
+    resizeHandles.forEach(handle => handle.hide());
+
+    // Hide text selection boxes (TextSelectionBox components)
+    // These are Group nodes that contain Rect and Line elements for text selection visualization
+    const textSelectionBoxes: Konva.Node[] = [];
+    const textSelectionBoxVisibility: boolean[] = [];
+    if (objectsLayer) {
+      objectsLayer.getChildren().forEach((node) => {
+        // TextSelectionBox is a Group with specific structure (contains Rect/Line for selection)
+        if (node.getClassName() === 'Group') {
+          // Check if this group is a text selection box by examining its children
+          const children = (node as Konva.Group).getChildren();
+          const hasRect = children.some(child => child.getClassName() === 'Rect');
+          const hasLine = children.some(child => child.getClassName() === 'Line');
+          // TextSelectionBox has both Rect (bounding box) and Line (underline)
+          if (hasRect && hasLine) {
+            textSelectionBoxes.push(node);
+            textSelectionBoxVisibility.push(node.visible());
+            node.hide();
+          }
+        }
+      });
+    }
+
+    // Temporarily remove selection styling from nodes in preview
+    // Store original stroke properties and reset to base values
+    const nodeStrokeBackup: Array<{
+      node: Konva.Node;
+      stroke: string | undefined;
+      strokeWidth: number | undefined;
+      shadowEnabled: boolean | undefined;
+      shadowColor: string | undefined;
+    }> = [];
+
+    nodesToExport.forEach((node) => {
+      // Get the shape's methods (they're Konva.Shape instances)
+      const shape = node as Konva.Shape;
+
+      // Backup current stroke properties (selection styling)
+      nodeStrokeBackup.push({
+        node,
+        stroke: shape.stroke(),
+        strokeWidth: shape.strokeWidth(),
+        shadowEnabled: shape.shadowEnabled(),
+        shadowColor: shape.shadowColor(),
+      });
+
+      // Find the original object data to get base stroke values
+      const objectId = node.id();
+      const originalObject = visibleObjects.find(obj => obj.id === objectId);
+
+      if (originalObject) {
+        // Reset to base stroke (remove selection blue outline)
+        // If object has its own stroke, use it; otherwise, no stroke
+        if ('stroke' in originalObject && originalObject.stroke && originalObject.strokeEnabled !== false) {
+          shape.stroke(originalObject.stroke);
+          shape.strokeWidth(originalObject.strokeWidth ?? 0);
+        } else {
+          // No base stroke - remove selection outline entirely
+          shape.stroke(undefined);
+          shape.strokeWidth(0);
+        }
+
+        // Remove selection glow (shadows added for selection feedback)
+        // Only keep shadow if it's part of the original object design
+        if ('shadowEnabled' in originalObject) {
+          shape.shadowEnabled(originalObject.shadowEnabled ?? false);
+          if (originalObject.shadowColor) {
+            shape.shadowColor(originalObject.shadowColor);
+          }
+        } else {
+          shape.shadowEnabled(false);
+        }
+      }
+    });
+
+    // Force layer redraw to apply stroke changes before preview
     objectsLayer?.batchDraw();
 
     // Generate preview with configurable quality
     // Use scale parameter to match export quality (1x = fast, 2x/3x = accurate)
-    if (isDev) {
-      console.log('Calling stage.toDataURL() with params:', {
-        x: bbox.x,
-        y: bbox.y,
-        width: bbox.width,
-        height: bbox.height,
-        pixelRatio: scale,
-      });
-    }
-
     const dataURL = stage.toDataURL({
       x: bbox.x,
       y: bbox.y,
@@ -155,23 +240,44 @@ export function generateExportPreview(
       mimeType: 'image/png',
     });
 
+    // Restore selection styling on nodes
+    nodeStrokeBackup.forEach(({ node, stroke, strokeWidth, shadowEnabled, shadowColor }) => {
+      const shape = node as Konva.Shape;
+      shape.stroke(stroke);
+      shape.strokeWidth(strokeWidth ?? 0);
+      shape.shadowEnabled(shadowEnabled ?? false);
+      if (shadowColor) {
+        shape.shadowColor(shadowColor);
+      }
+    });
+
     // Restore layer visibility
-    if (isDev) console.log('Restoring layer visibility after preview...');
     if (wasBackgroundVisible) backgroundLayer?.show();
     if (wasCursorsVisible) cursorsLayer?.show();
 
     // Restore dimension labels visibility
-    if (isDev) console.log('Restoring dimension labels after preview...');
     dimensionLabels.forEach((label, index) => {
       if (dimensionLabelVisibility[index]) {
         label.show();
       }
     });
 
-    if (isDev) {
-      console.log('Preview generated successfully, data URL length:', dataURL.length);
-      console.log('=== PREVIEW GENERATION END ===');
-    }
+    // Restore resize handles visibility
+    resizeHandles.forEach((handle, index) => {
+      if (resizeHandlesVisibility[index]) {
+        handle.show();
+      }
+    });
+
+    // Restore text selection boxes visibility
+    textSelectionBoxes.forEach((box, index) => {
+      if (textSelectionBoxVisibility[index]) {
+        box.show();
+      }
+    });
+
+    // Force redraw to restore selection visuals
+    objectsLayer?.batchDraw();
 
     return dataURL;
   } catch (error) {

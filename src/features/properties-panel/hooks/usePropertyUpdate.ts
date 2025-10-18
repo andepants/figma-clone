@@ -45,7 +45,7 @@ export interface UsePropertyUpdateReturn {
  * ```
  */
 export function usePropertyUpdate(): UsePropertyUpdateReturn {
-  const { updateObject } = useCanvasStore();
+  const { updateObject, projectId } = useCanvasStore();
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -55,7 +55,7 @@ export function usePropertyUpdate(): UsePropertyUpdateReturn {
       throttle(async (id: string, updates: Partial<CanvasObject>) => {
         try {
           setIsUpdating(true);
-          await updateCanvasObject('main', id, updates);
+          await updateCanvasObject(projectId, id, updates);
           setError(null);
         } catch (err) {
           const error = err as Error;
@@ -64,7 +64,7 @@ export function usePropertyUpdate(): UsePropertyUpdateReturn {
           setIsUpdating(false);
         }
       }, 50),
-    []
+    [projectId]
   );
 
   /**

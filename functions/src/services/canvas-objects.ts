@@ -1,7 +1,7 @@
 /**
  * Canvas Objects Service
  *
- * Provides functions for creating, updating, and deleting canvas objects
+ * Provides functions for single-object operations on canvas objects
  * in Firebase Realtime Database. All objects are written to:
  * canvases/{canvasId}/objects/{objectId}
  *
@@ -10,52 +10,24 @@
  * - UUID generation for new objects
  * - Timestamps and metadata
  * - Validation before writes
- * - Batch operations for multiple objects
+ *
+ * For batch operations, see batch-operations.ts
+ * For object building logic, see objectBuilder.ts
  *
  * @module canvas-objects
  */
 
-import { getCanvasObjectsRef, getCanvasObjectRef } from './firebase-admin';
+import { getCanvasObjectRef } from './firebase-admin';
+import { buildCanvasObject, BuildObjectParams } from './objectBuilder';
 import { v4 as uuidv4 } from 'uuid';
 import * as logger from 'firebase-functions/logger';
 
 /**
  * Parameters for creating a canvas object
- * Matches the frontend CanvasObject types
+ * Re-export from objectBuilder for backward compatibility
  */
-export interface CreateObjectParams {
+export interface CreateObjectParams extends BuildObjectParams {
   canvasId: string;
-  type: 'rectangle' | 'circle' | 'text' | 'line';
-  position: { x: number; y: number };
-
-  // Dimension-based properties (rectangle, text)
-  dimensions?: { width: number; height: number };
-
-  // Circle-specific
-  radius?: number;
-
-  // Text-specific
-  text?: string;
-  fontSize?: number;
-  fontFamily?: string;
-
-  // Line-specific
-  points?: [number, number, number, number];
-
-  // Visual properties
-  appearance: {
-    fill?: string;
-    stroke?: string;
-    strokeWidth?: number;
-    opacity?: number;
-  };
-
-  // Transform properties
-  rotation?: number;
-
-  // Metadata
-  name?: string;
-  userId: string;
 }
 
 /**
@@ -95,91 +67,14 @@ export async function createCanvasObject(params: CreateObjectParams): Promise<st
 
   const objectId = uuidv4();
   const ref = getCanvasObjectRef(params.canvasId, objectId);
-  const now = Date.now();
 
   logger.info('Generated object ID and ref', {
     objectId,
     refPath: `canvases/${params.canvasId}/objects/${objectId}`,
   });
 
-  // Build base object
-  const canvasObject: Record<string, unknown> = {
-    id: objectId,
-    type: params.type,
-    x: params.position.x,
-    y: params.position.y,
-    createdBy: params.userId,
-    createdAt: now,
-    updatedAt: now,
-    name: params.name || `${params.type}_${now}`,
-    visible: true,
-    locked: false,
-    aiGenerated: true, // Mark as AI-generated
-  };
-
-  // Add type-specific properties
-  switch (params.type) {
-    case 'rectangle':
-      if (!params.dimensions) {
-        throw new Error('Rectangle requires dimensions (width, height)');
-      }
-      canvasObject.width = params.dimensions.width;
-      canvasObject.height = params.dimensions.height;
-      canvasObject.fill = params.appearance.fill || '#cccccc';
-      break;
-
-    case 'circle':
-      if (!params.radius) {
-        throw new Error('Circle requires radius');
-      }
-      canvasObject.radius = params.radius;
-      canvasObject.fill = params.appearance.fill || '#cccccc';
-      break;
-
-    case 'text':
-      if (!params.text) {
-        throw new Error('Text requires text content');
-      }
-      if (!params.dimensions) {
-        throw new Error('Text requires dimensions (width, height)');
-      }
-      canvasObject.text = params.text;
-      canvasObject.fontSize = params.fontSize || 24;
-      canvasObject.fontFamily = params.fontFamily || 'Inter';
-      canvasObject.width = params.dimensions.width;
-      canvasObject.height = params.dimensions.height;
-      canvasObject.fill = params.appearance.fill || '#000000';
-      break;
-
-    case 'line': {
-      if (!params.points) {
-        throw new Error('Line requires points array [x1, y1, x2, y2]');
-      }
-      canvasObject.points = params.points;
-      // Calculate width (length) from points
-      const [x1, y1, x2, y2] = params.points;
-      canvasObject.width = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-      canvasObject.stroke = params.appearance.stroke || '#000000';
-      canvasObject.strokeWidth = params.appearance.strokeWidth || 2;
-      break;
-    }
-  }
-
-  // Add optional appearance properties
-  if (params.appearance.stroke) {
-    canvasObject.stroke = params.appearance.stroke;
-  }
-  if (params.appearance.strokeWidth !== undefined) {
-    canvasObject.strokeWidth = params.appearance.strokeWidth;
-  }
-  if (params.appearance.opacity !== undefined) {
-    canvasObject.opacity = params.appearance.opacity;
-  }
-
-  // Add optional transform properties
-  if (params.rotation !== undefined) {
-    canvasObject.rotation = params.rotation;
-  }
+  // Build canvas object using shared builder
+  const canvasObject = buildCanvasObject(params, objectId);
 
   logger.info('About to write to RTDB', {
     objectId,
@@ -212,126 +107,6 @@ export async function createCanvasObject(params: CreateObjectParams): Promise<st
 }
 
 /**
- * Create multiple canvas objects in a single batch operation
- *
- * @param canvasId - The canvas ID
- * @param objects - Array of object creation parameters
- * @returns Array of created object IDs
- * @throws Error if batch write fails
- *
- * @example
- * const objectIds = await batchCreateObjects('canvas-123', [
- *   { type: 'rectangle', position: { x: 0, y: 0 }, ... },
- *   { type: 'circle', position: { x: 100, y: 100 }, ... },
- * ]);
- */
-export async function batchCreateObjects(
-  canvasId: string,
-  objects: Omit<CreateObjectParams, 'canvasId'>[]
-): Promise<string[]> {
-  logger.info('batchCreateObjects called', {
-    canvasId,
-    objectCount: objects.length,
-  });
-
-  const updates: Record<string, unknown> = {};
-  const objectIds: string[] = [];
-  const now = Date.now();
-
-  for (const obj of objects) {
-    const objectId = uuidv4();
-    objectIds.push(objectId);
-
-    // Build object (same logic as createCanvasObject)
-    const canvasObject: Record<string, unknown> = {
-      id: objectId,
-      type: obj.type,
-      x: obj.position.x,
-      y: obj.position.y,
-      createdBy: obj.userId,
-      createdAt: now,
-      updatedAt: now,
-      name: obj.name || `${obj.type}_${now}`,
-      visible: true,
-      locked: false,
-      aiGenerated: true,
-    };
-
-    // Add type-specific properties (same switch as above)
-    switch (obj.type) {
-      case 'rectangle':
-        if (!obj.dimensions) throw new Error('Rectangle requires dimensions');
-        canvasObject.width = obj.dimensions.width;
-        canvasObject.height = obj.dimensions.height;
-        canvasObject.fill = obj.appearance.fill || '#cccccc';
-        break;
-
-      case 'circle':
-        if (!obj.radius) throw new Error('Circle requires radius');
-        canvasObject.radius = obj.radius;
-        canvasObject.fill = obj.appearance.fill || '#cccccc';
-        break;
-
-      case 'text':
-        if (!obj.text) throw new Error('Text requires text content');
-        if (!obj.dimensions) throw new Error('Text requires dimensions');
-        canvasObject.text = obj.text;
-        canvasObject.fontSize = obj.fontSize || 24;
-        canvasObject.fontFamily = obj.fontFamily || 'Inter';
-        canvasObject.width = obj.dimensions.width;
-        canvasObject.height = obj.dimensions.height;
-        canvasObject.fill = obj.appearance.fill || '#000000';
-        break;
-
-      case 'line': {
-        if (!obj.points) throw new Error('Line requires points array');
-        canvasObject.points = obj.points;
-        const [x1, y1, x2, y2] = obj.points;
-        canvasObject.width = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-        canvasObject.stroke = obj.appearance.stroke || '#000000';
-        canvasObject.strokeWidth = obj.appearance.strokeWidth || 2;
-        break;
-      }
-    }
-
-    // Add optional properties
-    if (obj.appearance.stroke) canvasObject.stroke = obj.appearance.stroke;
-    if (obj.appearance.strokeWidth !== undefined) canvasObject.strokeWidth = obj.appearance.strokeWidth;
-    if (obj.appearance.opacity !== undefined) canvasObject.opacity = obj.appearance.opacity;
-    if (obj.rotation !== undefined) canvasObject.rotation = obj.rotation;
-
-    updates[`canvases/${canvasId}/objects/${objectId}`] = canvasObject;
-  }
-
-  logger.info('About to batch write to RTDB', {
-    canvasId,
-    objectCount: objectIds.length,
-    updatePaths: Object.keys(updates),
-  });
-
-  try {
-    // Single multi-path update
-    await getCanvasObjectsRef(canvasId).root.update(updates);
-
-    logger.info('✅ Successfully batch wrote to RTDB', {
-      canvasId,
-      objectCount: objectIds.length,
-      objectIds,
-    });
-  } catch (error) {
-    logger.error('❌ Failed to batch write to RTDB', {
-      error: String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
-      canvasId,
-      objectCount: objectIds.length,
-    });
-    throw error;
-  }
-
-  return objectIds;
-}
-
-/**
  * Update properties of an existing canvas object
  *
  * @param canvasId - The canvas ID
@@ -351,12 +126,20 @@ export async function updateCanvasObject(
   objectId: string,
   updates: Record<string, unknown>
 ): Promise<void> {
+  logger.info('updateCanvasObject called', {
+    canvasId,
+    objectId,
+    updateKeys: Object.keys(updates),
+  });
+
   const ref = getCanvasObjectRef(canvasId, objectId);
 
   // Check if object exists
   const snapshot = await ref.once('value');
   if (!snapshot.exists()) {
-    throw new Error(`Object ${objectId} not found in canvas ${canvasId}`);
+    const errorMsg = `Object ${objectId} not found in canvas ${canvasId}`;
+    logger.error('❌ Object not found', { canvasId, objectId });
+    throw new Error(errorMsg);
   }
 
   // Add updatedAt timestamp
@@ -365,7 +148,23 @@ export async function updateCanvasObject(
     updatedAt: Date.now(),
   };
 
-  await ref.update(updateData);
+  try {
+    await ref.update(updateData);
+
+    logger.info('✅ Successfully updated object', {
+      canvasId,
+      objectId,
+      updateKeys: Object.keys(updateData),
+    });
+  } catch (error) {
+    logger.error('❌ Failed to update object', {
+      error: String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      canvasId,
+      objectId,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -382,40 +181,37 @@ export async function deleteCanvasObject(
   canvasId: string,
   objectId: string
 ): Promise<void> {
+  logger.info('deleteCanvasObject called', {
+    canvasId,
+    objectId,
+  });
+
   const ref = getCanvasObjectRef(canvasId, objectId);
 
   // Check if object exists
   const snapshot = await ref.once('value');
   if (!snapshot.exists()) {
-    throw new Error(`Object ${objectId} not found in canvas ${canvasId}`);
+    const errorMsg = `Object ${objectId} not found in canvas ${canvasId}`;
+    logger.error('❌ Object not found', { canvasId, objectId });
+    throw new Error(errorMsg);
   }
 
-  await ref.remove();
-}
+  try {
+    await ref.remove();
 
-/**
- * Delete multiple canvas objects in a single batch operation
- *
- * @param canvasId - The canvas ID
- * @param objectIds - Array of object IDs to delete
- * @throws Error if batch delete fails
- *
- * @example
- * await batchDeleteObjects('canvas-123', ['obj1', 'obj2', 'obj3']);
- */
-export async function batchDeleteObjects(
-  canvasId: string,
-  objectIds: string[]
-): Promise<void> {
-  const updates: Record<string, null> = {};
-
-  // Set each object path to null (RTDB delete syntax)
-  for (const objectId of objectIds) {
-    updates[`canvases/${canvasId}/objects/${objectId}`] = null;
+    logger.info('✅ Successfully deleted object', {
+      canvasId,
+      objectId,
+    });
+  } catch (error) {
+    logger.error('❌ Failed to delete object', {
+      error: String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      canvasId,
+      objectId,
+    });
+    throw error;
   }
-
-  // Single multi-path update with null values deletes them
-  await getCanvasObjectsRef(canvasId).root.update(updates);
 }
 
 /**
@@ -435,8 +231,25 @@ export async function getCanvasObject(
   canvasId: string,
   objectId: string
 ): Promise<Record<string, unknown> | null> {
+  logger.info('getCanvasObject called', {
+    canvasId,
+    objectId,
+  });
+
   const ref = getCanvasObjectRef(canvasId, objectId);
   const snapshot = await ref.once('value');
 
-  return snapshot.exists() ? snapshot.val() : null;
+  const exists = snapshot.exists();
+  logger.info(`${exists ? '✅' : '❌'} Object ${exists ? 'found' : 'not found'}`, {
+    canvasId,
+    objectId,
+  });
+
+  return exists ? snapshot.val() : null;
 }
+
+// Re-export batch operations for convenience
+export { batchCreateObjects, batchDeleteObjects } from './batch-operations';
+
+// Re-export types from objectBuilder
+export type { BuildObjectParams } from './objectBuilder';

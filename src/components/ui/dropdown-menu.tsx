@@ -1,3 +1,11 @@
+/**
+ * Dropdown Menu Component
+ *
+ * Comprehensive dropdown menu system with items, checkboxes, radio items, labels, separators, shortcuts,
+ * nested submenus, and groups. Supports keyboard navigation and accessibility.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"

@@ -9,21 +9,24 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type Konva from 'konva';
 import { useCanvasStore, useToolStore } from '@/stores';
 import { useAuth } from '@/features/auth/hooks';
-import { addCanvasObject } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../utils/coordinates';
 import { getUserColor } from '@/features/collaboration/utils';
 import { generateLayerName } from '@/features/layers-panel/utils';
 import type { CanvasObject, Rectangle, Circle, Text, Line } from '@/types';
 import { TEXT_DEFAULTS, DEFAULT_TEXT_WIDTH, DEFAULT_TEXT_HEIGHT } from '@/constants';
-import { calculateLineProperties } from '../utils/lineHelpers';
-
-/**
- * Point in 2D space
- */
-interface Point {
-  x: number;
-  y: number;
-}
+import {
+  calculateRectanglePreview,
+  calculateCirclePreview,
+  calculateLinePreview,
+  finalizeRectangle,
+  finalizeCircle,
+  finalizeLine,
+  type Point,
+} from './shape-creation/shapeCreationHelpers';
+import {
+  addShapeToFirebase,
+  createTextWithEditingLock,
+} from './shape-creation/shapeCreationFirebase';
 
 /**
  * Shape creation state and handlers
@@ -42,21 +45,6 @@ interface UseShapeCreationReturn {
 }
 
 /**
- * Minimum shape size in pixels
- */
-const MIN_SIZE = 10;
-
-/**
- * Default fill color for new rectangles
- */
-const DEFAULT_RECTANGLE_FILL = '#3b82f6'; // blue-500
-
-/**
- * Default fill color for new circles
- */
-const DEFAULT_CIRCLE_FILL = '#ef4444'; // red-500
-
-/**
  * Default text color for new text shapes
  */
 const DEFAULT_TEXT_FILL = '#171717'; // neutral-900
@@ -70,16 +58,6 @@ const DEFAULT_FONT_SIZE = 24;
  * Default font family for new text shapes
  */
 const DEFAULT_FONT_FAMILY = 'Inter';
-
-/**
- * Default stroke color for new lines
- */
-const DEFAULT_LINE_STROKE = '#000000'; // black
-
-/**
- * Default stroke width for new lines
- */
-const DEFAULT_LINE_STROKE_WIDTH = 2;
 
 /**
  * Hook for managing shape creation with click-drag-release
@@ -104,7 +82,7 @@ const DEFAULT_LINE_STROKE_WIDTH = 2;
  */
 export function useShapeCreation(): UseShapeCreationReturn {
   const { activeTool, setActiveTool } = useToolStore();
-  const { addObject, clearSelection, setEditingText } = useCanvasStore();
+  const { addObject, clearSelection, setEditingText, projectId } = useCanvasStore();
   const { currentUser } = useAuth();
 
   const [previewShape, setPreviewShape] = useState<CanvasObject | null>(null);
@@ -149,6 +127,78 @@ export function useShapeCreation(): UseShapeCreationReturn {
   }, [isCreating]);
 
   /**
+   * Create text object with immediate edit mode
+   *
+   * Creates text at click position and enters edit mode immediately.
+   * Uses optimistic updates with parallel Firebase sync and lock acquisition.
+   */
+  const createText = useCallback(
+    async (canvasPos: Point) => {
+      if (!currentUser) return;
+
+      // Get current objects for name generation
+      const objects = useCanvasStore.getState().objects;
+      const name = generateLayerName('text', objects);
+
+      // Create text shape immediately with all default typography properties
+      // Text boxes are fixed-size containers (like rectangles) that hold text
+      // Start with placeholder text so it's visible while edit mode loads
+      const newText: Text = {
+        id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: 'text',
+        x: canvasPos.x,
+        y: canvasPos.y,
+        text: 'Start typing...', // Placeholder text - visible while editing starts
+        fontSize: DEFAULT_FONT_SIZE,
+        fontFamily: DEFAULT_FONT_FAMILY,
+        fill: DEFAULT_TEXT_FILL,
+        // Fixed dimensions - text wraps/clips within these bounds
+        width: DEFAULT_TEXT_WIDTH,
+        height: DEFAULT_TEXT_HEIGHT,
+        wrap: 'word', // Enable text wrapping by default
+        // Typography properties from TEXT_DEFAULTS
+        fontWeight: TEXT_DEFAULTS.fontWeight,
+        fontStyle: TEXT_DEFAULTS.fontStyle,
+        textAlign: TEXT_DEFAULTS.textAlign,
+        align: TEXT_DEFAULTS.textAlign, // For backward compatibility
+        verticalAlign: TEXT_DEFAULTS.verticalAlign,
+        letterSpacing: TEXT_DEFAULTS.letterSpacing,
+        lineHeight: TEXT_DEFAULTS.lineHeight,
+        textDecoration: TEXT_DEFAULTS.textDecoration,
+        paragraphSpacing: TEXT_DEFAULTS.paragraphSpacing,
+        textTransform: TEXT_DEFAULTS.textTransform,
+        // Base properties
+        opacity: TEXT_DEFAULTS.opacity,
+        rotation: TEXT_DEFAULTS.rotation,
+        name, // Auto-generated name (e.g., "Text 1")
+        createdBy: currentUser.uid,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      // CRITICAL: Switch to move tool BEFORE entering edit mode
+      // This prevents the "tool changed while editing" effect from triggering auto-save
+      setActiveTool('move');
+
+      // Get user metadata for editing lock
+      const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
+      const color = getUserColor(currentUser.uid);
+
+      // Create text with optimistic editing lock
+      await createTextWithEditingLock(
+        projectId,
+        newText,
+        currentUser.uid,
+        username,
+        color,
+        addObject,
+        setEditingText
+      );
+    },
+    [currentUser, addObject, setActiveTool, setEditingText, projectId]
+  );
+
+  /**
    * Handle mouse down - start shape creation
    * Only activates when rectangle, circle, text, or line tool is selected
    *
@@ -177,94 +227,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
 
       // For text tool: Create text immediately on click (no drag needed)
       if (activeTool === 'text') {
-        // Generate auto-name for text object
-        const objects = useCanvasStore.getState().objects;
-        const name = generateLayerName('text', objects);
-
-        // Create text shape immediately with all default typography properties
-        // Text boxes are fixed-size containers (like rectangles) that hold text
-        // Start with placeholder text so it's visible while edit mode loads
-        const newText: Text = {
-          id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: 'text',
-          x: canvasPos.x,
-          y: canvasPos.y,
-          text: 'Start typing...', // Placeholder text - visible while editing starts
-          fontSize: DEFAULT_FONT_SIZE,
-          fontFamily: DEFAULT_FONT_FAMILY,
-          fill: DEFAULT_TEXT_FILL,
-          // Fixed dimensions - text wraps/clips within these bounds
-          width: DEFAULT_TEXT_WIDTH,
-          height: DEFAULT_TEXT_HEIGHT,
-          wrap: 'word', // Enable text wrapping by default
-          // Typography properties from TEXT_DEFAULTS
-          fontWeight: TEXT_DEFAULTS.fontWeight,
-          fontStyle: TEXT_DEFAULTS.fontStyle,
-          textAlign: TEXT_DEFAULTS.textAlign,
-          align: TEXT_DEFAULTS.textAlign, // For backward compatibility
-          verticalAlign: TEXT_DEFAULTS.verticalAlign,
-          letterSpacing: TEXT_DEFAULTS.letterSpacing,
-          lineHeight: TEXT_DEFAULTS.lineHeight,
-          textDecoration: TEXT_DEFAULTS.textDecoration,
-          paragraphSpacing: TEXT_DEFAULTS.paragraphSpacing,
-          textTransform: TEXT_DEFAULTS.textTransform,
-          // Base properties
-          opacity: TEXT_DEFAULTS.opacity,
-          rotation: TEXT_DEFAULTS.rotation,
-          name, // Auto-generated name (e.g., "Text 1")
-          createdBy: currentUser?.uid || 'unknown',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-
-        // Add to canvas store (optimistic update)
-        addObject(newText);
-
-        // NOTE: Tool switch moved to handleTextSave/handleTextCancel (after editing completes)
-        // Don't auto-switch here - would happen before edit mode starts, breaking textarea
-
-        // Sync to Realtime Database
-        addCanvasObject('main', newText).catch(() => {
-          // Rollback optimistic update on error
-          const { removeObject } = useCanvasStore.getState();
-          removeObject(newText.id);
-        });
-
-        // CRITICAL: Switch to move tool BEFORE entering edit mode
-        // This prevents the "tool changed while editing" effect from triggering auto-save
-        setActiveTool('move');
-
-        // CRITICAL: Enter edit mode IMMEDIATELY (optimistically) so textarea appears instantly
-        // This ensures the user can start typing without any delay
-        setEditingText(newText.id);
-
-        // Acquire editing lock asynchronously in parallel
-        // If lock fails (rare), we gracefully handle it by closing the editor
-        (async () => {
-          if (!currentUser) {
-            return;
-          }
-
-          try {
-            const { startEditing } = await import('@/lib/firebase');
-            const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
-            const color = getUserColor(currentUser.uid);
-
-            const canEdit = await startEditing('main', newText.id, currentUser.uid, username, color);
-
-            if (!canEdit) {
-              // Failed to acquire lock (another user somehow has it)
-              // Close the editor gracefully
-              setEditingText(null);
-              // Optionally show a toast notification here
-            }
-          } catch {
-            // Failed to acquire edit lock - close editor
-            setEditingText(null);
-          }
-        })();
-
-        // Don't start drag creation flow for text
+        createText(canvasPos);
         return;
       }
 
@@ -272,7 +235,7 @@ export function useShapeCreation(): UseShapeCreationReturn {
       setStartPoint(canvasPos);
       setIsCreating(true);
     },
-    [activeTool, clearSelection, currentUser, addObject, setActiveTool, setEditingText]
+    [activeTool, clearSelection, createText]
   );
 
   /**
@@ -297,72 +260,18 @@ export function useShapeCreation(): UseShapeCreationReturn {
       // Convert to canvas coordinates
       const currentPos = screenToCanvasCoords(stage, pointerPos);
 
+      // Get user ID for preview
+      const userId = currentUser?.uid || 'unknown';
+
       // Create preview shape based on active tool
       let preview: CanvasObject;
 
       if (activeTool === 'rectangle') {
-        // Calculate dimensions (handle negative values)
-        const width = Math.abs(currentPos.x - startPoint.x);
-        const height = Math.abs(currentPos.y - startPoint.y);
-
-        // Calculate position (top-left corner)
-        const x = Math.min(startPoint.x, currentPos.x);
-        const y = Math.min(startPoint.y, currentPos.y);
-
-        preview = {
-          id: 'preview', // Temporary ID
-          type: 'rectangle',
-          x,
-          y,
-          width,
-          height,
-          fill: DEFAULT_RECTANGLE_FILL,
-          createdBy: currentUser?.uid || 'unknown',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        } as Rectangle;
+        preview = calculateRectanglePreview(startPoint, currentPos, userId);
       } else if (activeTool === 'circle') {
-        // Calculate radius as distance from start point to current point
-        const dx = currentPos.x - startPoint.x;
-        const dy = currentPos.y - startPoint.y;
-        const radius = Math.sqrt(dx * dx + dy * dy);
-
-        // Circle position is at the center (start point)
-        preview = {
-          id: 'preview', // Temporary ID
-          type: 'circle',
-          x: startPoint.x,
-          y: startPoint.y,
-          radius,
-          fill: DEFAULT_CIRCLE_FILL,
-          createdBy: currentUser?.uid || 'unknown',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        } as Circle;
+        preview = calculateCirclePreview(startPoint, currentPos, userId);
       } else if (activeTool === 'line') {
-        // Calculate line properties from start point to current point
-        const { x, y, points, width, rotation } = calculateLineProperties(
-          startPoint.x,
-          startPoint.y,
-          currentPos.x,
-          currentPos.y
-        );
-
-        preview = {
-          id: 'preview', // Temporary ID
-          type: 'line',
-          x,
-          y,
-          points,
-          width,
-          rotation,
-          stroke: DEFAULT_LINE_STROKE,
-          strokeWidth: DEFAULT_LINE_STROKE_WIDTH,
-          visible: true,
-          createdBy: currentUser?.uid || 'unknown',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        } as Line;
+        preview = calculateLinePreview(startPoint, currentPos, userId);
       } else {
         return;
       }
@@ -389,122 +298,39 @@ export function useShapeCreation(): UseShapeCreationReturn {
 
     // Get current objects for name generation
     const objects = useCanvasStore.getState().objects;
+    const userId = currentUser?.uid || 'unknown';
 
     // Create final shape with unique ID based on type
-    let newShape: CanvasObject;
+    let newShape: CanvasObject | null = null;
 
     if (previewShape.type === 'rectangle') {
-      // Enforce minimum size for rectangles
-      const rectPreview = previewShape as Rectangle;
-      const width = Math.max(rectPreview.width, MIN_SIZE);
-      const height = Math.max(rectPreview.height, MIN_SIZE);
-
-      // Generate auto-name for rectangle
-      const name = generateLayerName('rectangle', objects);
-
-      newShape = {
-        ...rectPreview,
-        id: `rect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        width,
-        height,
-        name, // Auto-generated name (e.g., "Rectangle 1")
-      };
+      newShape = finalizeRectangle(previewShape as Rectangle, objects);
     } else if (previewShape.type === 'circle') {
-      // Enforce minimum radius for circles (5px = 10px diameter, matching MIN_SIZE)
-      const circlePreview = previewShape as Circle;
-      const radius = Math.max(circlePreview.radius, MIN_SIZE / 2);
-
-      // Generate auto-name for circle
-      const name = generateLayerName('circle', objects);
-
-      newShape = {
-        ...circlePreview,
-        id: `circle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        radius,
-        name, // Auto-generated name (e.g., "Circle 1")
-      };
+      newShape = finalizeCircle(previewShape as Circle, objects);
     } else if (previewShape.type === 'line') {
-      // Handle line creation
-      const linePreview = previewShape as Line;
-
-      // Generate auto-name for line
-      const name = generateLayerName('line', objects);
-
-      // If line is too short (user clicked without dragging), create a default 10px horizontal line
-      if (linePreview.width < MIN_SIZE) {
-        // Create horizontal line at click point
-        if (!startPoint) {
-          setIsCreating(false);
-          setStartPoint(null);
-          setPreviewShape(null);
-          return;
-        }
-
-        const { x, y, points, width, rotation } = calculateLineProperties(
-          startPoint.x,
-          startPoint.y,
-          startPoint.x + MIN_SIZE,
-          startPoint.y
-        );
-
-        newShape = {
-          id: `line-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: 'line',
-          x,
-          y,
-          points,
-          width,
-          rotation,
-          stroke: DEFAULT_LINE_STROKE,
-          strokeWidth: DEFAULT_LINE_STROKE_WIDTH,
-          visible: true,
-          name, // Auto-generated name (e.g., "Line 1")
-          createdBy: currentUser?.uid || 'unknown',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        } as Line;
-      } else {
-        // Use the dragged line with enforced minimum length
-        const width = Math.max(linePreview.width, MIN_SIZE);
-
-        newShape = {
-          ...linePreview,
-          id: `line-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          width,
-          visible: true,
-          name, // Auto-generated name (e.g., "Line 1")
-        };
-      }
-    } else {
-      // Unknown shape type, abort
-      setIsCreating(false);
-      setStartPoint(null);
-      setPreviewShape(null);
-      return;
+      newShape = finalizeLine(previewShape as Line, startPoint, objects, userId);
     }
 
-    // Add to canvas store (optimistic update)
-    addObject(newShape);
+    // Reset state before async operations
+    setIsCreating(false);
+    setStartPoint(null);
+    setPreviewShape(null);
+
+    // Abort if no shape was created
+    if (!newShape) return;
 
     // Auto-switch back to move tool (Figma-style behavior)
     // Happens immediately after creation, before async Firebase sync
     setActiveTool('move');
 
-    // Sync to Realtime Database (atomic add)
-    // RTDB updates are fast - no need for debouncing
+    // Add shape to Firebase with optimistic update
     try {
-      await addCanvasObject('main', newShape);
+      await addShapeToFirebase(projectId, newShape, addObject);
     } catch {
-      // Rollback optimistic update on error
-      const { removeObject } = useCanvasStore.getState();
-      removeObject(newShape.id);
+      // Error already handled by addShapeToFirebase (rollback complete)
+      // Could show toast notification here
     }
-
-    // Reset state
-    setIsCreating(false);
-    setStartPoint(null);
-    setPreviewShape(null);
-  }, [isCreating, previewShape, addObject, setActiveTool, startPoint, currentUser]);
+  }, [isCreating, previewShape, startPoint, currentUser, addObject, setActiveTool, projectId]);
 
   return {
     previewShape,

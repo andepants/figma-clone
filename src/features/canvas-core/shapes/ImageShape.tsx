@@ -38,6 +38,8 @@ interface ImageShapeProps {
   onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Optional drag state from another user (for real-time position updates) */
   remoteDragState?: { x: number; y: number; userId: string; username: string; color: string } | null;
+  /** Project/canvas ID for Firebase sync (defaults to 'main' for legacy support) */
+  projectId?: string;
 }
 
 /**
@@ -65,10 +67,14 @@ export const ImageShape = memo(function ImageShape({
   isInMultiSelect = false,
   onSelect,
   remoteDragState,
+  projectId = 'main',
 }: ImageShapeProps) {
   const { activeTool } = useToolStore();
-  const { updateObject } = useCanvasStore();
+  const { projectId: storeProjectId, updateObject } = useCanvasStore();
   const { currentUser } = useAuth();
+
+  // Use projectId from store if not provided via props
+  const effectiveProjectId = projectId || storeProjectId;
   const setHoveredObject = useUIStore((state) => state.setHoveredObject);
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
 
@@ -76,7 +82,7 @@ export const ImageShape = memo(function ImageShape({
   const isLocked = image.locked === true;
 
   // Resize hook
-  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize();
+  const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize(effectiveProjectId);
 
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
@@ -111,10 +117,27 @@ export const ImageShape = memo(function ImageShape({
   useEffect(() => {
     let isCancelled = false;
 
+    console.log('[ImageShape] Loading image:', {
+      id: image.id,
+      fileName: image.fileName,
+      srcPreview: image.src.substring(0, 100) + '...',
+      srcLength: image.src.length,
+      mimeType: image.mimeType,
+      storageType: image.storageType,
+      width: image.width,
+      height: image.height,
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+    });
+
     // Set up 10-second timeout
     const timeoutId = setTimeout(() => {
       if (!isCancelled) {
-        console.error('Image load timeout (10s):', image.src);
+        console.error('[ImageShape] Image load timeout (10s):', {
+          id: image.id,
+          fileName: image.fileName,
+          srcPreview: image.src.substring(0, 100),
+        });
         setImageLoadError(true);
       }
     }, 10000); // 10 seconds
@@ -125,6 +148,14 @@ export const ImageShape = memo(function ImageShape({
       .then((img) => {
         if (!isCancelled) {
           clearTimeout(timeoutId);
+          console.log('[ImageShape] Image loaded successfully:', {
+            id: image.id,
+            fileName: image.fileName,
+            loadedWidth: img.width,
+            loadedHeight: img.height,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+          });
           setHtmlImage(img);
           setImageLoadError(false);
         }
@@ -132,7 +163,12 @@ export const ImageShape = memo(function ImageShape({
       .catch((error) => {
         if (!isCancelled) {
           clearTimeout(timeoutId);
-          console.error('Failed to load image:', image.src, error);
+          console.error('[ImageShape] Failed to load image:', {
+            id: image.id,
+            fileName: image.fileName,
+            srcPreview: image.src.substring(0, 100),
+            error: error.message,
+          });
           setImageLoadError(true);
         }
       });
@@ -142,7 +178,7 @@ export const ImageShape = memo(function ImageShape({
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [image.src]);
+  }, [image.src, image.id, image.fileName, image.mimeType, image.storageType, image.width, image.height, image.naturalWidth, image.naturalHeight]);
 
   /**
    * Animate selection changes
@@ -220,7 +256,7 @@ export const ImageShape = memo(function ImageShape({
     const color = getUserColor(currentUser.uid);
 
     const canDrag = await startDragging(
-      'main',
+      effectiveProjectId,
       image.id,
       currentUser.uid,
       { x: image.x, y: image.y },
@@ -258,8 +294,8 @@ export const ImageShape = memo(function ImageShape({
 
     // Emit throttled updates to Realtime DB (50ms)
     // Update BOTH drag state AND object to keep them in perfect sync
-    throttledUpdateDragPosition('main', image.id, position);
-    throttledUpdateCanvasObject('main', image.id, position); // ← CRITICAL: Keep object current!
+    throttledUpdateDragPosition(effectiveProjectId, image.id, position);
+    throttledUpdateCanvasObject(effectiveProjectId, image.id, position); // ← CRITICAL: Keep object current!
 
     // Update cursor position during drag so other users see cursor moving with object
     if (stage && currentUser) {
@@ -268,7 +304,7 @@ export const ImageShape = memo(function ImageShape({
         const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
         const username = (currentUser.username || currentUser.email || 'Anonymous') as string;
         const color = getUserColor(currentUser.uid);
-        throttledUpdateCursor('main', currentUser.uid, canvasCoords, username, color);
+        throttledUpdateCursor(effectiveProjectId, currentUser.uid, canvasCoords, username, color);
       }
     }
   }
@@ -297,11 +333,11 @@ export const ImageShape = memo(function ImageShape({
 
     // CRITICAL: Update object position IMMEDIATELY (no throttle)
     // This ensures RTDB has the correct position before drag state is cleared
-    await updateCanvasObject('main', image.id, position);
+    await updateCanvasObject(effectiveProjectId, image.id, position);
 
     // Clear drag state AFTER object update completes
     // This prevents flash-back: when drag state clears, object is already at correct position
-    await endDragging('main', image.id);
+    await endDragging(effectiveProjectId, image.id);
   }
 
   /**
@@ -393,17 +429,25 @@ export const ImageShape = memo(function ImageShape({
 
   // Don't render if hidden
   if (image.visible === false) {
+    console.log('[ImageShape] Not rendering (hidden):', image.id);
     return null;
   }
 
   // Don't render if image failed to load
-  if (imageLoadError || !htmlImage) {
+  if (imageLoadError) {
+    console.error('[ImageShape] Not rendering (load error):', image.id, image.fileName);
+    return null;
+  }
+
+  if (!htmlImage) {
+    console.log('[ImageShape] Not rendering (waiting for image to load):', image.id, image.fileName);
     return null;
   }
 
   return (
     <Fragment>
       <Image
+        id={image.id}
         ref={shapeRef}
         image={htmlImage}
         // Position adjusted for center-based offset: x,y in data model represents top-left,

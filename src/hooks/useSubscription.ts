@@ -25,7 +25,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 import type { Subscription, User as UserProfile } from '@/types/subscription.types';
@@ -109,10 +109,34 @@ export function useSubscription(): UseSubscriptionReturn {
     // Subscribe to real-time updates
     const unsubscribe = onSnapshot(
       userDocRef,
-      (snapshot) => {
+      async (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data() as UserProfile;
-          setUserProfile(data);
+
+          // Migration: Add free subscription if missing
+          if (!data.subscription) {
+            const freeSubscription: Subscription = {
+              status: 'free',
+              stripePriceId: 'price_1SJGvHGag53vyQGAppC8KBkE',
+            };
+
+            try {
+              // Update Firestore with free subscription
+              await updateDoc(userDocRef, {
+                subscription: freeSubscription,
+                updatedAt: Date.now(),
+              });
+
+              // Update local state with migrated data
+              setUserProfile({ ...data, subscription: freeSubscription });
+            } catch (migrationError) {
+              console.error('Failed to migrate user to free subscription:', migrationError);
+              // Still set user profile with default subscription for this session
+              setUserProfile({ ...data, subscription: freeSubscription });
+            }
+          } else {
+            setUserProfile(data);
+          }
         } else {
           // User document doesn't exist yet - treat as free user
           setUserProfile(null);

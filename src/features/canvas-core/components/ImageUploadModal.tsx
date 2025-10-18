@@ -23,6 +23,8 @@ interface ImageUploadModalProps {
   onClose: () => void;
   /** Optional position on canvas to place image */
   position?: { x: number; y: number };
+  /** Project/canvas ID for Firebase storage (defaults to 'main' for legacy support) */
+  projectId?: string;
 }
 
 /**
@@ -44,11 +46,11 @@ interface ImageUploadModalProps {
  * />
  * ```
  */
-export function ImageUploadModal({ isOpen, onClose, position }: ImageUploadModalProps) {
+export function ImageUploadModal({ isOpen, onClose, position, projectId = 'main' }: ImageUploadModalProps) {
   const { currentUser } = useAuth();
   const { objects, addObject } = useCanvasStore();
   const { uploadImage, isUploading, uploadProgress, uploadError, cancelUpload, resetUploadState } =
-    useImageUpload();
+    useImageUpload({ projectId });
 
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,8 +77,21 @@ export function ImageUploadModal({ isOpen, onClose, position }: ImageUploadModal
       // Create canvas object
       const imageObject = createImageObject(uploadedData, uploadPosition, currentUser.uid, objects);
 
-      // Add to canvas
+      // Add to canvas store (optimistic update)
       addObject(imageObject);
+
+      // Sync to Realtime Database (same pattern as rectangles/circles)
+      // This ensures the image persists and can be moved/edited
+      const { addCanvasObject } = await import('@/lib/firebase');
+      try {
+        await addCanvasObject(projectId, imageObject);
+      } catch (error) {
+        console.error('Failed to sync image to Firebase:', error);
+        // Rollback optimistic update on error
+        const { removeObject } = useCanvasStore.getState();
+        removeObject(imageObject.id);
+        return; // Don't close modal on error
+      }
 
       // Close modal after successful upload
       setTimeout(() => {
@@ -84,7 +99,7 @@ export function ImageUploadModal({ isOpen, onClose, position }: ImageUploadModal
         resetUploadState();
       }, 500); // Small delay to show success state
     },
-    [currentUser, position, uploadImage, objects, addObject, onClose, resetUploadState]
+    [currentUser, position, uploadImage, objects, addObject, onClose, resetUploadState, projectId]
   );
 
   /**

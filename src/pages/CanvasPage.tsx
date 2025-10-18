@@ -14,26 +14,22 @@ import { RightSidebar } from '@/features/right-sidebar';
 import { LayersPanel } from '@/features/layers-panel';
 import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore, usePageStore, useUIStore } from '@/stores';
-import { markManipulated, unmarkManipulated, isManipulated } from '@/stores/manipulationTracker';
-import {
-  subscribeToCanvasObjects,
-  subscribeToDragStates,
-  subscribeToResizeStates,
-  subscribeToEditStates,
-  setOnline,
-  cleanupStaleDragStates,
-  cleanupStaleCursors,
-} from '@/lib/firebase';
 import { getProject } from '@/lib/firebase/projectsService';
 import { useAuth } from '@/features/auth/hooks';
 import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SyncIndicator, type SyncStatus, ShortcutsModal } from '@/components/common';
-import { hexToRgba, getUserDisplayName, exportCanvasToPNG } from '@/lib/utils';
+import { SyncIndicator, ShortcutsModal } from '@/components/common';
+import { hexToRgba, exportCanvasToPNG } from '@/lib/utils';
 import { ExportModal, type ExportOptions } from '@/features/export';
 import { ImageUploadModal } from '@/features/canvas-core/components/ImageUploadModal';
 import { canUserAccessProject } from '@/types/project.types';
 import type { Project } from '@/types/project.types';
+import { PUBLIC_PLAYGROUND_ID } from '@/config/constants';
+import {
+  useCanvasSubscriptions,
+  useCanvasSyncStatus,
+  useNavigationPrevention,
+} from './canvas/hooks';
 
 function CanvasPage() {
   // Get projectId from URL params (e.g., /canvas/:projectId)
@@ -72,8 +68,13 @@ function CanvasPage() {
     () => setIsImageUploadOpen(true)
   );
 
-  // Get canvas store setObjects method
-  const { setObjects, objects, selectedIds } = useCanvasStore();
+  // Get canvas store methods and state
+  const { objects, selectedIds, setProjectId } = useCanvasStore();
+
+  // Initialize canvasStore projectId from URL param
+  useEffect(() => {
+    setProjectId(projectId);
+  }, [projectId, setProjectId]);
 
   // Memoize selected objects to prevent unnecessary preview re-generation
   const selectedObjects = useMemo(
@@ -90,16 +91,34 @@ function CanvasPage() {
   // Get left sidebar state for layout adjustment
   const leftSidebarOpen = useUIStore((state) => state.leftSidebarOpen);
 
-  // Track initial loading state
-  const [isLoading, setIsLoading] = useState(true);
+  // Prevent browser navigation from gestures
+  useNavigationPrevention();
+
+  // Track sync status for sync indicator
+  const { syncStatus, setSyncStatus } = useCanvasSyncStatus();
+
+  // Subscribe to Firebase and manage real-time data
+  const { isLoading } = useCanvasSubscriptions({
+    projectId,
+    currentUser,
+    onSyncStatusChange: setSyncStatus,
+  });
 
   /**
    * Load project and verify access
    * Redirects to projects page if user doesn't have access
+   * Public playground bypasses access checks
    */
   useEffect(() => {
     async function loadProject() {
       if (!currentUser) {
+        setProjectLoading(false);
+        return;
+      }
+
+      // Public playground: Allow all authenticated users
+      if (projectId === PUBLIC_PLAYGROUND_ID) {
+        setProject(null); // No project metadata needed for playground
         setProjectLoading(false);
         return;
       }
@@ -143,64 +162,17 @@ function CanvasPage() {
     loadProject();
   }, [projectId, currentUser, navigate]);
 
-  // Track sync status for sync indicator
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
-
   /**
    * Handle export with options from modal
    * Exports objects based on user-configured settings
    */
   async function handleExportWithOptions(options: ExportOptions) {
-    const isDev = import.meta.env.DEV;
-
-    if (isDev) {
-      console.log('=== EXPORT BUTTON CLICKED ===');
-      console.log('Export options:', options);
-      console.log('Selected IDs:', selectedIds);
-      console.log('Selected objects from state:', selectedObjects.map(obj => ({
-        id: obj.id,
-        type: obj.type,
-        name: obj.name,
-        x: obj.x,
-        y: obj.y,
-        width: 'width' in obj ? obj.width : undefined,
-        height: 'height' in obj ? obj.height : undefined,
-        radius: 'radius' in obj ? obj.radius : undefined,
-        fill: 'fill' in obj ? obj.fill : undefined,
-      })));
-
-      // Also check what Konva nodes say their positions are
-      if (stageRef.current) {
-        const stage = stageRef.current;
-        const layers = stage.getLayers();
-        const objectsLayer = layers[1]; // Objects layer
-
-        if (objectsLayer) {
-          console.log('Konva nodes on canvas:');
-          selectedIds.forEach(selectedId => {
-            const node = objectsLayer.findOne(`#${selectedId}`);
-            if (node) {
-              console.log(`  Node ${selectedId}:`, {
-                x: node.x(),
-                y: node.y(),
-                width: node.width(),
-                height: node.height(),
-                absolutePosition: node.getAbsolutePosition(),
-                attrs: node.attrs,
-              });
-            } else {
-              console.log(`  Node ${selectedId}: NOT FOUND on canvas`);
-            }
-          });
-        }
-      }
-
-      console.log('All objects count:', objects.length);
-      console.log('=========================');
-    }
-
     try {
-      await exportCanvasToPNG(stageRef, selectedObjects, objects, options);
+      // exportCanvasToPNG now returns ExportResult
+      const result = await exportCanvasToPNG(stageRef, selectedObjects, objects, options);
+
+      // Return result for Firebase upload in ExportModal
+      return result;
     } catch (error) {
       // Provide helpful error messages based on error type
       let message = 'Unknown error occurred';
@@ -257,284 +229,6 @@ function CanvasPage() {
     window.addEventListener('keydown', handleExportShortcut);
     return () => window.removeEventListener('keydown', handleExportShortcut);
   }, [handleExport, selectedIds]);
-
-  /**
-   * Comprehensive prevention of browser back/forward navigation on swipe gestures
-   * Multi-layered approach:
-   * 1. Block all horizontal wheel events (trackpad two-finger swipe)
-   * 2. Block horizontal touch gestures at screen edges (macOS swipe-back)
-   * 3. CSS overscroll-behavior (defined in globals.css)
-   *
-   * Canvas panning is handled separately by Konva Stage and remains fully functional
-   */
-  useEffect(() => {
-    // 1. Prevent horizontal wheel events (trackpad scroll)
-    const preventWheelNavigation = (e: WheelEvent) => {
-      // Aggressively prevent ALL horizontal wheel events
-      // Canvas panning is handled by Konva's onWheel handler, not browser wheel events
-      if (Math.abs(e.deltaX) > 0) {
-        e.preventDefault();
-      }
-    };
-
-    // 2. Prevent horizontal touch/swipe gestures that trigger browser navigation
-    let touchStartX = 0;
-    let touchStartY = 0;
-
-    const preventTouchNavigation = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-      }
-    };
-
-    const preventTouchMoveNavigation = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        const touchCurrentX = e.touches[0].clientX;
-        const touchCurrentY = e.touches[0].clientY;
-        const deltaX = touchCurrentX - touchStartX;
-        const deltaY = touchCurrentY - touchStartY;
-
-        // If horizontal swipe is dominant and starts near screen edge, prevent it
-        if (Math.abs(deltaX) > Math.abs(deltaY)) {
-          const isEdgeSwipe = touchStartX < 50 || touchStartX > window.innerWidth - 50;
-          if (isEdgeSwipe) {
-            e.preventDefault();
-          }
-        }
-      }
-    };
-
-    // Add event listeners with passive: false to allow preventDefault
-    document.addEventListener('wheel', preventWheelNavigation, { passive: false, capture: true });
-    document.addEventListener('touchstart', preventTouchNavigation, { passive: false });
-    document.addEventListener('touchmove', preventTouchMoveNavigation, { passive: false });
-
-    return () => {
-      document.removeEventListener('wheel', preventWheelNavigation, { capture: true } as EventListenerOptions);
-      document.removeEventListener('touchstart', preventTouchNavigation);
-      document.removeEventListener('touchmove', preventTouchMoveNavigation);
-    };
-  }, []);
-
-  /**
-   * Additional safety net: Prevent browser back navigation via history manipulation
-   * Pushes a dummy history state and intercepts popstate events
-   */
-  useEffect(() => {
-    // Push a dummy state so back button doesn't leave the app
-    window.history.pushState(null, '', window.location.href);
-
-    const handlePopState = (e: PopStateEvent) => {
-      // Prevent navigation by immediately pushing state back
-      window.history.pushState(null, '', window.location.href);
-      e.preventDefault();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
-  /**
-   * Monitor online/offline status
-   * Shows "offline" when no network connection
-   */
-  useEffect(() => {
-    const handleOnline = () => {
-      setSyncStatus('synced');
-    };
-
-    const handleOffline = () => {
-      setSyncStatus('offline');
-    };
-
-    // Set initial status
-    if (!navigator.onLine) {
-      setSyncStatus('offline');
-    }
-
-    // Listen for online/offline events
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  /**
-   * Set user as online with automatic disconnect handling
-   * Also cleans up any stale drag states and cursors from previous sessions
-   * Firebase onDisconnect() will mark user offline on:
-   * - Browser close/crash
-   * - Network disconnect
-   * - Tab close
-   */
-  useEffect(() => {
-    if (!currentUser) return;
-
-    // Use username with smart fallback to email username (not full email)
-    const username = getUserDisplayName(currentUser.username, currentUser.email);
-
-    // Set user online (includes automatic onDisconnect cleanup)
-    setOnline(projectId, currentUser.uid, username).catch(() => {});
-
-    // Clean up any stale drag states from previous sessions
-    cleanupStaleDragStates(projectId).catch(() => {});
-
-    // Clean up any stale cursors from previous sessions
-    cleanupStaleCursors(projectId).catch(() => {});
-
-    // Note: No explicit cleanup needed - onDisconnect() handles it
-  }, [currentUser, projectId]);
-
-  /**
-   * Subscribe to drag states to track which objects current user is dragging
-   * This prevents remote updates from causing handle jump during drag
-   *
-   * PERFORMANCE FIX: Uses global manipulation tracker instead of local ref
-   * to enable immediate tracking in useGroupDrag before Firebase write completes
-   */
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const unsubscribe = subscribeToDragStates(projectId, (dragStates) => {
-      // Track which objects the current user is actively dragging
-      Object.entries(dragStates).forEach(([objectId, dragState]) => {
-        if (dragState.userId === currentUser.uid) {
-          markManipulated(objectId);
-        } else {
-          unmarkManipulated(objectId);
-        }
-      });
-    });
-
-    return unsubscribe;
-  }, [currentUser, projectId]);
-
-  /**
-   * Subscribe to resize states to track which objects current user is resizing
-   * This prevents remote updates from causing handle jump during resize
-   *
-   * PERFORMANCE FIX: Uses global manipulation tracker instead of local ref
-   * to enable immediate tracking in useResize before Firebase write completes
-   */
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const unsubscribe = subscribeToResizeStates(projectId, (resizeStates) => {
-      // Track which objects the current user is actively resizing
-      Object.entries(resizeStates).forEach(([objectId, resizeState]) => {
-        if (resizeState.userId === currentUser.uid) {
-          markManipulated(objectId);
-        } else {
-          unmarkManipulated(objectId);
-        }
-      });
-    });
-
-    return unsubscribe;
-  }, [currentUser, projectId]);
-
-  /**
-   * Subscribe to edit states to track which text objects current user is editing
-   * This prevents remote updates from overwriting text content during editing
-   * CRITICAL FIX: Prevents textarea flickering and text reverting to stored value
-   */
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const unsubscribe = subscribeToEditStates(projectId, (editStates) => {
-      // Track which text objects the current user is actively editing
-      Object.entries(editStates).forEach(([textId, editState]) => {
-        if (editState.userId === currentUser.uid) {
-          markManipulated(textId);
-        } else {
-          unmarkManipulated(textId);
-        }
-      });
-    });
-
-    return unsubscribe;
-  }, [currentUser, projectId]);
-
-  /**
-   * Subscribe to Realtime Database for real-time canvas updates
-   * Cleanup subscription on unmount
-   *
-   * CRITICAL FIX: Uses selective merge to avoid overwriting objects being
-   * actively manipulated by the current user. This prevents the "jumping handles"
-   * bug where remote updates would overwrite local optimistic updates during drag/resize.
-   */
-  useEffect(() => {
-    let isFirstLoad = true;
-
-    try {
-      // Subscribe to project-specific canvas objects in RTDB
-      const unsubscribe = subscribeToCanvasObjects(projectId, (remoteObjects) => {
-        // On first load, accept all remote objects
-        if (isFirstLoad) {
-          setObjects(remoteObjects);
-          setIsLoading(false);
-          isFirstLoad = false;
-          return;
-        }
-
-        // For subsequent updates, perform selective merge
-        // Skip objects that the current user is actively manipulating to prevent handle jumping
-        const { objects: localObjects } = useCanvasStore.getState();
-
-        // Build a map of local objects for quick lookup
-        const localObjectsMap = new Map(localObjects.map(obj => [obj.id, obj]));
-
-        // Merge: Keep local version of actively manipulated objects, use remote for others
-        // PERFORMANCE FIX: Uses global manipulation tracker for immediate tracking
-        const mergedObjects = remoteObjects.map(remoteObj => {
-          // If current user is actively manipulating this object, keep local version
-          if (isManipulated(remoteObj.id)) {
-            const localObj = localObjectsMap.get(remoteObj.id);
-            // If we have a local version, use it; otherwise fall back to remote
-            return localObj || remoteObj;
-          }
-
-          // Otherwise, use remote version
-          return remoteObj;
-        });
-
-        // Also include any local objects that don't exist remotely yet
-        // (e.g., objects that were just created locally and haven't synced yet)
-        localObjects.forEach(localObj => {
-          const existsRemotely = remoteObjects.some(remoteObj => remoteObj.id === localObj.id);
-          if (!existsRemotely && isManipulated(localObj.id)) {
-            mergedObjects.push(localObj);
-          }
-        });
-
-        // Update store with merged objects
-        setObjects(mergedObjects);
-
-        // Show brief "synced" indicator when data updates
-        // (only if we're online - don't show during offline mode)
-        if (navigator.onLine) {
-          setSyncStatus('synced');
-        }
-      });
-
-      // Cleanup: unsubscribe on unmount
-      return () => {
-        unsubscribe();
-      };
-    } catch {
-      // Mark loading as complete even on error
-      setIsLoading(false);
-    }
-    // Re-subscribe when projectId changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
 
   // Calculate background color with opacity
   const backgroundColor = pageSettings.backgroundColor;
@@ -605,12 +299,24 @@ function CanvasPage() {
     );
   }
 
+  // Check if this is the public playground
+  const isPublicPlayground = projectId === PUBLIC_PLAYGROUND_ID;
+
   try {
     return (
       <div
         className="relative h-screen w-screen overflow-hidden"
         style={{ backgroundColor: bgColorWithOpacity }}
       >
+        {/* Public Playground Banner */}
+        {isPublicPlayground && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg flex items-center gap-2">
+            <span className="text-sm font-medium">
+              🎨 Public Playground - Changes visible to all users
+            </span>
+          </div>
+        )}
+
         {/* Layers Panel - fixed left sidebar */}
         <LayersPanel />
 
@@ -626,13 +332,14 @@ function CanvasPage() {
           <SyncIndicator status={syncStatus} className="!top-4 !right-[256px]" />
           {/* Canvas Stage - adjusted for right sidebar (240px right margin) */}
           <div className="absolute top-0 left-0 right-[240px] bottom-0">
-            <CanvasStage stageRef={stageRef} />
+            <CanvasStage stageRef={stageRef} projectId={projectId} />
           </div>
           {/* Right Sidebar - unified properties + AI chat */}
           <RightSidebar
             onExport={handleExport}
             hasObjects={objects.length > 0}
             hasSelection={selectedIds.length > 0}
+            projectId={projectId}
           />
         </div>
 
@@ -657,6 +364,7 @@ function CanvasPage() {
         <ImageUploadModal
           isOpen={isImageUploadOpen}
           onClose={() => setIsImageUploadOpen(false)}
+          projectId={projectId}
         />
       </div>
     );

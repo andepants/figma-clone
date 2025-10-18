@@ -61,7 +61,7 @@ export function ChatMessage({ command }: ChatMessageProps) {
 
       {/* AI Response */}
       {command.response && (
-        <div className="text-green-700 text-xs leading-relaxed">
+        <div className="text-green-700 text-xs leading-relaxed whitespace-pre-wrap">
           {command.response}
         </div>
       )}

@@ -6,9 +6,10 @@
  *
  * Features:
  * - Full layer item draggable for reordering (no grip icon needed)
- * - Press-and-hold (200ms) to start drag, quick click to select
+ * - Press-and-hold (100ms) to start drag, quick click to select
  * - Visual feedback during drag (opacity-50, z-10)
  * - Cursor changes to grab/grabbing during drag interaction
+ * - Text selection disabled (select-none) to prevent drag interference
  * - Blue background + blue left border when selected
  * - Gray background on hover (when not selected)
  * - Name truncation at 160px with ellipsis
@@ -39,7 +40,7 @@ import { LayerIcon } from './LayerIcon';
 import { HierarchyArrow } from './HierarchyArrow';
 import { generateLayerName } from '@/features/layers-panel/utils';
 import { hasChildren, getAllDescendantIds, hasLockedParent } from '@/features/layers-panel/utils/hierarchy';
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 import { ContextMenu } from '@/components/common/ContextMenu';
 import { getContextMenuItems } from '@/features/layers-panel/utils/contextMenu';
 import { updateCanvasObject } from '@/lib/firebase';
@@ -86,7 +87,7 @@ interface LayerItemProps {
  * Drag & Drop:
  * - Uses @dnd-kit/sortable for drag-and-drop functionality
  * - Entire layer item acts as drag handle (no grip icon)
- * - 200ms press delay before drag starts (prevents click interference)
+ * - 100ms press delay before drag starts (prevents click interference)
  * - Transform and transition applied via CSS.Transform
  * - isDragging state controls visual feedback
  * - Interactive elements (input, buttons, arrow) prevent drag propagation
@@ -160,6 +161,7 @@ export const LayerItem = memo(function LayerItem({
   const toggleLock = useCanvasStore((state) => state.toggleLock);
   const objects = useCanvasStore((state) => state.objects);
   const selectedIds = useCanvasStore((state) => state.selectedIds);
+  const projectId = useCanvasStore((state) => state.projectId);
 
   // Hierarchy support
   const hasChildObjects = hasChildren(object.id, objects);
@@ -238,7 +240,7 @@ export const LayerItem = memo(function LayerItem({
     updateObject(object.id, { name: finalName });
 
     // Sync to Firebase RTDB (async)
-    updateCanvasObject('main', object.id, { name: finalName }).catch(() => {
+    updateCanvasObject(projectId, object.id, { name: finalName }).catch(() => {
       // Silently fail - Firebase subscription will restore correct state if needed
     });
 
@@ -342,7 +344,7 @@ export const LayerItem = memo(function LayerItem({
         onMouseEnter={onHover}
         onMouseLeave={onHoverEnd}
         className={`
-          group
+          group select-none
           h-7 pr-1.5 py-0.5 flex items-center gap-1 cursor-grab active:cursor-grabbing
           transition-colors duration-75
           ${isDragging ? 'opacity-50 z-10' : ''}
@@ -379,7 +381,7 @@ export const LayerItem = memo(function LayerItem({
         <span
           onDoubleClick={handleDoubleClick}
           className={`
-            text-[11px] truncate max-w-[160px] cursor-text
+            text-[11px] truncate max-w-[160px] cursor-grab active:cursor-grabbing
             ${isSelected ? 'font-medium text-gray-900' : 'font-normal text-gray-700'}
             ${!isVisible ? 'text-gray-400' : ''}
           `}

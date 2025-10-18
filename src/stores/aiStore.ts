@@ -33,14 +33,12 @@ export interface AICommand {
  * @property {string | null} currentCommand - Currently processing command text
  * @property {AICommand[]} commandHistory - History of commands (max 50, newest first)
  * @property {string | null} error - Current error message
- * @property {boolean} showFullHistory - Whether to show all history or just recent messages
  */
 interface AIState {
   isProcessing: boolean;
   currentCommand: string | null;
   commandHistory: AICommand[];
   error: string | null;
-  showFullHistory: boolean;
 }
 
 /**
@@ -89,17 +87,6 @@ interface AIActions {
    * Clear command history
    */
   clearHistory: () => void;
-
-  /**
-   * Toggle full history view (show all vs recent messages)
-   */
-  toggleFullHistory: () => void;
-
-  /**
-   * Set full history view state
-   * @param {boolean} show - Whether to show all history
-   */
-  setShowFullHistory: (show: boolean) => void;
 }
 
 /**
@@ -118,7 +105,6 @@ export const useAIStore = create<AIStore>((set) => ({
   currentCommand: null,
   commandHistory: [],
   error: null,
-  showFullHistory: false,
 
   // Actions
   setProcessing: (processing) =>
@@ -147,10 +133,4 @@ export const useAIStore = create<AIStore>((set) => ({
 
   clearHistory: () =>
     set({ commandHistory: [] }),
-
-  toggleFullHistory: () =>
-    set((state) => ({ showFullHistory: !state.showFullHistory })),
-
-  setShowFullHistory: (show) =>
-    set({ showFullHistory: show }),
 }));

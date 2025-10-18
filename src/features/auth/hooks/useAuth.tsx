@@ -7,7 +7,7 @@
 
 import * as React from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, signUpWithEmail, signInWithEmail, signOutUser, getAuthErrorMessage } from '@/lib/firebase';
+import { auth, signUpWithEmail, signInWithEmail, signInWithGoogle, signOutUser, getAuthErrorMessage, createUser, getUser, updateLastLogin } from '@/lib/firebase';
 import type { User } from '@/types';
 
 /**
@@ -17,6 +17,7 @@ import type { User } from '@/types';
  * @property {boolean} loading - Whether auth state is being determined
  * @property {(email: string, password: string) => Promise<void>} login - Login function
  * @property {(email: string, password: string, username: string) => Promise<void>} signup - Signup function
+ * @property {() => Promise<void>} loginWithGoogle - Google login function
  * @property {() => Promise<void>} logout - Logout function
  */
 interface AuthContextValue {
@@ -24,6 +25,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, username: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -81,6 +83,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   /**
+   * Sign in with Google account
+   * Uses popup flow for OAuth authentication
+   */
+  async function loginWithGoogle(): Promise<void> {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      const message = getAuthErrorMessage(error);
+      throw new Error(message);
+    }
+  }
+
+  /**
    * Log out current user
    */
   async function logout(): Promise<void> {
@@ -93,11 +108,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   /**
-   * Listen to Firebase auth state changes
+   * Listen to Firebase auth state changes and sync Firestore user profile
    */
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        try {
+          // Check if Firestore user document exists
+          const firestoreUser = await getUser(firebaseUser.uid);
+
+          if (!firestoreUser) {
+            // User document doesn't exist - create it (for existing Auth users)
+            console.log('Creating Firestore user profile for:', firebaseUser.email);
+            await createUser(
+              firebaseUser.uid,
+              firebaseUser.email || 'unknown@example.com',
+              firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User'
+            );
+          } else {
+            // User exists - update last login
+            await updateLastLogin(firebaseUser.uid);
+          }
+        } catch (error) {
+          console.error('Failed to sync Firestore user profile:', error);
+          // Continue anyway - user can still authenticate
+        }
+
         // Convert Firebase user to our User type
         const user: User = {
           uid: firebaseUser.uid,
@@ -120,6 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     login,
     signup,
+    loginWithGoogle,
     logout,
   };
 

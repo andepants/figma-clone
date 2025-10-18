@@ -53,24 +53,13 @@ export function HeroSection({ onOpenAuth }: HeroSectionProps) {
               Go to Projects
             </Link>
           ) : (
-            /* Unauthenticated user - show "Get Started Free" */
-            <>
-              {/* Primary CTA - most prominent */}
-              <button
-                onClick={() => onOpenAuth('signup')}
-                className="px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-              >
-                Get Started Free
-              </button>
-
-              {/* Secondary CTA - less prominent */}
-              <a
-                href="#features"
-                className="px-8 py-4 border-2 border-gray-300 text-gray-700 text-lg font-semibold rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
-              >
-                See Features
-              </a>
-            </>
+            /* Unauthenticated user - show "Get Started" */
+            <button
+              onClick={() => onOpenAuth('signup')}
+              className="px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              Get Started
+            </button>
           )}
         </div>
 

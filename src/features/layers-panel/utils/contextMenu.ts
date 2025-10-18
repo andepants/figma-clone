@@ -9,7 +9,7 @@
 
 import type { CanvasObject } from '@/types/canvas.types';
 import type { ContextMenuItem } from '@/components/common/ContextMenu';
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 
 /**
  * Build context menu items for a layer object

@@ -81,7 +81,7 @@
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
             },
             "fileSize": {
-              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10485760"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10485760"
             },
             "mimeType": {
               ".validate": "newData.isString() && newData.val().matches(/^image\\/(png|jpeg|jpg|gif|webp|svg\\+xml)$/)"

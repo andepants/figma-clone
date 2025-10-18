@@ -13,7 +13,7 @@ import type { CanvasObject } from '@/types/canvas.types';
  * Calculate bounding box of multiple canvas objects
  *
  * Returns the smallest rectangle containing all objects.
- * Handles all object types: rectangle, circle, text, line, group.
+ * Handles all object types: rectangle, circle, text, image, line, group.
  * Accounts for stroke width, shadows, and line thickness.
  *
  * For groups, the bounding box includes all children recursively.
@@ -96,6 +96,51 @@ export function calculateBoundingBox(
     }
   });
 
+  /**
+   * Apply transform matrix to a point
+   * Handles rotation, scale, and skew transformations
+   */
+  const transformPoint = (
+    x: number,
+    y: number,
+    centerX: number,
+    centerY: number,
+    rotation: number = 0,
+    scaleX: number = 1,
+    scaleY: number = 1,
+    skewX: number = 0,
+    skewY: number = 0
+  ): { x: number; y: number } => {
+    // Translate to origin (relative to center)
+    let px = x - centerX;
+    let py = y - centerY;
+
+    // Apply scale
+    px *= scaleX;
+    py *= scaleY;
+
+    // Apply skew
+    const skewXRad = (skewX * Math.PI) / 180;
+    const skewYRad = (skewY * Math.PI) / 180;
+    const skewedX = px + py * Math.tan(skewXRad);
+    const skewedY = py + px * Math.tan(skewYRad);
+    px = skewedX;
+    py = skewedY;
+
+    // Apply rotation
+    const rotRad = (rotation * Math.PI) / 180;
+    const cos = Math.cos(rotRad);
+    const sin = Math.sin(rotRad);
+    const rotatedX = px * cos - py * sin;
+    const rotatedY = px * sin + py * cos;
+
+    // Translate back to world coordinates
+    return {
+      x: rotatedX + centerX,
+      y: rotatedY + centerY,
+    };
+  };
+
   expandedObjects.forEach((obj) => {
     // Calculate base bounds for each object type
     let objMinX = 0;
@@ -103,34 +148,157 @@ export function calculateBoundingBox(
     let objMaxX = 0;
     let objMaxY = 0;
 
+    // Get transform properties (all shapes support these)
+    const rotation = obj.rotation ?? 0;
+    const scaleX = 'scaleX' in obj ? (obj.scaleX ?? 1) : 1;
+    const scaleY = 'scaleY' in obj ? (obj.scaleY ?? 1) : 1;
+    const skewX = 'skewX' in obj ? (obj.skewX ?? 0) : 0;
+    const skewY = 'skewY' in obj ? (obj.skewY ?? 0) : 0;
+
+    // Check if object has any transforms applied
+    const hasTransforms = rotation !== 0 || scaleX !== 1 || scaleY !== 1 || skewX !== 0 || skewY !== 0;
+
     if (obj.type === 'rectangle') {
-      // Rectangle: top-left corner + dimensions
-      objMinX = obj.x;
-      objMinY = obj.y;
-      objMaxX = obj.x + obj.width;
-      objMaxY = obj.y + obj.height;
+      if (hasTransforms) {
+        // Rectangle with transforms: calculate transformed corners
+        const centerX = obj.x + obj.width / 2;
+        const centerY = obj.y + obj.height / 2;
+
+        // Four corners of the untransformed rectangle
+        const corners = [
+          { x: obj.x, y: obj.y }, // top-left
+          { x: obj.x + obj.width, y: obj.y }, // top-right
+          { x: obj.x + obj.width, y: obj.y + obj.height }, // bottom-right
+          { x: obj.x, y: obj.y + obj.height }, // bottom-left
+        ];
+
+        // Transform each corner and find min/max
+        const transformedCorners = corners.map(corner =>
+          transformPoint(corner.x, corner.y, centerX, centerY, rotation, scaleX, scaleY, skewX, skewY)
+        );
+
+        objMinX = Math.min(...transformedCorners.map(c => c.x));
+        objMinY = Math.min(...transformedCorners.map(c => c.y));
+        objMaxX = Math.max(...transformedCorners.map(c => c.x));
+        objMaxY = Math.max(...transformedCorners.map(c => c.y));
+      } else {
+        // No transforms: simple bounds calculation
+        objMinX = obj.x;
+        objMinY = obj.y;
+        objMaxX = obj.x + obj.width;
+        objMaxY = obj.y + obj.height;
+      }
     } else if (obj.type === 'circle') {
-      // Circle: center point - radius to center point + radius
-      objMinX = obj.x - obj.radius;
-      objMinY = obj.y - obj.radius;
-      objMaxX = obj.x + obj.radius;
-      objMaxY = obj.y + obj.radius;
+      // Circle: for transforms, treat as a square bounding box then transform
+      const radius = obj.radius;
+      const centerX = obj.x;
+      const centerY = obj.y;
+
+      if (hasTransforms) {
+        // Calculate bounding box corners and transform them
+        const corners = [
+          { x: centerX - radius, y: centerY - radius }, // top-left
+          { x: centerX + radius, y: centerY - radius }, // top-right
+          { x: centerX + radius, y: centerY + radius }, // bottom-right
+          { x: centerX - radius, y: centerY + radius }, // bottom-left
+        ];
+
+        const transformedCorners = corners.map(corner =>
+          transformPoint(corner.x, corner.y, centerX, centerY, rotation, scaleX, scaleY, skewX, skewY)
+        );
+
+        objMinX = Math.min(...transformedCorners.map(c => c.x));
+        objMinY = Math.min(...transformedCorners.map(c => c.y));
+        objMaxX = Math.max(...transformedCorners.map(c => c.x));
+        objMaxY = Math.max(...transformedCorners.map(c => c.y));
+      } else {
+        // No transforms: simple bounds
+        objMinX = centerX - radius;
+        objMinY = centerY - radius;
+        objMaxX = centerX + radius;
+        objMaxY = centerY + radius;
+      }
     } else if (obj.type === 'text') {
-      // Text: top-left corner + dimensions
-      objMinX = obj.x;
-      objMinY = obj.y;
-      objMaxX = obj.x + obj.width;
-      objMaxY = obj.y + obj.height;
+      if (hasTransforms) {
+        // Text with transforms: calculate transformed corners
+        const centerX = obj.x + obj.width / 2;
+        const centerY = obj.y + obj.height / 2;
+
+        const corners = [
+          { x: obj.x, y: obj.y },
+          { x: obj.x + obj.width, y: obj.y },
+          { x: obj.x + obj.width, y: obj.y + obj.height },
+          { x: obj.x, y: obj.y + obj.height },
+        ];
+
+        const transformedCorners = corners.map(corner =>
+          transformPoint(corner.x, corner.y, centerX, centerY, rotation, scaleX, scaleY, skewX, skewY)
+        );
+
+        objMinX = Math.min(...transformedCorners.map(c => c.x));
+        objMinY = Math.min(...transformedCorners.map(c => c.y));
+        objMaxX = Math.max(...transformedCorners.map(c => c.x));
+        objMaxY = Math.max(...transformedCorners.map(c => c.y));
+      } else {
+        // No transforms: simple bounds
+        objMinX = obj.x;
+        objMinY = obj.y;
+        objMaxX = obj.x + obj.width;
+        objMaxY = obj.y + obj.height;
+      }
+    } else if (obj.type === 'image') {
+      if (hasTransforms) {
+        // Image with transforms: calculate transformed corners
+        const centerX = obj.x + obj.width / 2;
+        const centerY = obj.y + obj.height / 2;
+
+        const corners = [
+          { x: obj.x, y: obj.y },
+          { x: obj.x + obj.width, y: obj.y },
+          { x: obj.x + obj.width, y: obj.y + obj.height },
+          { x: obj.x, y: obj.y + obj.height },
+        ];
+
+        const transformedCorners = corners.map(corner =>
+          transformPoint(corner.x, corner.y, centerX, centerY, rotation, scaleX, scaleY, skewX, skewY)
+        );
+
+        objMinX = Math.min(...transformedCorners.map(c => c.x));
+        objMinY = Math.min(...transformedCorners.map(c => c.y));
+        objMaxX = Math.max(...transformedCorners.map(c => c.x));
+        objMaxY = Math.max(...transformedCorners.map(c => c.y));
+      } else {
+        // No transforms: simple bounds
+        objMinX = obj.x;
+        objMinY = obj.y;
+        objMaxX = obj.x + obj.width;
+        objMaxY = obj.y + obj.height;
+      }
     } else if (obj.type === 'line') {
       // Line: points are relative to (x, y), calculate absolute positions
       const x1 = obj.x + obj.points[0];
       const y1 = obj.y + obj.points[1];
       const x2 = obj.x + obj.points[2];
       const y2 = obj.y + obj.points[3];
-      objMinX = Math.min(x1, x2);
-      objMinY = Math.min(y1, y2);
-      objMaxX = Math.max(x1, x2);
-      objMaxY = Math.max(y1, y2);
+
+      if (hasTransforms) {
+        // Transform both endpoints
+        const centerX = (x1 + x2) / 2;
+        const centerY = (y1 + y2) / 2;
+
+        const p1 = transformPoint(x1, y1, centerX, centerY, rotation, scaleX, scaleY, skewX, skewY);
+        const p2 = transformPoint(x2, y2, centerX, centerY, rotation, scaleX, scaleY, skewX, skewY);
+
+        objMinX = Math.min(p1.x, p2.x);
+        objMinY = Math.min(p1.y, p2.y);
+        objMaxX = Math.max(p1.x, p2.x);
+        objMaxY = Math.max(p1.y, p2.y);
+      } else {
+        objMinX = Math.min(x1, x2);
+        objMinY = Math.min(y1, y2);
+        objMaxX = Math.max(x1, x2);
+        objMaxY = Math.max(y1, y2);
+      }
 
       // Add half stroke width to account for line thickness
       const halfStroke = (obj.strokeWidth || 2) / 2;

@@ -109,37 +109,3 @@ export function isManipulated(objectId: string): boolean {
   return activeManipulations.has(objectId);
 }
 
-/**
- * Get all currently manipulated object IDs
- *
- * Useful for debugging or bulk operations.
- *
- * @returns {string[]} - Array of object IDs currently being manipulated
- *
- * @example
- * ```typescript
- * const manipulatedIds = getManipulatedIds();
- * // Currently manipulating manipulatedIds.length objects
- * ```
- */
-export function getManipulatedIds(): string[] {
-  return Array.from(activeManipulations);
-}
-
-/**
- * Clear all manipulation tracking
- *
- * Useful for cleanup when unmounting or resetting state.
- * Should rarely be needed in normal operation.
- *
- * @example
- * ```typescript
- * // On component unmount
- * useEffect(() => {
- *   return () => clearManipulations();
- * }, []);
- * ```
- */
-export function clearManipulations(): void {
-  activeManipulations.clear();
-}

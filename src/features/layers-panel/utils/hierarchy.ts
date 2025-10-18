@@ -52,7 +52,9 @@ export function buildHierarchyTree(objects: CanvasObject[]): CanvasObjectWithChi
       // Child object - add to parent's children
       const parent = objectMap.get(obj.parentId);
       if (parent) {
-        node.depth = parent.depth + 1;
+        // Only increase depth if parent is a group (type === 'group')
+        // This ensures only objects inside groups are indented
+        node.depth = parent.type === 'group' ? parent.depth + 1 : parent.depth;
         parent.children.push(node);
       } else {
         // Parent not found - treat as root (orphan)

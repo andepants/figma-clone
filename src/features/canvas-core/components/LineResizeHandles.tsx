@@ -86,7 +86,7 @@ export const LineResizeHandles = memo(function LineResizeHandles({
   onResizeEnd,
 }: LineResizeHandlesProps) {
   const { activeTool } = useToolStore();
-  const { updateObject } = useCanvasStore();
+  const { updateObject, projectId } = useCanvasStore();
 
   // Track which handle is being dragged (1 or 2, or null)
   const [draggingHandle, setDraggingHandle] = useState<1 | 2 | null>(null);
@@ -156,7 +156,7 @@ export const LineResizeHandles = memo(function LineResizeHandles({
     });
 
     // Sync to Firebase (throttled)
-    throttledUpdateCanvasObject('main', line.id, {
+    throttledUpdateCanvasObject(projectId, line.id, {
       x: newProps.x,
       y: newProps.y,
       points: newProps.points,
@@ -199,7 +199,7 @@ export const LineResizeHandles = memo(function LineResizeHandles({
     });
 
     // Sync to Firebase (throttled)
-    throttledUpdateCanvasObject('main', line.id, {
+    throttledUpdateCanvasObject(projectId, line.id, {
       x: newProps.x,
       y: newProps.y,
       points: newProps.points,
@@ -325,7 +325,10 @@ export const LineResizeHandles = memo(function LineResizeHandles({
   const handleStrokeWidth = 2;
 
   return (
-    <Group>
+    <Group
+      // Add name for hiding during export/preview
+      name="resize-handles"
+    >
       {/* Handle 1 - First endpoint (square, matching other shapes) */}
       <Rect
         x={x1}

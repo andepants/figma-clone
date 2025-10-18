@@ -87,9 +87,3 @@ function updateCanonicalURL(url: string): void {
   link.setAttribute('href', url);
 }
 
-/**
- * Resets SEO to default values
- */
-export function resetSEO(): void {
-  updateSEO({});
-}

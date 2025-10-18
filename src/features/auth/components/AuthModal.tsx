@@ -40,28 +40,64 @@ interface AuthModalProps {
  */
 export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
   const [mode, setMode] = React.useState<AuthMode>(initialMode);
-  const { login, signup } = useAuth();
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+  const [googleError, setGoogleError] = React.useState('');
+  const waitingForGoogleAuthRef = React.useRef(false);
+  const { login, signup, loginWithGoogle, currentUser } = useAuth();
   const navigate = useNavigate();
 
   const isLogin = mode === 'login';
+
+  /**
+   * Handles successful authentication
+   * Closes modal and redirects to intended destination or projects page
+   */
+  const handleSuccess = React.useCallback(() => {
+    onClose();
+    // Small delay to let modal close gracefully
+    setTimeout(() => {
+      // Check for stored return URL from protected route redirect
+      const returnUrl = sessionStorage.getItem('returnUrl');
+
+      if (returnUrl) {
+        // Clear the stored URL and redirect to it
+        sessionStorage.removeItem('returnUrl');
+        navigate(returnUrl);
+      } else {
+        // Default to projects page
+        navigate('/projects');
+      }
+    }, 150);
+  }, [onClose, navigate]);
+
+  /**
+   * Sync mode with initialMode when modal opens or initialMode changes
+   */
+  React.useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setGoogleError('');
+    }
+  }, [isOpen, initialMode]);
+
+  /**
+   * Watch for auth state changes after Google sign-in
+   * Once user is authenticated, redirect to projects page
+   */
+  React.useEffect(() => {
+    if (waitingForGoogleAuthRef.current && currentUser) {
+      // User successfully authenticated via Google
+      waitingForGoogleAuthRef.current = false;
+      setIsGoogleLoading(false);
+      handleSuccess();
+    }
+  }, [currentUser, handleSuccess]);
 
   /**
    * Toggles between login and signup modes
    */
   function toggleMode() {
     setMode(isLogin ? 'signup' : 'login');
-  }
-
-  /**
-   * Handles successful authentication
-   * Closes modal and redirects to projects page
-   */
-  function handleSuccess() {
-    onClose();
-    // Small delay to let modal close gracefully
-    setTimeout(() => {
-      navigate('/projects');
-    }, 150);
   }
 
   /**
@@ -78,6 +114,28 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
     await signup(email, password, username);
   }
 
+  /**
+   * Handles Google sign-in
+   * Sets a waiting flag and lets the useEffect handle success after auth state updates
+   */
+  async function handleGoogleSignIn() {
+    setGoogleError('');
+    setIsGoogleLoading(true);
+    waitingForGoogleAuthRef.current = true;
+
+    try {
+      await loginWithGoogle();
+      // Don't call handleSuccess() here - let the useEffect handle it
+      // when currentUser updates
+    } catch (error) {
+      // Handle errors - display them to the user
+      waitingForGoogleAuthRef.current = false;
+      setIsGoogleLoading(false);
+      const message = error instanceof Error ? error.message : 'Failed to sign in with Google';
+      setGoogleError(message);
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -92,8 +150,54 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
           </DialogDescription>
         </DialogHeader>
 
-        {/* Render appropriate form based on mode */}
+        {/* Google Sign-In Button */}
         <div className="py-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
+          >
+            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="currentColor"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="currentColor"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="currentColor"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
+            </svg>
+            {isGoogleLoading ? 'Signing in...' : 'Continue with Google'}
+          </Button>
+
+          {/* Google Sign-In Error */}
+          {googleError && (
+            <div className="mt-3 text-sm text-error-600 bg-error-50 p-3 rounded-md">
+              {googleError}
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-neutral-500">Or continue with email</span>
+            </div>
+          </div>
+
+          {/* Render appropriate form based on mode */}
           {isLogin ? (
             <LoginForm onSubmit={handleLogin} onSuccess={handleSuccess} />
           ) : (

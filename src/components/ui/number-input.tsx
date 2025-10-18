@@ -201,12 +201,12 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
           disabled={disabled}
           placeholder={placeholder}
           className={cn(
-            'flex h-7 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs',
+            'flex h-7 w-full rounded-md border border-input bg-transparent px-1.5 py-1 text-xs',
             'transition-colors',
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
             'disabled:cursor-not-allowed disabled:opacity-50',
             'text-right', // Right-align numbers
-            unit && 'pr-8' // Extra padding for unit
+            unit && 'pr-6' // Extra padding for unit
           )}
         />
 
@@ -214,7 +214,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
         {unit && (
           <span
             className={cn(
-              'absolute right-8 text-xs text-muted-foreground pointer-events-none',
+              'absolute right-6 text-[10px] text-muted-foreground pointer-events-none',
               disabled && 'opacity-50'
             )}
           >

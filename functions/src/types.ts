@@ -59,7 +59,7 @@ export interface ProcessAICommandResponse {
  */
 export interface CanvasObject {
   id: string;
-  type: 'rectangle' | 'circle' | 'text' | 'line';
+  type: 'rectangle' | 'circle' | 'text' | 'line' | 'image';
   x: number;
   y: number;
   width?: number;
@@ -76,6 +76,8 @@ export interface CanvasObject {
   locked?: boolean;
   visible?: boolean;
   parentId?: string | null;
+  /** Image URL for image objects */
+  imageUrl?: string;
   /** Whether this object was created by AI */
   aiGenerated?: boolean;
   /** Timestamp when object was created (for AI context prioritization) */

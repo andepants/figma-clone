@@ -1,4 +1,9 @@
-// Barrel exports - add exports as components are created
+/**
+ * Layers Panel Utility Exports
+ *
+ * Barrel exports for layers panel utilities.
+ */
+
 export { getBaseName, parseLayerNumber, generateLayerName } from './layerNaming';
 
 export {

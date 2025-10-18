@@ -7,7 +7,6 @@
  * @see _docs/ux/empty-states.md
  */
 
-import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/common/EmptyState';
 
 interface ProjectsEmptyStateProps {
@@ -31,8 +30,6 @@ export function ProjectsEmptyState({
   isPaidUser,
   onCreateProject,
 }: ProjectsEmptyStateProps) {
-  const navigate = useNavigate();
-
   if (isPaidUser) {
     // Paid user - encourage creation
     return (
@@ -57,10 +54,6 @@ export function ProjectsEmptyState({
               }
             : undefined
         }
-        secondaryAction={{
-          label: 'Browse Public Projects',
-          onClick: () => navigate('/public-projects'),
-        }}
       />
     );
   }
@@ -82,10 +75,6 @@ export function ProjectsEmptyState({
       primaryAction={{
         label: 'Upgrade to Founders ($10/year)',
         onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
-      }}
-      secondaryAction={{
-        label: 'Browse Public Projects',
-        onClick: () => navigate('/public-projects'),
       }}
     />
   );

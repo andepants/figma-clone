@@ -13,6 +13,7 @@ import { useAIStore } from '@/stores';
 import { useCanvasStore } from '@/stores';
 import { v4 as uuidv4 } from 'uuid';
 import { generateThreadId } from '@/lib/utils/threadId';
+import { PUBLIC_PLAYGROUND_ID } from '@/config/constants';
 
 /**
  * Response from processAICommand Firebase Function
@@ -78,11 +79,21 @@ interface UseAIAgentReturn {
 }
 
 /**
+ * useAIAgent hook parameters
+ * @interface UseAIAgentParams
+ * @property {string} [projectId] - Current project ID (optional, used to block certain features in playground)
+ */
+interface UseAIAgentParams {
+  projectId?: string;
+}
+
+/**
  * Hook for interacting with AI canvas agent
  * Sends commands to Firebase Function and manages state
+ * @param {UseAIAgentParams} params - Hook parameters
  * @returns {UseAIAgentReturn} AI agent interface
  */
-export function useAIAgent(): UseAIAgentReturn {
+export function useAIAgent({ projectId }: UseAIAgentParams = {}): UseAIAgentReturn {
   const { isProcessing, setProcessing, addCommand, updateCommand } = useAIStore();
   const { objects, selectedIds, zoom, panX, panY } = useCanvasStore();
   const [error, setError] = useState<string | null>(null);
@@ -90,11 +101,34 @@ export function useAIAgent(): UseAIAgentReturn {
   /**
    * Send natural language command to AI agent
    * Creates command entry, sends to backend, updates state
+   * Blocks image generation commands in public playground
    * @param {string} command - User's natural language command
    */
   const sendCommand = useCallback(
     async (command: string) => {
       if (isProcessing || !command.trim()) return;
+
+      // Block image generation commands in public playground
+      const isPlayground = projectId === PUBLIC_PLAYGROUND_ID;
+      const isImageGeneration = command.trim().toLowerCase().startsWith('/icon') ||
+                                 command.trim().toLowerCase().startsWith('/feature');
+
+      if (isPlayground && isImageGeneration) {
+        const errorMsg = 'Image generation is disabled in the public playground. Create your own project to use /icon and /feature commands.';
+        setError(errorMsg);
+
+        // Add failed command to history
+        const commandId = uuidv4();
+        addCommand({
+          id: commandId,
+          command,
+          timestamp: Date.now(),
+          status: 'error',
+          error: errorMsg,
+        });
+
+        return;
+      }
 
       setProcessing(true);
       setError(null);
@@ -117,7 +151,8 @@ export function useAIAgent(): UseAIAgentReturn {
 
         // Generate thread ID for conversation persistence
         const userId = auth.currentUser?.uid || null;
-        const canvasId = 'main';
+        // Use projectId for canvas identification (defaults to 'main' for legacy support)
+        const canvasId = projectId || 'main';
         const threadId = generateThreadId(userId, canvasId);
 
         // Prepare canvas state with proper type handling
@@ -176,7 +211,6 @@ export function useAIAgent(): UseAIAgentReturn {
             status: 'success',
             response: result.data.message,
           });
-          console.log('✅ AI command success:', result.data.message);
         } else {
           throw new Error(result.data.error || 'Command failed');
         }
@@ -222,7 +256,7 @@ export function useAIAgent(): UseAIAgentReturn {
         setProcessing(false);
       }
     },
-    [isProcessing, objects, selectedIds, zoom, panX, panY, setProcessing, addCommand, updateCommand]
+    [isProcessing, objects, selectedIds, zoom, panX, panY, setProcessing, addCommand, updateCommand, projectId]
   );
 
   return {

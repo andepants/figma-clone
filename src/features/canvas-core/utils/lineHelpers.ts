@@ -134,27 +134,15 @@ export function getLineEndpoints(line: Line): LineEndpoints {
 }
 
 /**
- * Normalize angle to -179 to 179 degree range
+ * Normalize angle to -179 to 179 degree range (internal helper)
  *
  * Takes any angle in degrees and normalizes it to the range -179 to 179.
  * Ensures the angle is never exactly 180 (converts 180 to -180).
  *
  * @param {number} angle - Angle in degrees (any range)
  * @returns {number} Normalized angle in range -179 to 179
- *
- * @example
- * ```ts
- * normalizeLineRotation(0);    // 0
- * normalizeLineRotation(90);   // 90
- * normalizeLineRotation(180);  // -180
- * normalizeLineRotation(-180); // -180
- * normalizeLineRotation(270);  // -90
- * normalizeLineRotation(360);  // 0
- * normalizeLineRotation(450);  // 90
- * normalizeLineRotation(-270); // 90
- * ```
  */
-export function normalizeLineRotation(angle: number): number {
+function normalizeLineRotation(angle: number): number {
   // Normalize to -180 to 180 range
   let normalized = ((angle % 360) + 360) % 360;
 

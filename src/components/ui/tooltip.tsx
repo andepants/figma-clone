@@ -1,3 +1,11 @@
+/**
+ * Tooltip Component
+ *
+ * Hoverable tooltip component with trigger, content, and provider subcomponents.
+ * Displays contextual information on hover with smooth animations.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 

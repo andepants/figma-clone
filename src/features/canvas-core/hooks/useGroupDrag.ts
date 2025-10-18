@@ -54,7 +54,7 @@ interface GroupDragState {
  * ```
  */
 export function useGroupDrag() {
-  const { selectedIds, objects, batchUpdateObjects } = useCanvasStore();
+  const { selectedIds, objects, batchUpdateObjects, projectId } = useCanvasStore();
   const { currentUser } = useAuth();
   const [groupDragState, setGroupDragState] = useState<GroupDragState>({
     isDragging: false,
@@ -68,7 +68,7 @@ export function useGroupDrag() {
   const syncToFirebase = useRef(
     throttle(async (updates: Record<string, { x: number; y: number }>) => {
       try {
-        await batchUpdateCanvasObjects('main', updates);
+        await batchUpdateCanvasObjects(projectId, updates);
       } catch {
         // Silently fail - drag updates shouldn't break the app
       }
@@ -113,7 +113,7 @@ export function useGroupDrag() {
       const color = getUserColor(currentUser.uid);
 
       const canDrag = await startGroupDragging(
-        'main',
+        projectId,
         selectedIds,
         currentUser.uid,
         positionsForLocking,
@@ -139,7 +139,7 @@ export function useGroupDrag() {
         objectStartPositions,
       });
     },
-    [selectedIds, objects, currentUser]
+    [selectedIds, objects, currentUser, projectId]
   );
 
   /**
@@ -198,9 +198,9 @@ export function useGroupDrag() {
 
       // 🎯 COLLABORATION FIX: Update drag states so other users see real-time movement!
       // This was the missing piece - now group drags sync just like single-object drags
-      throttledUpdateGroupDragPositions('main', dragPositions);
+      throttledUpdateGroupDragPositions(projectId, dragPositions);
     },
-    [groupDragState, selectedIds, batchUpdateObjects, syncToFirebase]
+    [groupDragState, selectedIds, batchUpdateObjects, syncToFirebase, projectId]
   );
 
   /**
@@ -226,10 +226,10 @@ export function useGroupDrag() {
 
       try {
         // Update object positions
-        await batchUpdateCanvasObjects('main', updates);
+        await batchUpdateCanvasObjects(projectId, updates);
 
         // Release drag locks for all objects
-        await endGroupDragging('main', selectedIds);
+        await endGroupDragging(projectId, selectedIds);
 
         // PERFORMANCE FIX: Unmark objects AFTER Firebase write completes
         // This ensures persisted state is current before allowing remote updates
@@ -247,7 +247,7 @@ export function useGroupDrag() {
         objectStartPositions: new Map(),
       });
     },
-    [groupDragState, selectedIds, objects]
+    [groupDragState, selectedIds, objects, projectId]
   );
 
   return {

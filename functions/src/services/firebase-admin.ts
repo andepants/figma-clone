@@ -69,18 +69,23 @@ function ensureInitialized() {
       admin.initializeApp({
         projectId: 'figma-clone-d33e3',
         databaseURL: 'http://127.0.0.1:9000/?ns=figma-clone-d33e3-default-rtdb',
+        storageBucket: 'figma-clone-d33e3.firebasestorage.app', // For emulator storage
       });
     } else {
       // Production - use Application Default Credentials
       // When running in Firebase Functions, admin.initializeApp() with no params
       // automatically uses the service account and project settings
+      // We need to specify storageBucket for Firebase Storage to work
       logger.info('🚀 Firebase Admin: Initializing with Production (ADC)');
-      admin.initializeApp();
+      admin.initializeApp({
+        storageBucket: 'figma-clone-d33e3.firebasestorage.app',
+      });
     }
     logger.info('✅ Firebase Admin SDK initialized successfully', {
       apps: admin.apps.length,
       projectId: admin.app().options.projectId,
       databaseURL: admin.app().options.databaseURL,
+      storageBucket: admin.app().options.storageBucket,
     });
   } catch (error) {
     logger.error('❌ Failed to initialize Firebase Admin SDK', {
@@ -117,6 +122,15 @@ export function getFirestore() {
 export function getAuth() {
   ensureInitialized();
   return admin.auth();
+}
+
+/**
+ * Get Firebase Storage instance
+ * Used for storing AI-generated images and other files
+ */
+export function getStorage() {
+  ensureInitialized();
+  return admin.storage();
 }
 
 /**

@@ -10,7 +10,7 @@
  * - Automatic upload on drop
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useDropzone, type DropzoneOptions } from 'react-dropzone';
 import { useImageUpload } from './useImageUpload';
 import { createImageObject } from '../utils/imageFactory';
@@ -26,6 +26,8 @@ export interface UseCanvasDropzoneOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
   /** Whether dropzone is disabled */
   disabled?: boolean;
+  /** Project/canvas ID for Firebase storage (defaults to 'main' for legacy support) */
+  projectId?: string;
 }
 
 /**
@@ -33,9 +35,9 @@ export interface UseCanvasDropzoneOptions {
  */
 export interface UseCanvasDropzoneReturn {
   /** react-dropzone props to spread on drop target */
-  getRootProps: () => any;
+  getRootProps: () => ReturnType<ReturnType<typeof useDropzone>['getRootProps']>;
   /** react-dropzone props for input element */
-  getInputProps: () => any;
+  getInputProps: () => ReturnType<ReturnType<typeof useDropzone>['getInputProps']>;
   /** Whether drag is currently over drop zone */
   isDragActive: boolean;
   /** Whether upload is in progress */
@@ -76,11 +78,11 @@ export interface UseCanvasDropzoneReturn {
 export function useCanvasDropzone({
   stageRef,
   disabled = false,
+  projectId = 'main',
 }: UseCanvasDropzoneOptions): UseCanvasDropzoneReturn {
   const { currentUser } = useAuth();
   const { objects, addObject } = useCanvasStore();
-  const { uploadImage, isUploading, uploadProgress, uploadError } = useImageUpload();
-  const [dropPosition, setDropPosition] = useState<{ x: number; y: number } | null>(null);
+  const { uploadImage, isUploading, uploadProgress, uploadError } = useImageUpload({ projectId });
 
   /**
    * Convert screen coordinates to canvas coordinates
@@ -123,7 +125,7 @@ export function useCanvasDropzone({
    * Uploads file and creates canvas object at drop position
    */
   const onDrop = useCallback(
-    async (acceptedFiles: File[], _fileRejections: any, event: any) => {
+    async (acceptedFiles: File[], _fileRejections: unknown, event: { clientX?: number; clientY?: number }) => {
       if (!currentUser) {
         console.error('User not authenticated');
         return;
@@ -145,26 +147,63 @@ export function useCanvasDropzone({
         position = { x: 400, y: 300 };
       }
 
-      // Save position for upload
-      setDropPosition(position);
-
       // Upload image
+      console.log('[useCanvasDropzone] Starting image upload:', {
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        position,
+      });
+
       const uploadedData = await uploadImage(file, position);
       if (!uploadedData) {
-        setDropPosition(null);
+        console.error('[useCanvasDropzone] Upload failed - no data returned');
         return;
       }
+
+      console.log('[useCanvasDropzone] Image uploaded successfully:', {
+        fileName: uploadedData.fileName,
+        width: uploadedData.width,
+        height: uploadedData.height,
+        naturalWidth: uploadedData.naturalWidth,
+        naturalHeight: uploadedData.naturalHeight,
+        storageType: uploadedData.storageType,
+        mimeType: uploadedData.mimeType,
+        srcPreview: uploadedData.src.substring(0, 100) + '...',
+      });
 
       // Create canvas object
       const imageObject = createImageObject(uploadedData, position, currentUser.uid, objects);
 
-      // Add to canvas
+      console.log('[useCanvasDropzone] Created image object:', {
+        id: imageObject.id,
+        type: imageObject.type,
+        x: imageObject.x,
+        y: imageObject.y,
+        width: imageObject.width,
+        height: imageObject.height,
+        fileName: imageObject.fileName,
+      });
+
+      // Add to canvas store (optimistic update)
       addObject(imageObject);
 
-      // Clear drop position
-      setDropPosition(null);
+      console.log('[useCanvasDropzone] Added to canvas store, syncing to Firebase...');
+
+      // Sync to Realtime Database (same pattern as rectangles/circles)
+      // This ensures the image persists and can be moved/edited
+      const { addCanvasObject } = await import('@/lib/firebase');
+      try {
+        await addCanvasObject(projectId, imageObject);
+        console.log('[useCanvasDropzone] Successfully synced to Firebase RTDB');
+      } catch (error) {
+        console.error('[useCanvasDropzone] Failed to sync image to Firebase:', error);
+        // Rollback optimistic update on error
+        const { removeObject } = useCanvasStore.getState();
+        removeObject(imageObject.id);
+      }
     },
-    [currentUser, screenToCanvasCoords, uploadImage, objects, addObject]
+    [currentUser, screenToCanvasCoords, uploadImage, objects, addObject, projectId]
   );
 
   /**

@@ -11,6 +11,8 @@
  * @see _docs/ux/user-flows.md - Flow 3: Projects Dashboard
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { test, expect } from '@playwright/test';
 
 // Test data

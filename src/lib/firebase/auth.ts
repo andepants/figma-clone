@@ -10,12 +10,17 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   updateProfile,
   type User,
   type UserCredential,
 } from 'firebase/auth'
 import { auth } from './config'
+
+// Initialize Google Auth Provider
+const googleProvider = new GoogleAuthProvider()
 
 /**
  * Sign up a new user with email and password
@@ -50,6 +55,15 @@ export async function signInWithEmail(
   password: string
 ): Promise<UserCredential> {
   return signInWithEmailAndPassword(auth, email, password)
+}
+
+/**
+ * Sign in with Google using popup flow
+ * Creates new user if doesn't exist, signs in existing user otherwise
+ * @returns UserCredential with user information
+ */
+export async function signInWithGoogle(): Promise<UserCredential> {
+  return signInWithPopup(auth, googleProvider)
 }
 
 /**
@@ -100,6 +114,14 @@ export function getAuthErrorMessage(error: unknown): string {
       return 'Too many failed attempts. Please try again later'
     case 'auth/network-request-failed':
       return 'Network error. Please check your connection'
+    case 'auth/popup-closed-by-user':
+      return 'Sign-in popup was closed before completing'
+    case 'auth/popup-blocked':
+      return 'Sign-in popup was blocked by the browser'
+    case 'auth/cancelled-popup-request':
+      return 'Sign-in was cancelled'
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with the same email address'
     default:
       return firebaseError.message || 'Authentication failed. Please try again'
   }

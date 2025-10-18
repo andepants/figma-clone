@@ -87,7 +87,7 @@ import {
 ### Store Actions
 
 ```typescript
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 
 // Set parent-child relationship (validates circular refs)
 setParent(objectId, newParentId);
@@ -122,7 +122,7 @@ Locked objects cannot be selected, dragged, or edited on the canvas (matches Fig
 ### Store Actions
 
 ```typescript
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 
 // Toggle lock state (cascades to descendants)
 toggleLock(objectId);
@@ -224,7 +224,7 @@ Canvas Icons uses array position to control layer order (like Figma).
 ### Store Actions
 
 ```typescript
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 
 // Bring object to front (highest z-index)
 bringToFront(objectId);
@@ -264,7 +264,7 @@ Canvas Icons supports grouping objects using the existing parentId hierarchy (li
 ### Store Actions
 
 ```typescript
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 
 // Group selected objects (minimum 2 objects)
 groupObjects();

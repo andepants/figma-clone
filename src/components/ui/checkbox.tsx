@@ -1,3 +1,10 @@
+/**
+ * Checkbox Component
+ *
+ * Accessible checkbox component with check indicator, supporting checked, unchecked, and indeterminate states.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
 import { Check } from "lucide-react"

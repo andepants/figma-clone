@@ -11,4 +11,3 @@ export * from './multiSelect';
 export * from './collision';
 export * from './textFormatting';
 export * from './lineHelpers';
-export * from './testLines';

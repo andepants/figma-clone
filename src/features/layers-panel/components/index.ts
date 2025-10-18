@@ -1,4 +1,9 @@
-// Barrel exports - add exports as components are created
+/**
+ * Layers Panel Component Exports
+ *
+ * Barrel exports for layers panel components.
+ */
+
 export { LayersPanel } from './LayersPanel';
 export { LayerIcon } from './LayerIcon';
 export { LayerItem } from './LayerItem';

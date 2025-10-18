@@ -13,10 +13,10 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth, connectAuthEmulator } from 'firebase/auth'
 import {
-  getFirestore,
+  initializeFirestore,
   type Firestore,
-  enableIndexedDbPersistence,
   connectFirestoreEmulator,
+  persistentLocalCache,
 } from 'firebase/firestore'
 import { getDatabase, type Database, connectDatabaseEmulator } from 'firebase/database'
 import { getFunctions, type Functions, connectFunctionsEmulator } from 'firebase/functions'
@@ -52,7 +52,9 @@ export const app: FirebaseApp = initializeApp(firebaseConfig)
 
 // Initialize Firebase services
 export const auth: Auth = getAuth(app)
-export const firestore: Firestore = getFirestore(app)
+export const firestore: Firestore = initializeFirestore(app, {
+  localCache: persistentLocalCache(/* settings */ {}),
+})
 export const realtimeDb: Database = getDatabase(app)
 export const functions: Functions = getFunctions(app)
 export const storage: FirebaseStorage = getStorage(app)
@@ -60,12 +62,15 @@ export const storage: FirebaseStorage = getStorage(app)
 // Connect to Firebase Emulators in development
 // This ensures complete isolation from production data during local development
 if (import.meta.env.DEV) {
-  console.log('🔧 Using Firebase Emulators (local development)')
-  console.log('   → Auth: localhost:9099')
-  console.log('   → Firestore: localhost:9150')
-  console.log('   → Realtime DB: localhost:9000')
-  console.log('   → Functions: localhost:5001')
-  console.log('   → Storage: localhost:9199')
+  // Only log emulator connection details if explicitly enabled
+  if (import.meta.env.VITE_SHOW_EMULATOR_LOGS === 'true') {
+    console.log('🔧 Using Firebase Emulators (local development)')
+    console.log('   → Auth: localhost:9099')
+    console.log('   → Firestore: localhost:9150')
+    console.log('   → Realtime DB: localhost:9000')
+    console.log('   → Functions: localhost:5001')
+    console.log('   → Storage: localhost:9199')
+  }
 
   // Connect all services to local emulators
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
@@ -74,12 +79,3 @@ if (import.meta.env.DEV) {
   connectFunctionsEmulator(functions, 'localhost', 5001)
   connectStorageEmulator(storage, 'localhost', 9199)
 }
-
-// Enable offline persistence for Firestore
-// This allows the app to work offline and sync when reconnected
-enableIndexedDbPersistence(firestore).catch(() => {
-  // Silently fail - offline persistence is optional
-  // Common failure reasons:
-  // - Multiple tabs open (only one tab can have persistence)
-  // - Browser doesn't support IndexedDB
-})

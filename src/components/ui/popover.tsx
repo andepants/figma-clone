@@ -1,3 +1,11 @@
+/**
+ * Popover Component
+ *
+ * Floating popover component with trigger, content, and anchor subcomponents.
+ * Supports configurable positioning and animations.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 

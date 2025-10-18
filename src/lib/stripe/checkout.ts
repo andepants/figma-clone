@@ -1,22 +1,31 @@
 /**
  * Stripe Checkout Integration
  *
- * Handles client-side Stripe checkout redirect for subscription payments.
- * Uses Stripe's hosted checkout page for PCI compliance.
+ * Handles Stripe checkout session creation via Firebase Functions.
+ * Uses server-side session creation (modern Stripe API) instead of deprecated redirectToCheckout.
  */
 
-import { loadStripe } from '@stripe/stripe-js';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 
-// Initialize Stripe with publishable key (client-side safe)
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+/**
+ * Firebase Functions response for checkout session creation
+ */
+interface CreateCheckoutSessionResponse {
+  sessionId: string;
+  url: string;
+}
 
 /**
  * Redirect user to Stripe Checkout for subscription purchase
  *
+ * Creates a checkout session via Firebase Functions (server-side) and redirects to Stripe.
+ * This replaces the deprecated `stripe.redirectToCheckout()` method.
+ *
  * @param priceId - Stripe price ID (e.g., price_xxx for Founders tier)
  * @param userEmail - User's email to pre-fill checkout form
- * @param userId - User ID to pass through success URL and webhook
- * @throws Error if Stripe fails to load or checkout fails
+ * @param userId - User ID to pass through webhook
+ * @throws Error if session creation or redirect fails
  *
  * @example
  * ```ts
@@ -33,44 +42,41 @@ export async function redirectToCheckout(
   userId: string
 ): Promise<void> {
   try {
-    const stripe = await stripePromise;
+    // Initialize Firebase Functions
+    const functions = getFunctions(app);
 
-    if (!stripe) {
-      throw new Error('Stripe failed to load. Please refresh the page and try again.');
-    }
+    // Get callable function reference
+    const createCheckoutSession = httpsCallable<
+      {
+        priceId: string;
+        userEmail: string;
+        successUrl: string;
+        cancelUrl: string;
+      },
+      CreateCheckoutSessionResponse
+    >(functions, 'createCheckoutSession');
 
-    // Redirect to Stripe's hosted checkout page
-    // Note: In production, you may want to create the checkout session
-    // on your backend for additional security and customization
-    const { error } = await stripe.redirectToCheckout({
-      lineItems: [{ price: priceId, quantity: 1 }],
-      mode: 'subscription',
+    // Call Firebase Function to create checkout session
+    const result = await createCheckoutSession({
+      priceId,
+      userEmail,
       successUrl: `${window.location.origin}/projects?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${window.location.origin}/projects?payment=cancelled`,
-      customerEmail: userEmail,
-      clientReferenceId: userId, // Pass user ID for webhook processing
     });
 
-    if (error) {
-      // Log error for debugging
-      console.error('Stripe checkout error:', error);
-      throw new Error(error.message || 'Failed to initiate checkout');
-    }
-  } catch (err) {
-    // Re-throw with user-friendly message
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error('An unexpected error occurred. Please try again.');
-  }
-}
+    const { sessionId, url } = result.data;
 
-/**
- * Get Stripe instance for advanced use cases
- *
- * @returns Stripe instance or null if not loaded
- * @internal
- */
-export async function getStripe() {
-  return await stripePromise;
+    // Redirect to Stripe Checkout (direct navigation)
+    window.location.href = url;
+
+  } catch (err) {
+    console.error('❌ Checkout session creation failed:', err);
+
+    // Extract Firebase Functions error message
+    if (err && typeof err === 'object' && 'message' in err) {
+      throw new Error((err as Error).message);
+    }
+
+    throw new Error('Failed to start checkout. Please try again.');
+  }
 }

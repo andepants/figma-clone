@@ -69,7 +69,7 @@ function SidebarIcon({ isOpen }: { isOpen: boolean }) {
  * Menu button component
  *
  * Displays layers icon with dropdown menu.
- * Features "Back to home" and "Log out" options.
+ * Features "Back to projects" and "Log out" options.
  *
  * @example
  * ```tsx
@@ -82,10 +82,17 @@ export function MenuButton() {
   const { logout } = useAuth();
 
   /**
-   * Handle navigation to home page
+   * Handle navigation to projects page
    */
-  function handleBackToHome() {
-    navigate('/');
+  function handleBackToProjects() {
+    navigate('/projects');
+  }
+
+  /**
+   * Handle navigation to public playground
+   */
+  function handleGoToPlayground() {
+    navigate('/canvas');
   }
 
   /**
@@ -127,8 +134,11 @@ export function MenuButton() {
           </TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuItem onClick={handleBackToHome}>
-            Back to home
+          <DropdownMenuItem onClick={handleBackToProjects}>
+            Back to projects
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleGoToPlayground}>
+            Public Playground
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>

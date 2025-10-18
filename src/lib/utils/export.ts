@@ -7,9 +7,34 @@
 
 import type Konva from 'konva';
 import type { CanvasObject } from '@/types';
-import type { ExportOptions } from '@/features/export';
-import { calculateBoundingBox } from './geometry';
+import type { ExportOptions, ExportFormat, ExportScale, ExportScope } from '@/features/export';
 import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
+
+/**
+ * Export result data
+ * Contains all information needed to save export to Firebase
+ */
+export interface ExportResult {
+  /** Base64 data URL of exported PNG */
+  dataUrl: string
+  /** Generated filename */
+  filename: string
+  /** Export metadata */
+  metadata: {
+    /** Export format (currently always 'png') */
+    format: ExportFormat
+    /** Resolution multiplier (1x, 2x, 3x) */
+    scale: ExportScale
+    /** What was exported (selection or all objects) */
+    scope: ExportScope
+    /** Number of objects exported */
+    objectCount: number
+    /** Exported image width in pixels */
+    width: number
+    /** Exported image height in pixels */
+    height: number
+  }
+}
 
 /**
  * Export canvas to PNG file
@@ -25,7 +50,7 @@ import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
  * @param selectedObjects - Currently selected objects (if any)
  * @param allObjects - All canvas objects (used for group expansion)
  * @param options - Export options (format, scale, scope)
- * @returns Promise that resolves when download starts
+ * @returns Promise resolving to export result data (dataUrl, filename, metadata)
  *
  * @throws {Error} If stage ref is not available
  * @throws {Error} If no objects to export
@@ -34,14 +59,15 @@ import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
  * @example
  * ```tsx
  * // Export selected objects at 2x resolution
- * await exportCanvasToPNG(stageRef, selectedObjects, allObjects, {
+ * const result = await exportCanvasToPNG(stageRef, selectedObjects, allObjects, {
  *   format: 'png',
  *   scale: 2,
  *   scope: 'selection'
  * });
+ * console.log('Export result:', result);
  *
  * // Export entire canvas at 3x resolution
- * await exportCanvasToPNG(stageRef, [], allObjects, {
+ * const result = await exportCanvasToPNG(stageRef, [], allObjects, {
  *   format: 'png',
  *   scale: 3,
  *   scope: 'all'
@@ -53,35 +79,13 @@ export async function exportCanvasToPNG(
   selectedObjects: CanvasObject[],
   allObjects: CanvasObject[],
   options: ExportOptions = { format: 'png', scale: 2, scope: 'selection' }
-): Promise<void> {
-  const isDev = import.meta.env.DEV;
-
-  if (isDev) {
-    console.log('=== EXPORT START ===');
-    console.log('Export options:', options);
-    console.log('Selected objects count:', selectedObjects.length);
-    console.log('Selected objects received:', selectedObjects.map(obj => ({
-      id: obj.id,
-      type: obj.type,
-      name: obj.name,
-      x: obj.x,
-      y: obj.y,
-      width: 'width' in obj ? obj.width : undefined,
-      height: 'height' in obj ? obj.height : undefined,
-      radius: 'radius' in obj ? obj.radius : undefined,
-      fill: 'fill' in obj ? obj.fill : undefined,
-    })));
-    console.log('All objects count:', allObjects.length);
-  }
-
+): Promise<ExportResult> {
   // Validate stage ref
   if (!stageRef.current) {
-    if (isDev) console.error('Export failed: Stage ref not available');
     throw new Error('Stage ref not available');
   }
 
   const stage = stageRef.current;
-  if (isDev) console.log('Stage found:', stage);
 
   // Determine what to export based on scope option
   let objectsToExport: CanvasObject[];
@@ -94,11 +98,8 @@ export async function exportCanvasToPNG(
   }
 
   if (objectsToExport.length === 0) {
-    if (isDev) console.error('Export failed: No objects to export');
     throw new Error('No objects to export');
   }
-
-  if (isDev) console.log('Objects to export (before group expansion):', objectsToExport.length);
 
   // Expand groups: if a group is selected, include its descendants
   // This ensures exporting a group exports its children
@@ -108,14 +109,12 @@ export async function exportCanvasToPNG(
     if (obj.type === 'group') {
       // Add all descendants of this group
       const descendantIds = getAllDescendantIds(obj.id, allObjects);
-      if (isDev) console.log(`Group ${obj.id} has ${descendantIds.length} descendants`);
       descendantIds.forEach(id => expandedIds.add(id));
     }
   });
 
   // Get all objects to export (including expanded descendants)
   const expandedObjects = allObjects.filter(obj => expandedIds.has(obj.id));
-  if (isDev) console.log('Objects after group expansion:', expandedObjects.length);
 
   // Filter out group objects (they have no visual representation)
   // Only export actual shapes with visual properties
@@ -133,22 +132,9 @@ export async function exportCanvasToPNG(
   // - Preserves all design elements
   // - Hidden objects still exist on canvas, just not visible in editor
   const visibleObjects = expandedObjects.filter(obj => obj.type !== 'group');
-  if (isDev) console.log('Visible objects (excluding groups):', visibleObjects.length);
 
   if (visibleObjects.length === 0) {
-    if (isDev) console.error('Export failed: No visible objects to export (all objects are groups)');
     throw new Error('No visible objects to export');
-  }
-
-  // Calculate bounding box of objects to export
-  if (isDev) console.log('Calculating bounding box...');
-  const bbox = calculateBoundingBox(visibleObjects, allObjects);
-  if (isDev) console.log('Calculated bbox:', bbox);
-
-  // Validate bounding box (handle edge case of invalid bounds)
-  if (!isFinite(bbox.x) || !isFinite(bbox.y) || bbox.width <= 0 || bbox.height <= 0) {
-    if (isDev) console.error('Export failed: Invalid bounding box', bbox);
-    throw new Error('Invalid bounding box - cannot export');
   }
 
   // Get the objects layer (second layer, index 1)
@@ -162,19 +148,73 @@ export async function exportCanvasToPNG(
     throw new Error('Objects layer not found');
   }
 
+  /**
+   * Calculate bounding box from actual Konva nodes
+   *
+   * CRITICAL: Use Konva's getClientRect() to get ACTUAL rendered bounds
+   * This accounts for all transforms (rotation, scale, skew) automatically
+   * and is not affected by viewport position/zoom.
+   *
+   * This is much more reliable than manual transform calculations!
+   */
+
+  // Get IDs of objects to export
+  const idsToExport = new Set(visibleObjects.map(obj => obj.id));
+
+  // Find all Konva nodes that match our object IDs
+  // Nodes have id attribute that matches our object.id
+  const nodesToExport: Konva.Node[] = [];
+  objectsLayer.getChildren().forEach((node) => {
+    const nodeId = node.id();
+    if (nodeId && idsToExport.has(nodeId)) {
+      nodesToExport.push(node);
+    }
+  });
+
+  if (nodesToExport.length === 0) {
+    throw new Error('No nodes found to export - shapes may not be rendered yet');
+  }
+
+  // Calculate bounding box from actual rendered nodes
+  // Use getClientRect() which gives us the actual visual bounds including transforms
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  nodesToExport.forEach((node) => {
+    // getClientRect() returns the bounding box in absolute coordinates
+    // It includes all transforms (rotation, scale, skew, offset)
+    // skipTransform: false means we want transformed bounds (default)
+    // skipShadow: false means we want to include shadow in bounds (default)
+    const rect = node.getClientRect({
+      skipTransform: false,
+      skipShadow: false,
+      skipStroke: false,
+    });
+
+    minX = Math.min(minX, rect.x);
+    minY = Math.min(minY, rect.y);
+    maxX = Math.max(maxX, rect.x + rect.width);
+    maxY = Math.max(maxY, rect.y + rect.height);
+  });
+
+  const bbox = {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+
+  // Validate bounding box (handle edge case of invalid bounds)
+  if (!isFinite(bbox.x) || !isFinite(bbox.y) || bbox.width <= 0 || bbox.height <= 0) {
+    throw new Error('Invalid bounding box - cannot export');
+  }
+
   // Export stage as data URL
   // Use configurable quality settings from options.scale
   // PNG format automatically provides transparent background
   // Export only the bounding box without padding (exact screenshot)
-  if (isDev) {
-    console.log('Preparing to export with params:', {
-      x: bbox.x,
-      y: bbox.y,
-      width: bbox.width,
-      height: bbox.height,
-      pixelRatio: options.scale,
-    });
-  }
 
   // CRITICAL FIX: Export from the entire stage, not just one layer
   // This ensures all shape properties (fill, stroke, etc.) are captured correctly.
@@ -187,23 +227,98 @@ export async function exportCanvasToPNG(
   const wasBackgroundVisible = backgroundLayer?.visible() ?? false;
   const wasCursorsVisible = cursorsLayer?.visible() ?? false;
 
-  if (isDev) console.log('Hiding background and cursors layers...');
   backgroundLayer?.hide();
   cursorsLayer?.hide();
 
-  // Hide all dimension labels (UI overlays that shouldn't appear in exports)
-  // Dimension labels have name="dimension-label"
+  // Hide all UI overlays that shouldn't appear in exports
+  // - Dimension labels (name="dimension-label")
+  // - Resize handles (name="resize-handles")
+  // - Text selection boxes (Group nodes that are children of text shapes)
   const dimensionLabels = objectsLayer.find('.dimension-label');
   const dimensionLabelVisibility = dimensionLabels.map(label => label.visible());
-  if (isDev) console.log(`Hiding ${dimensionLabels.length} dimension labels...`);
   dimensionLabels.forEach(label => label.hide());
 
-  // Force layer redraw to ensure all shapes are fully rendered
-  if (isDev) console.log('Forcing layer redraw...');
+  const resizeHandles = objectsLayer.find('.resize-handles');
+  const resizeHandlesVisibility = resizeHandles.map(handle => handle.visible());
+  resizeHandles.forEach(handle => handle.hide());
+
+  // Hide text selection boxes (TextSelectionBox components)
+  // These are Group nodes that contain Rect and Line elements for text selection visualization
+  // They appear as siblings to Text nodes in the objects layer
+  const textSelectionBoxes: Konva.Node[] = [];
+  const textSelectionBoxVisibility: boolean[] = [];
+  objectsLayer.getChildren().forEach((node) => {
+    // TextSelectionBox is a Group with specific structure (contains Rect/Line for selection)
+    if (node.getClassName() === 'Group') {
+      // Check if this group is a text selection box by examining its children
+      const children = (node as Konva.Group).getChildren();
+      const hasRect = children.some(child => child.getClassName() === 'Rect');
+      const hasLine = children.some(child => child.getClassName() === 'Line');
+      // TextSelectionBox has both Rect (bounding box) and Line (underline)
+      if (hasRect && hasLine) {
+        textSelectionBoxes.push(node);
+        textSelectionBoxVisibility.push(node.visible());
+        node.hide();
+      }
+    }
+  });
+
+  // Temporarily remove selection styling from nodes being exported
+  // Store original stroke properties and reset to base values
+  const nodeStrokeBackup: Array<{
+    node: Konva.Node;
+    stroke: string | undefined;
+    strokeWidth: number | undefined;
+    shadowEnabled: boolean | undefined;
+    shadowColor: string | undefined;
+  }> = [];
+
+  nodesToExport.forEach((node) => {
+    // Get the shape's methods (they're Konva.Shape instances)
+    const shape = node as Konva.Shape;
+
+    // Backup current stroke properties (selection styling)
+    nodeStrokeBackup.push({
+      node,
+      stroke: shape.stroke(),
+      strokeWidth: shape.strokeWidth(),
+      shadowEnabled: shape.shadowEnabled(),
+      shadowColor: shape.shadowColor(),
+    });
+
+    // Find the original object data to get base stroke values
+    const objectId = node.id();
+    const originalObject = visibleObjects.find(obj => obj.id === objectId);
+
+    if (originalObject) {
+      // Reset to base stroke (remove selection blue outline)
+      // If object has its own stroke, use it; otherwise, no stroke
+      if ('stroke' in originalObject && originalObject.stroke && originalObject.strokeEnabled !== false) {
+        shape.stroke(originalObject.stroke);
+        shape.strokeWidth(originalObject.strokeWidth ?? 0);
+      } else {
+        // No base stroke - remove selection outline entirely
+        shape.stroke(undefined);
+        shape.strokeWidth(0);
+      }
+
+      // Remove selection glow (shadows added for selection feedback)
+      // Only keep shadow if it's part of the original object design
+      if ('shadowEnabled' in originalObject) {
+        shape.shadowEnabled(originalObject.shadowEnabled ?? false);
+        if (originalObject.shadowColor) {
+          shape.shadowColor(originalObject.shadowColor);
+        }
+      } else {
+        shape.shadowEnabled(false);
+      }
+    }
+  });
+
+  // Force layer redraw to apply stroke changes before export
   objectsLayer.batchDraw();
 
   // Export the stage (now only includes objects layer)
-  if (isDev) console.log('Calling stage.toDataURL()...');
   const dataURL = stage.toDataURL({
     x: bbox.x,
     y: bbox.y,
@@ -213,20 +328,44 @@ export async function exportCanvasToPNG(
     mimeType: 'image/png',
   });
 
-  if (isDev) console.log('toDataURL() successful, data URL length:', dataURL.length);
+  // Restore selection styling on exported nodes
+  nodeStrokeBackup.forEach(({ node, stroke, strokeWidth, shadowEnabled, shadowColor }) => {
+    const shape = node as Konva.Shape;
+    shape.stroke(stroke);
+    shape.strokeWidth(strokeWidth ?? 0);
+    shape.shadowEnabled(shadowEnabled ?? false);
+    if (shadowColor) {
+      shape.shadowColor(shadowColor);
+    }
+  });
 
   // Restore layer visibility
-  if (isDev) console.log('Restoring layer visibility...');
   if (wasBackgroundVisible) backgroundLayer?.show();
   if (wasCursorsVisible) cursorsLayer?.show();
 
   // Restore dimension labels visibility
-  if (isDev) console.log('Restoring dimension labels...');
   dimensionLabels.forEach((label, index) => {
     if (dimensionLabelVisibility[index]) {
       label.show();
     }
   });
+
+  // Restore resize handles visibility
+  resizeHandles.forEach((handle, index) => {
+    if (resizeHandlesVisibility[index]) {
+      handle.show();
+    }
+  });
+
+  // Restore text selection boxes visibility
+  textSelectionBoxes.forEach((box, index) => {
+    if (textSelectionBoxVisibility[index]) {
+      box.show();
+    }
+  });
+
+  // Force redraw to restore selection visuals
+  objectsLayer.batchDraw();
 
   // Generate filename with timestamp
   // Format: canvasicons-YYYY-MM-DD-HH-MM-SS.png
@@ -238,8 +377,21 @@ export async function exportCanvasToPNG(
     .replace(/:/g, '-');
   const filename = `canvasicons-${timestamp}.png`;
 
+  // Collect export result data (for Firebase upload)
+  const result: ExportResult = {
+    dataUrl: dataURL,
+    filename,
+    metadata: {
+      format: 'png',
+      scale: options.scale,
+      scope: options.scope,
+      objectCount: visibleObjects.length,
+      width: Math.round(bbox.width * options.scale),
+      height: Math.round(bbox.height * options.scale),
+    }
+  };
+
   // Trigger browser download
-  if (isDev) console.log('Triggering download with filename:', filename);
   const link = document.createElement('a');
   link.download = filename;
   link.href = dataURL;
@@ -247,12 +399,6 @@ export async function exportCanvasToPNG(
   link.click();
   document.body.removeChild(link);
 
-  if (isDev) {
-    console.log('=== EXPORT COMPLETE ===');
-    console.log('Successfully exported', visibleObjects.length, 'objects');
-    console.log('Export scope:', options.scope);
-    console.log('Export scale:', options.scale + 'x');
-    console.log('Filename:', filename);
-    console.log('=======================');
-  }
+  // Return result for Firebase upload
+  return result;
 }

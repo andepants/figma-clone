@@ -20,11 +20,9 @@ import {
   where,
   onSnapshot,
   type Unsubscribe,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { firestore } from './config';
 import type { User, Subscription, Onboarding } from '@/types/subscription.types';
-import { DEFAULT_ONBOARDING_CONFIG } from '@/types/onboarding.types';
 
 /**
  * Create a new user document in Firestore
@@ -48,6 +46,7 @@ export async function createUser(
     username,
     subscription: {
       status: 'free',
+      stripePriceId: 'price_1SJGvHGag53vyQGAppC8KBkE', // Free tier price ID
     },
     onboarding: {
       completedSteps: [],

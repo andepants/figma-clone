@@ -13,7 +13,7 @@
  */
 
 import type { Line, Rectangle, Circle, CanvasObject } from '@/types';
-import { useCanvasStore } from '@/stores/canvasStore';
+import { useCanvasStore } from '@/stores/canvas';
 
 /**
  * Generate test lines across the canvas for performance testing

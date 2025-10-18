@@ -1,3 +1,11 @@
+/**
+ * Input Component
+ *
+ * Styled text input component with consistent borders, focus states, and disabled styling.
+ * Supports all standard HTML input types and attributes.
+ * Based on shadcn/ui component library.
+ */
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"

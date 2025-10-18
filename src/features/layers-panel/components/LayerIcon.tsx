@@ -7,7 +7,7 @@
  * @module features/layers-panel/components/LayerIcon
  */
 
-import { Square, Circle, Type, Minus, Folder } from 'lucide-react';
+import { Square, Circle, Type, Minus, Folder, Image } from 'lucide-react';
 import type { ShapeType } from '@/types/canvas.types';
 
 /**
@@ -30,6 +30,7 @@ interface LayerIconProps {
  * - Circle: Circle icon
  * - Text: Type icon
  * - Line: Minus icon
+ * - Image: Image icon (framed picture)
  * - Group: Folder icon (dashed outline for visual distinction)
  * - Unknown: Faded square icon (fallback)
  *
@@ -42,6 +43,7 @@ interface LayerIconProps {
  * ```tsx
  * <LayerIcon type="rectangle" />
  * <LayerIcon type="circle" className="custom-class" />
+ * <LayerIcon type="image" />
  * <LayerIcon type="group" />
  * ```
  */
@@ -60,6 +62,9 @@ export function LayerIcon({ type, className = '' }: LayerIconProps) {
       return <Type {...iconProps} />;
     case 'line':
       return <Minus {...iconProps} />;
+    case 'image':
+      // Image icon for image objects - framed picture icon
+      return <Image {...iconProps} />;
     case 'group':
       // Folder icon for groups - matches Figma's group visual pattern
       return <Folder {...iconProps} className={`${iconProps.className} opacity-80`} />;

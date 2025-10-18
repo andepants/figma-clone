@@ -173,3 +173,104 @@ export async function getImageDownloadURL(storagePath: string): Promise<string> 
   const storageRef = ref(storage, storagePath)
   return await getDownloadURL(storageRef)
 }
+
+/**
+ * Create storage reference for an export
+ *
+ * Path structure: /exports/{userId}/{exportId}.png
+ *
+ * @param userId - User ID
+ * @param exportId - Unique export ID
+ * @returns Storage reference
+ *
+ * @example
+ * ```ts
+ * const exportRef = createExportRef('user123', 'export456')
+ * // Path: /exports/user123/export456.png
+ * ```
+ */
+export function createExportRef(userId: string, exportId: string): StorageReference {
+  const path = `exports/${userId}/${exportId}.png`
+  return ref(storage, path)
+}
+
+/**
+ * Upload export PNG to Firebase Storage
+ *
+ * Converts base64 data URL to blob and uploads to Storage.
+ *
+ * @param dataUrl - Base64 data URL from canvas export
+ * @param userId - User ID
+ * @param exportId - Unique export ID
+ * @returns Promise resolving to download URL and storage path
+ *
+ * @throws Error if upload fails or data URL is invalid
+ *
+ * @example
+ * ```ts
+ * try {
+ *   const { url, storagePath } = await uploadExportToStorage(
+ *     'data:image/png;base64,...',
+ *     'user123',
+ *     'export456'
+ *   )
+ *   console.log('Export uploaded:', url)
+ * } catch (error) {
+ *   console.error('Upload failed:', error)
+ * }
+ * ```
+ */
+export async function uploadExportToStorage(
+  dataUrl: string,
+  userId: string,
+  exportId: string
+): Promise<UploadResult> {
+  const storageRef = createExportRef(userId, exportId)
+
+  // Convert data URL to Blob
+  const response = await fetch(dataUrl)
+  const blob = await response.blob()
+
+  // Upload to Storage
+  const uploadTask = uploadBytesResumable(storageRef, blob, {
+    contentType: 'image/png',
+  })
+
+  return new Promise((resolve, reject) => {
+    uploadTask.on(
+      'state_changed',
+      null, // No progress tracking needed
+      (error) => reject(new Error(`Export upload failed: ${error.message}`)),
+      async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+        resolve({
+          url: downloadURL,
+          storagePath: storageRef.fullPath,
+        })
+      }
+    )
+  })
+}
+
+/**
+ * Delete export from Firebase Storage
+ *
+ * @param storagePath - Full storage path (e.g., 'exports/user123/export456.png')
+ * @returns Promise resolving when deletion completes
+ *
+ * @throws Error if deletion fails
+ *
+ * @example
+ * ```ts
+ * try {
+ *   await deleteExportFromStorage('exports/user123/export456.png')
+ *   console.log('Export deleted')
+ * } catch (error) {
+ *   console.error('Deletion failed:', error)
+ * }
+ * ```
+ */
+export async function deleteExportFromStorage(storagePath: string): Promise<void> {
+  const storageRef = ref(storage, storagePath)
+  await deleteObject(storageRef)
+}
