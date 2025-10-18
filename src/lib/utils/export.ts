@@ -278,12 +278,14 @@ export async function exportCanvasToPNG(
     const shape = node as Konva.Shape;
 
     // Backup current stroke properties (selection styling)
+    const currentStroke = shape.stroke();
+    const currentShadowColor = shape.shadowColor();
     nodeStrokeBackup.push({
       node,
-      stroke: shape.stroke(),
+      stroke: typeof currentStroke === 'string' ? currentStroke : undefined,
       strokeWidth: shape.strokeWidth(),
       shadowEnabled: shape.shadowEnabled(),
-      shadowColor: shape.shadowColor(),
+      shadowColor: typeof currentShadowColor === 'string' ? currentShadowColor : undefined,
     });
 
     // Find the original object data to get base stroke values

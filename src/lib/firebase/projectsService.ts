@@ -69,7 +69,7 @@ export async function getUserProjects(
   limit?: number
 ): Promise<Project[]> {
   const projectsRef = collection(firestore, 'projects');
-  const constraints = [
+  const constraints: Parameters<typeof query>[1][] = [
     where('ownerId', '==', userId),
     orderBy('updatedAt', 'desc'),
   ];
@@ -92,7 +92,7 @@ export async function getUserProjects(
  */
 export async function getPublicProjects(limit?: number): Promise<Project[]> {
   const projectsRef = collection(firestore, 'projects');
-  const constraints = [
+  const constraints: Parameters<typeof query>[1][] = [
     where('isPublic', '==', true),
     orderBy('updatedAt', 'desc'),
   ];

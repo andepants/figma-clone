@@ -59,8 +59,9 @@ export function ImageSection() {
    * Maintains aspect ratio during resize when enabled
    */
   function toggleAspectRatioLock() {
+    if (!shape || !isImageShape(shape)) return;
     updateObject(shape.id, {
-      lockAspectRatio: !shape.lockAspectRatio,
+      lockAspectRatio: !(shape.lockAspectRatio ?? true),
     });
   }
 

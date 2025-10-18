@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 interface FAQItem {
   question: string;
-  answer: string | JSX.Element;
+  answer: string | React.ReactNode;
 }
 
 const faqItems: FAQItem[] = [
