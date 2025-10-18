@@ -13,7 +13,7 @@
  * - Optimistic updates during local manipulation
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { SyncStatus } from '@/components/common';
 import type { User } from '@/types/auth.types';
 import { useCanvasStore } from '@/stores';
@@ -26,8 +26,10 @@ import {
   setOnline,
   cleanupStaleDragStates,
   cleanupStaleCursors,
+  batchUpdateCanvasObjects,
 } from '@/lib/firebase';
 import { getUserDisplayName } from '@/lib/utils';
+import { flattenNonGroupHierarchies, needsMigration } from '@/lib/utils/hierarchyMigration';
 
 /**
  * Hook parameters
@@ -84,6 +86,7 @@ export function useCanvasSubscriptions({
 }: UseCanvasSubscriptionsParams): UseCanvasSubscriptionsReturn {
   const { setObjects } = useCanvasStore();
   const [isLoading, setIsLoading] = useState(true);
+  const migrationRunRef = useRef(false); // Track if migration has been executed for this project
 
   /**
    * Set user as online with automatic disconnect handling
@@ -189,16 +192,54 @@ export function useCanvasSubscriptions({
    * CRITICAL FIX: Uses selective merge to avoid overwriting objects being
    * actively manipulated by the current user. This prevents the "jumping handles"
    * bug where remote updates would overwrite local optimistic updates during drag/resize.
+   *
+   * HIERARCHY MIGRATION: On first load, runs a one-time migration to flatten any
+   * non-group hierarchies (enforces rule that only groups can have children).
    */
   useEffect(() => {
     let isFirstLoad = true;
+    // Reset migration flag when project changes
+    migrationRunRef.current = false;
 
     try {
       // Subscribe to project-specific canvas objects in RTDB
-      const unsubscribe = subscribeToCanvasObjects(projectId, (remoteObjects) => {
-        // On first load, accept all remote objects
+      const unsubscribe = subscribeToCanvasObjects(projectId, async (remoteObjects) => {
+        // On first load, run migration and accept all remote objects
         if (isFirstLoad) {
-          setObjects(remoteObjects);
+          // Check if migration is needed and hasn't been run yet
+          if (!migrationRunRef.current && needsMigration(remoteObjects)) {
+            console.log('[Hierarchy Migration] Detected non-group parent-child relationships. Running migration...');
+
+            // Run migration to flatten non-group hierarchies
+            const result = flattenNonGroupHierarchies(remoteObjects);
+
+            console.log(`[Hierarchy Migration] Flattened ${result.flattenedCount} objects to root level:`, result.flattenedIds);
+
+            // Update local state with migrated objects
+            setObjects(result.objects);
+
+            // Sync flattened objects back to Firebase (only update objects that changed)
+            if (result.flattenedCount > 0) {
+              try {
+                const updates: Record<string, Partial<import('@/types').CanvasObject>> = {};
+                result.flattenedIds.forEach((id) => {
+                  updates[id] = { parentId: null, updatedAt: Date.now() };
+                });
+
+                await batchUpdateCanvasObjects(projectId, updates);
+                console.log('[Hierarchy Migration] Successfully synced flattened hierarchies to Firebase');
+              } catch (error) {
+                console.error('[Hierarchy Migration] Failed to sync to Firebase:', error);
+              }
+            }
+
+            // Mark migration as run
+            migrationRunRef.current = true;
+          } else {
+            // No migration needed - just set objects
+            setObjects(remoteObjects);
+          }
+
           setIsLoading(false);
           isFirstLoad = false;
           return;

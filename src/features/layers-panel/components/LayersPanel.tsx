@@ -126,8 +126,11 @@ export function LayersPanel() {
    *
    * Calculates where the dragged item will be dropped based on mouse position:
    * - Top 25% of target = reorder ABOVE target (sibling)
-   * - Middle 50% of target = make CHILD of target
+   * - Middle 50% of target = make CHILD of target (ONLY if target is a group)
    * - Bottom 25% of target = reorder BELOW target (sibling)
+   *
+   * Non-group objects cannot accept children, so 'child' position is converted to
+   * 'before' or 'after' based on which is closer.
    *
    * Updates dropPosition state to show visual indicators.
    *
@@ -188,6 +191,17 @@ export function LayersPanel() {
       position = 'after';
     } else {
       position = 'child';
+    }
+
+    // VALIDATION: Only groups can accept children
+    // If target is not a group and position is 'child', convert to adjacent position
+    if (position === 'child') {
+      const targetObject = objects.find((obj) => obj.id === over.id);
+      if (!targetObject || targetObject.type !== 'group') {
+        // Convert 'child' to 'before' or 'after' based on which half we're in
+        // Top half (25%-62.5%) → 'before', bottom half (62.5%-75%) → 'after'
+        position = percentage < 0.5 ? 'before' : 'after';
+      }
     }
 
     setDropPosition({ id: over.id as string, position });

@@ -114,6 +114,16 @@ export async function uploadImageToStorage(
         onProgress?.(progress)
       },
       (error) => {
+        // Enhanced error logging
+        console.error('[Storage] Upload failed:', {
+          errorCode: error.code,
+          errorMessage: error.message,
+          storagePath: storageRef.fullPath,
+          fileSize: file.size,
+          fileType: file.type,
+          fileName: file.name,
+        })
+
         // Check if cancelled
         if (error.code === 'storage/canceled') {
           reject(new Error('Upload cancelled'))
@@ -123,6 +133,18 @@ export async function uploadImageToStorage(
       },
       async () => {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+
+        // Enhanced logging for debugging production issues
+        console.log('[Storage] Upload complete, download URL generated:', {
+          storagePath: storageRef.fullPath,
+          urlPreview: downloadURL.substring(0, 100) + '...',
+          urlLength: downloadURL.length,
+          hasToken: downloadURL.includes('token='),
+          hasAltMedia: downloadURL.includes('alt=media'),
+          isFirebaseStorage: downloadURL.includes('firebasestorage.googleapis.com'),
+          bucket: storageRef.bucket,
+        })
+
         resolve({
           url: downloadURL,
           storagePath: storageRef.fullPath,
@@ -171,7 +193,19 @@ export async function deleteImageFromStorage(storagePath: string): Promise<void>
  */
 export async function getImageDownloadURL(storagePath: string): Promise<string> {
   const storageRef = ref(storage, storagePath)
-  return await getDownloadURL(storageRef)
+  const downloadURL = await getDownloadURL(storageRef)
+
+  // Enhanced logging for debugging
+  console.log('[Storage] Download URL retrieved:', {
+    storagePath,
+    urlPreview: downloadURL.substring(0, 100) + '...',
+    urlLength: downloadURL.length,
+    hasToken: downloadURL.includes('token='),
+    hasAltMedia: downloadURL.includes('alt=media'),
+    isFirebaseStorage: downloadURL.includes('firebasestorage.googleapis.com'),
+  })
+
+  return downloadURL
 }
 
 /**

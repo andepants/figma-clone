@@ -23,6 +23,7 @@ import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { redirectToCheckout } from '@/lib/stripe/checkout';
+import { STRIPE_FOUNDERS_PRICE_ID } from '@/config/constants';
 
 interface PricingFeature {
   text: string;
@@ -106,13 +107,7 @@ export function PricingTiers() {
     setError(null);
 
     try {
-      const priceId = import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID;
-
-      if (!priceId) {
-        throw new Error('Stripe configuration missing. Please check environment variables.');
-      }
-
-      await redirectToCheckout(priceId, currentUser.email || '');
+      await redirectToCheckout(STRIPE_FOUNDERS_PRICE_ID, currentUser.email || '');
       // User will be redirected to Stripe, so this code won't continue
     } catch (err) {
       console.error('Checkout error:', err);

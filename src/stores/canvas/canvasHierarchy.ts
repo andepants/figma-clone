@@ -50,8 +50,21 @@ export function createCanvasHierarchy(
       // Store old parent ID before update
       const oldParentId = object.parentId;
 
-      // Prevent circular references
+      // Validate new parent is a group (or null for root level)
       if (newParentId) {
+        const newParent = objects.find((obj) => obj.id === newParentId);
+
+        // Parent must exist and be a group type
+        if (!newParent || newParent.type !== 'group') {
+          console.warn('[setParent] Parent must be a group type. Ignoring setParent call.', {
+            objectId,
+            newParentId,
+            parentType: newParent?.type,
+          });
+          return;
+        }
+
+        // Prevent circular references
         const descendants = getAllDescendantIds(objectId, objects);
         if (descendants.includes(newParentId)) {
           // Prevent circular reference - silently return

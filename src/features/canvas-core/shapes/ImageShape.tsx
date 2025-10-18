@@ -163,12 +163,28 @@ export const ImageShape = memo(function ImageShape({
       .catch((error) => {
         if (!isCancelled) {
           clearTimeout(timeoutId);
+
+          // Enhanced error logging for debugging production issues
           console.error('[ImageShape] Failed to load image:', {
             id: image.id,
             fileName: image.fileName,
-            srcPreview: image.src.substring(0, 100),
-            error: error.message,
+            srcPreview: image.src.substring(0, 100) + '...',
+            srcLength: image.src.length,
+            srcType: image.src.startsWith('data:')
+              ? 'data URL'
+              : image.src.includes('firebasestorage.googleapis.com')
+              ? 'Firebase Storage'
+              : 'External URL',
+            storageType: image.storageType,
+            storagePath: image.storagePath,
+            mimeType: image.mimeType,
+            errorMessage: error?.message || 'Unknown error',
+            errorType: error?.constructor?.name || 'unknown',
+            error: error,
+            hasToken: image.src.includes('token='),
+            hasAltMedia: image.src.includes('alt=media'),
           });
+
           setImageLoadError(true);
         }
       });
