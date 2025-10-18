@@ -48,7 +48,8 @@ export async function handleSubscriptionUpdated(
   const priceId = subscription.items.data[0]?.price.id;
 
   // Get current period end (Stripe provides in seconds, convert to milliseconds)
-  const periodEndSeconds = subscription.current_period_end;
+  // @ts-expect-error - current_period_end exists but not in type definition
+  const periodEndSeconds = subscription.current_period_end as number | undefined;
   const currentPeriodEnd = periodEndSeconds ? periodEndSeconds * 1000 : undefined;
 
   const cancelAtPeriodEnd = subscription.cancel_at_period_end;

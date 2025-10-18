@@ -26,11 +26,21 @@ export function getStripeInstance(): Stripe {
     process.env.STRIPE_TEST_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
 
   if (!stripeSecretKey) {
+    logger.error("❌ STRIPE: Stripe secret key not configured", {
+      hasTestKey: !!process.env.STRIPE_TEST_SECRET_KEY,
+      hasSecretKey: !!process.env.STRIPE_SECRET_KEY,
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes("STRIPE")),
+    });
     throw new Error(
       "Stripe secret key not configured. " +
         "Set STRIPE_SECRET_KEY or STRIPE_TEST_SECRET_KEY in environment."
     );
   }
+
+  logger.info("✅ STRIPE: Stripe instance initialized", {
+    keyType: stripeSecretKey.startsWith("sk_test_") ? "test" : "live",
+    keyPrefix: stripeSecretKey.substring(0, 10) + "...",
+  });
 
   return new Stripe(stripeSecretKey, {
     apiVersion: "2025-09-30.clover", // Use latest stable API version
