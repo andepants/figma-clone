@@ -30,6 +30,7 @@ import { generateTemplateObjects } from '@/lib/utils/template-generator';
 import type { Project } from '@/types/project.types';
 import { useNavigate } from 'react-router-dom';
 import { useProjectsData, usePaymentStatus } from './projects/hooks';
+import { STRIPE_FOUNDERS_PRICE_ID, STRIPE_REGULAR_PRICE_ID } from '@/config/constants';
 
 /**
  * Projects dashboard page.
@@ -166,20 +167,8 @@ export default function ProjectsPage() {
       // Determine price ID based on paid user count
       const isFoundersOffer = paidUserCount < 10;
       const priceId = isFoundersOffer
-        ? import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID // $10/year (founders - first 10 users)
-        : import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID60; // $60/year (after 10 users)
-
-      if (!priceId) {
-        console.error('❌ Price ID not found in environment variables!');
-        alert(`Stripe is not configured. Please add ${isFoundersOffer ? 'VITE_STRIPE_FOUNDERS_PRICE_ID' : 'VITE_STRIPE_FOUNDERS_PRICE_ID60'} to your .env file.`);
-        return;
-      }
-
-      if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-        console.error('❌ Stripe publishable key not found!');
-        alert('Stripe is not configured. Please add VITE_STRIPE_PUBLISHABLE_KEY to your .env file.');
-        return;
-      }
+        ? STRIPE_FOUNDERS_PRICE_ID // $10/year (founders - first 10 users)
+        : STRIPE_REGULAR_PRICE_ID; // $60/year (after 10 users)
 
       await redirectToCheckout(
         priceId,

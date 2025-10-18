@@ -29,8 +29,10 @@ interface CreateCheckoutSessionResponse {
  *
  * @example
  * ```ts
+ * import { STRIPE_FOUNDERS_PRICE_ID } from '@/config/constants';
+ *
  * await redirectToCheckout(
- *   import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID,
+ *   STRIPE_FOUNDERS_PRICE_ID,
  *   user.email,
  *   user.id
  * );

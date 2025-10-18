@@ -21,6 +21,7 @@ import { useAuth } from '@/features/auth/hooks';
 import { useSubscription } from '@/hooks/useSubscription';
 import { redirectToCheckout } from '@/lib/stripe/checkout';
 import { getFoundersDealConfig } from '@/lib/firebase';
+import { STRIPE_FOUNDERS_PRICE_ID, STRIPE_REGULAR_PRICE_ID } from '@/config/constants';
 
 interface AccountModalProps {
   /** Whether modal is open */
@@ -90,8 +91,8 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
       // Determine price ID based on paid user count
       const priceId = showFoundersOffer
-        ? import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID // $10/year (founders - first 10 users)
-        : import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID60; // $60/year (after 10 users)
+        ? STRIPE_FOUNDERS_PRICE_ID // $10/year (founders - first 10 users)
+        : STRIPE_REGULAR_PRICE_ID; // $60/year (after 10 users)
 
       await redirectToCheckout(priceId, currentUser.email!);
     } catch (error) {

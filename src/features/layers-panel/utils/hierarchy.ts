@@ -180,18 +180,31 @@ export function getAllDescendantIds(nodeId: string, objects: CanvasObject[]): st
 /**
  * Check if object has any children
  *
+ * Only groups can have children. This function returns true only if:
+ * 1. The object is a group type
+ * 2. At least one other object has this object as its parent
+ *
  * @param objectId - Object ID to check
  * @param objects - All canvas objects
- * @returns True if object has at least one child
+ * @returns True if object is a group and has at least one child
  *
  * @example
  * ```typescript
- * if (hasChildren('frame-1', objects)) {
- *   // Show dropdown arrow
+ * if (hasChildren('group-1', objects)) {
+ *   // Show dropdown arrow (only for groups)
  * }
  * ```
  */
 export function hasChildren(objectId: string, objects: CanvasObject[]): boolean {
+  // Find the object
+  const object = objects.find((obj) => obj.id === objectId);
+
+  // Only groups can have children
+  if (!object || object.type !== 'group') {
+    return false;
+  }
+
+  // Check if any objects have this group as their parent
   return objects.some((obj) => obj.parentId === objectId);
 }
 
@@ -229,21 +242,24 @@ export function hasLockedParent(objectId: string, objects: CanvasObject[]): bool
 /**
  * Move object to new parent
  *
- * Updates parentId and validates no circular references.
- * Returns null if circular reference detected.
+ * Updates parentId and validates:
+ * 1. No circular references (can't make parent a child of its descendant)
+ * 2. New parent must be a group type (or null for root level)
+ *
+ * Returns null if validation fails.
  *
  * @param objectId - Object to move
  * @param newParentId - New parent ID (null for root)
  * @param objects - All canvas objects
- * @returns Updated objects array, or null if circular reference detected
+ * @returns Updated objects array, or null if validation fails
  *
  * @example
  * ```typescript
- * const updated = moveToParent('rect-1', 'frame-1', objects);
+ * const updated = moveToParent('rect-1', 'group-1', objects);
  * if (updated) {
  *   setObjects(updated);
  * } else {
- *   // Circular reference prevented
+ *   // Validation failed (circular reference or parent is not a group)
  * }
  * ```
  */
@@ -252,8 +268,21 @@ export function moveToParent(
   newParentId: string | null,
   objects: CanvasObject[]
 ): CanvasObject[] | null {
-  // Prevent circular references
+  // Validate new parent exists and is a group (if not null)
   if (newParentId) {
+    const newParent = objects.find((obj) => obj.id === newParentId);
+
+    // Parent must exist
+    if (!newParent) {
+      return null;
+    }
+
+    // Parent must be a group
+    if (newParent.type !== 'group') {
+      return null;
+    }
+
+    // Prevent circular references
     const descendants = getAllDescendantIds(objectId, objects);
     if (descendants.includes(newParentId)) {
       return null;

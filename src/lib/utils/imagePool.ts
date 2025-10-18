@@ -97,12 +97,30 @@ function createImagePool(): ImagePoolAPI {
   function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new window.Image();
-      img.crossOrigin = 'anonymous'; // Allow cross-origin images from Firebase Storage
+
+      // CRITICAL FIX: Don't set crossOrigin for Firebase Storage URLs
+      // Firebase Storage getDownloadURL() returns URLs with embedded access tokens
+      // Setting crossOrigin='anonymous' prevents auth credentials from being sent
+      // This causes 403 errors in production when storage rules require authentication
+      //
+      // Only set crossOrigin for true cross-origin URLs that need CORS
+      const isFirebaseStorage = src.includes('firebasestorage.googleapis.com') || src.includes(':9199');
+      const isDataURL = src.startsWith('data:');
+      const isSameOrigin = src.startsWith('/') || src.startsWith(window.location.origin);
+
+      // Only set crossOrigin for external URLs that aren't Firebase Storage
+      if (!isFirebaseStorage && !isDataURL && !isSameOrigin) {
+        img.crossOrigin = 'anonymous';
+      }
 
       console.log('[ImagePool] Loading image:', {
         srcPreview: src.substring(0, 100) + '...',
         srcLength: src.length,
-        isDataURL: src.startsWith('data:'),
+        isDataURL,
+        isFirebaseStorage,
+        isSameOrigin,
+        crossOrigin: img.crossOrigin || 'not-set',
+        hasToken: src.includes('token=') || src.includes('alt=media'),
       });
 
       img.onload = () => {
@@ -117,11 +135,29 @@ function createImagePool(): ImagePoolAPI {
       };
 
       img.onerror = (error) => {
-        console.error('[ImagePool] Failed to load image:', {
+        // Enhanced error logging for debugging production issues
+        const errorDetails = {
           srcPreview: src.substring(0, 100) + '...',
-          error,
-        });
-        reject(new Error(`Failed to load image: ${src.substring(0, 100)}...`));
+          srcLength: src.length,
+          isDataURL,
+          isFirebaseStorage,
+          crossOrigin: img.crossOrigin || 'not-set',
+          error: error,
+          errorType: error?.constructor?.name || 'unknown',
+          // Try to extract more error details if available
+          ...(error instanceof ErrorEvent && {
+            message: error.message,
+            filename: error.filename,
+            lineno: error.lineno,
+            colno: error.colno,
+          }),
+        };
+
+        console.error('[ImagePool] Failed to load image:', errorDetails);
+
+        // Create detailed error message
+        const errorMsg = `Failed to load image: ${src.substring(0, 100)}... (${isFirebaseStorage ? 'Firebase Storage' : isDataURL ? 'Data URL' : 'External URL'})`;
+        reject(new Error(errorMsg));
       };
 
       img.src = src;
