@@ -12,3 +12,5 @@ export { LineResizeHandles } from './LineResizeHandles';
 export { GroupBoundingBox } from './GroupBoundingBox';
 export { TextSelectionBox } from './TextSelectionBox';
 export { DimensionLabel } from './DimensionLabel';
+export { CropModal } from './CropModal';
+export { CropEditor } from './CropEditor';

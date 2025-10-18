@@ -5,7 +5,7 @@
  * Displays file name, size, dimensions, and provides option to replace image.
  */
 
-import { ImageIcon, Lock, Unlock, Upload } from 'lucide-react';
+import { ImageIcon, Lock, Unlock, Upload, Crop } from 'lucide-react';
 import { PropertySection } from './PropertySection';
 import { Label, Button } from '@/components/ui';
 import { useSelectedShape } from '../hooks/useSelectedShape';
@@ -13,6 +13,7 @@ import { useCanvasStore } from '@/stores';
 import { isImageShape } from '@/types/canvas.types';
 import { useState } from 'react';
 import { ImageUploadModal } from '@/features/canvas-core/components/ImageUploadModal';
+import { CropModal } from '@/features/canvas-core/components/CropModal';
 
 /**
  * Format file size for display
@@ -51,6 +52,7 @@ export function ImageSection() {
   const shape = useSelectedShape();
   const { updateObject } = useCanvasStore();
   const [isReplaceModalOpen, setIsReplaceModalOpen] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
 
   if (!shape || !isImageShape(shape)) return null;
 
@@ -63,6 +65,21 @@ export function ImageSection() {
     updateObject(shape.id, {
       lockAspectRatio: !(shape.lockAspectRatio ?? true),
     });
+  }
+
+  /**
+   * Handle crop apply
+   * Updates image with new crop values
+   */
+  function handleCropApply(cropData: {
+    cropX: number;
+    cropY: number;
+    cropWidth: number;
+    cropHeight: number;
+  }) {
+    if (!shape || !isImageShape(shape)) return;
+    updateObject(shape.id, cropData);
+    setIsCropModalOpen(false);
   }
 
   return (
@@ -149,6 +166,19 @@ export function ImageSection() {
               Replace Image
             </Button>
           </div>
+
+          {/* Crop Image Button */}
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-[11px] gap-1.5"
+              onClick={() => setIsCropModalOpen(true)}
+            >
+              <Crop className="w-3 h-3" />
+              Crop Image...
+            </Button>
+          </div>
         </div>
       </PropertySection>
 
@@ -158,6 +188,15 @@ export function ImageSection() {
         onClose={() => setIsReplaceModalOpen(false)}
         position={{ x: shape.x, y: shape.y }}
       />
+
+      {/* Crop Image Modal */}
+      {isCropModalOpen && (
+        <CropModal
+          image={shape}
+          onApply={handleCropApply}
+          onCancel={() => setIsCropModalOpen(false)}
+        />
+      )}
     </>
   );
 }
