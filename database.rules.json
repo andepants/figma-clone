@@ -1,5 +1,39 @@
 {
   "rules": {
+    "projects": {
+      "$projectId": {
+        ".read": "auth != null && (data.child('isPublic').val() == true || data.child('ownerId').val() == auth.uid)",
+        ".write": "auth != null && (data.child('ownerId').val() == auth.uid || !data.exists())",
+        ".validate": "newData.hasChild('id') && newData.hasChild('name') && newData.hasChild('ownerId') && newData.hasChild('isPublic') && newData.hasChild('collaborators')",
+        "id": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "ownerId": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "isPublic": {
+          ".validate": "newData.isBoolean()"
+        },
+        "collaborators": {
+          ".validate": "newData.hasChildren()"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "objectCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "$other": {
+          ".validate": "true"
+        }
+      }
+    },
     "canvases": {
       "$canvasId": {
         "objects": {
