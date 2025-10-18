@@ -26,9 +26,19 @@ import * as logger from "firebase-functions/logger";
  * @param stripeWebhookSecret - Firebase secret for webhook verification
  */
 export async function stripeWebhookHandler(
-  req: any,
-  res: any,
-  stripeWebhookSecret: any
+  req: {
+    method: string;
+    headers: Record<string, string | string[]>;
+    rawBody?: Buffer;
+    body?: unknown;
+  },
+  res: {
+    status: (code: number) => {
+      send: (message: string) => void;
+      json: (data: { received: boolean }) => void;
+    };
+  },
+  stripeWebhookSecret: { value: () => string }
 ): Promise<void> {
   // Only accept POST requests
   if (req.method !== "POST") {

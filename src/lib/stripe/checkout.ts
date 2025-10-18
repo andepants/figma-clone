@@ -38,8 +38,7 @@ interface CreateCheckoutSessionResponse {
  */
 export async function redirectToCheckout(
   priceId: string,
-  userEmail: string,
-  userId: string
+  userEmail: string
 ): Promise<void> {
   try {
     // Initialize Firebase Functions
@@ -64,7 +63,7 @@ export async function redirectToCheckout(
       cancelUrl: `${window.location.origin}/projects?payment=cancelled`,
     });
 
-    const { sessionId, url } = result.data;
+    const { url } = result.data;
 
     // Redirect to Stripe Checkout (direct navigation)
     window.location.href = url;

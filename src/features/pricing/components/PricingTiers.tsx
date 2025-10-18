@@ -112,7 +112,7 @@ export function PricingTiers() {
         throw new Error('Stripe configuration missing. Please check environment variables.');
       }
 
-      await redirectToCheckout(priceId, currentUser.email || '', currentUser.uid);
+      await redirectToCheckout(priceId, currentUser.email || '');
       // User will be redirected to Stripe, so this code won't continue
     } catch (err) {
       console.error('Checkout error:', err);

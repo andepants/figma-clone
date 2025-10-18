@@ -67,8 +67,7 @@ export async function handleCheckoutCompleted(
     priceId = priceData?.id;
 
     // Get current period end (Stripe provides in seconds, we convert to milliseconds)
-    // Using type assertion to access property that exists but may not be in type definition
-    const periodEndSeconds = (subscription as any).current_period_end as number | undefined;
+    const periodEndSeconds = subscription.current_period_end;
     if (periodEndSeconds) {
       currentPeriodEnd = periodEndSeconds * 1000; // Convert to milliseconds
     }
