@@ -92,7 +92,14 @@ export function createImageObject(
     mimeType: uploadedData.mimeType,
     storageType: uploadedData.storageType,
     storagePath: uploadedData.storagePath ?? undefined, // Optional storage path
-    lockAspectRatio: true, // Default to locked aspect ratio
+    lockAspectRatio: true, // DEPRECATED: kept for backward compatibility
+
+    // NEW: Image crop properties (for cropping system)
+    imageLocked: true,  // Auto-lock aspect ratio for new images
+    imageWidth: uploadedData.width,   // Match layout initially (no crop)
+    imageHeight: uploadedData.height, // Match layout initially (no crop)
+    imageX: 0,  // No offset initially (aligned to top-left)
+    imageY: 0,  // No offset initially (aligned to top-left)
 
     // Organizational properties
     visible: true,
