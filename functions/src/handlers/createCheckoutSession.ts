@@ -39,6 +39,13 @@ export async function createCheckoutSessionHandler(
 ): Promise<CreateCheckoutSessionResponse> {
   const {auth, data} = request;
 
+  // Log environment for debugging
+  logger.info("🔑 CREATE_CHECKOUT: Function called", {
+    hasAuth: !!auth,
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+    stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7),
+  });
+
   // Authentication check
   if (!auth) {
     throw new HttpsError(

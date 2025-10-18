@@ -72,6 +72,14 @@ export async function stripeWebhookHandler(
   });
 
   try {
+    logger.info("🔵 WEBHOOK: Starting webhook processing", {
+      timestamp: new Date().toISOString(),
+      hasRawBody: !!req.rawBody,
+      hasBody: !!req.body,
+      contentType: req.headers["content-type"],
+      userAgent: req.headers["user-agent"],
+    });
+
     // Import webhook service
     const {verifyWebhookSignature, processWebhookEvent} =
       await import("../services/stripe-webhook.js");
@@ -83,7 +91,7 @@ export async function stripeWebhookHandler(
 
     // Fallback: if rawBody not available, try to use body
     if (!rawBody) {
-      logger.warn("rawBody not available, attempting fallback", {
+      logger.warn("⚠️ WEBHOOK: rawBody not available, attempting fallback", {
         hasBody: !!req.body,
         bodyType: typeof req.body,
         contentType: req.headers["content-type"],
@@ -92,56 +100,85 @@ export async function stripeWebhookHandler(
       // Try to use req.body if it's a Buffer
       if (Buffer.isBuffer(req.body)) {
         rawBody = req.body;
+        logger.info("✅ WEBHOOK: Using req.body as Buffer");
       } else if (typeof req.body === "string") {
         rawBody = Buffer.from(req.body);
+        logger.info("✅ WEBHOOK: Converted string body to Buffer");
       } else if (req.body) {
         // If body is already parsed JSON, we can't verify signature
-        logger.error("Body was already parsed as JSON, cannot verify signature");
+        logger.error("❌ WEBHOOK: Body was already parsed as JSON, cannot verify signature", {
+          bodyKeys: Object.keys(req.body as object),
+        });
         res.status(400).send("Request body was pre-parsed, raw body required");
         return;
       } else {
-        logger.error("No request body available");
+        logger.error("❌ WEBHOOK: No request body available at all");
         res.status(400).send("Missing request body");
         return;
       }
     }
 
-    logger.info("Raw body available", {
+    logger.info("✅ WEBHOOK: Raw body available for signature verification", {
       bodyLength: rawBody.length,
+      bodyPreview: rawBody.toString().substring(0, 100) + "...",
       contentType: req.headers["content-type"],
     });
 
     // Verify webhook signature
-    logger.info("Verifying webhook signature");
+    logger.info("🔐 WEBHOOK: Verifying webhook signature", {
+      signatureLength: signature.length,
+      signaturePreview: signature.substring(0, 30) + "...",
+      webhookSecretConfigured: !!webhookSecret,
+      webhookSecretLength: webhookSecret.length,
+    });
+
     const event = verifyWebhookSignature(rawBody, signature, webhookSecret);
 
-    logger.info("Webhook signature verified, processing event", {
+    logger.info("✅ WEBHOOK: Signature verified successfully", {
+      eventType: event.type,
+      eventId: event.id,
+      created: new Date(event.created * 1000).toISOString(),
+      livemode: event.livemode,
+    });
+
+    // Process webhook event
+    logger.info("🔄 WEBHOOK: Processing webhook event", {
       type: event.type,
       id: event.id,
     });
 
-    // Process webhook event
     await processWebhookEvent(event);
 
-    logger.info("Webhook event processed successfully", {
+    logger.info("✅ WEBHOOK: Event processed successfully", {
       type: event.type,
       id: event.id,
+      processingTime: `${Date.now()}`,
     });
 
     // Return 200 to acknowledge receipt
     res.status(200).json({received: true});
   } catch (error) {
-    logger.error("Webhook processing error", {
-      error,
-      signature: signature.substring(0, 20) + "...", // Log partial signature
+    logger.error("❌ WEBHOOK: Processing error occurred", {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      errorName: error instanceof Error ? error.name : undefined,
+      signature: signature.substring(0, 20) + "...",
+      timestamp: new Date().toISOString(),
     });
 
     // Return 400 for signature verification failures
     // Return 500 for processing errors
     if (error instanceof Error &&
         error.message.includes("signature verification")) {
+      logger.error("❌ WEBHOOK: Signature verification failed - webhook secret mismatch?", {
+        errorMessage: error.message,
+        webhookSecretConfigured: !!webhookSecret,
+      });
       res.status(400).send(`Webhook Error: ${error.message}`);
     } else {
+      logger.error("❌ WEBHOOK: Internal processing error", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       res.status(500).send(`Webhook Error: ${error}`);
     }
   }

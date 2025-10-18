@@ -36,8 +36,18 @@ export async function verifyCheckoutSessionHandler(
 ): Promise<VerifyCheckoutSessionResponse> {
   const {auth, data} = request;
 
+  logger.info("🎯 HANDLER: verifyCheckoutSession called from frontend", {
+    hasAuth: !!auth,
+    userId: auth?.uid,
+    sessionId: data?.sessionId,
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+    stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7),
+    timestamp: new Date().toISOString(),
+  });
+
   // Authentication check
   if (!auth) {
+    logger.error("❌ HANDLER: Unauthenticated request to verifyCheckoutSession");
     throw new HttpsError(
       "unauthenticated",
       "User must be authenticated to verify checkout session"
@@ -46,13 +56,18 @@ export async function verifyCheckoutSessionHandler(
 
   // Validate required fields
   if (!data.sessionId || typeof data.sessionId !== "string") {
+    logger.error("❌ HANDLER: Invalid request data", {
+      hasSessionId: !!data.sessionId,
+      sessionIdType: typeof data.sessionId,
+      userId: auth.uid,
+    });
     throw new HttpsError(
       "invalid-argument",
       "Missing or invalid 'sessionId' field"
     );
   }
 
-  logger.info("Verifying checkout session for user", {
+  logger.info("✅ HANDLER: Request validated, calling verification service", {
     userId: auth.uid,
     sessionId: data.sessionId,
   });
@@ -65,24 +80,28 @@ export async function verifyCheckoutSessionHandler(
       sessionId: data.sessionId,
     });
 
-    logger.info("Checkout session verified", {
+    logger.info("✅ HANDLER: Checkout session verification completed", {
       userId: auth.uid,
       sessionId: data.sessionId,
       status: result.status,
       subscriptionUpdated: result.subscriptionUpdated,
+      success: result.success,
+      message: result.message,
     });
 
     return result;
   } catch (error) {
-    logger.error("Failed to verify checkout session", {
+    logger.error("❌ HANDLER: Failed to verify checkout session", {
       userId: auth.uid,
       sessionId: data.sessionId,
-      error,
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      errorName: error instanceof Error ? error.name : undefined,
     });
 
     throw new HttpsError(
       "internal",
-      `Failed to verify checkout session: ${error}`
+      `Failed to verify checkout session: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }

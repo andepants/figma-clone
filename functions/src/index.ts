@@ -106,6 +106,7 @@ export const stripeWebhook = onRequest(
     secrets: [stripeWebhookSecret],
   },
   async (req, res) => {
-    await stripeWebhookHandler(req, res, stripeWebhookSecret);
+    // Type assertion for compatibility with handler signature
+    await stripeWebhookHandler(req as never, res as never, stripeWebhookSecret);
   }
 );
