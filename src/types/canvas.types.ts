@@ -221,20 +221,10 @@ export type ImageStorageType = 'dataURL' | 'storage';
 /**
  * Image-specific properties
  * @interface ImageProperties
- * @property {boolean} [lockAspectRatio] - DEPRECATED: Use imageLocked instead (kept for backward compatibility)
- * @property {boolean} [imageLocked] - Image lock mode (default: true) - true = maintain aspect ratio, false = fill mode
- * @property {number} [imageWidth] - Rendered image width (can exceed layout for crop) - defaults to width if not set
- * @property {number} [imageHeight] - Rendered image height (can exceed layout for crop) - defaults to height if not set
- * @property {number} [imageX] - Image offset within layout (default: 0) - can be negative for cropping
- * @property {number} [imageY] - Image offset within layout (default: 0) - can be negative for cropping
+ * @property {boolean} [lockAspectRatio] - Maintain aspect ratio when resizing (default: true)
  */
 export interface ImageProperties {
-  lockAspectRatio?: boolean;  // DEPRECATED but kept for backward compatibility
-  imageLocked?: boolean;      // true = maintain aspect, false = fill mode
-  imageWidth?: number;         // Rendered image width (can exceed layout for crop)
-  imageHeight?: number;        // Rendered image height
-  imageX?: number;             // Image offset within layout (default: 0)
-  imageY?: number;             // Image offset within layout (default: 0)
+  lockAspectRatio?: boolean;
 }
 
 /**
@@ -245,10 +235,10 @@ export interface ImageProperties {
  * @extends ImageProperties
  * @property {'image'} type - Discriminator for type checking
  * @property {string} src - Image source (data URL or Firebase Storage URL)
- * @property {number} naturalWidth - Original image width in pixels (immutable)
- * @property {number} naturalHeight - Original image height in pixels (immutable)
- * @property {number} width - Layout bounds width (visible crop frame)
- * @property {number} height - Layout bounds height (visible crop frame)
+ * @property {number} naturalWidth - Original image width in pixels
+ * @property {number} naturalHeight - Original image height in pixels
+ * @property {number} width - Display width on canvas
+ * @property {number} height - Display height on canvas
  * @property {string} fileName - Original file name
  * @property {number} fileSize - File size in bytes (max 10MB = 10485760)
  * @property {string} mimeType - MIME type (e.g., 'image/png', 'image/jpeg')
@@ -260,14 +250,9 @@ export interface ImageProperties {
  * - Small images (<100KB): Stored inline as base64 data URLs in RTDB for fast loading
  * - Large images (>=100KB): Stored in Firebase Storage, only URL stored in RTDB
  *
- * Layout bounds (width, height) define the visible crop frame.
- * Image can extend beyond layout bounds (cropped out) or be smaller (transparent areas visible).
- * The imageLocked property (default: true) controls aspect ratio behavior:
- * - true: Maintain aspect ratio when resizing (both dimensions scale together)
- * - false: Fill mode - image stretches to fill layout bounds independently
- *
- * Image position/size properties (imageX, imageY, imageWidth, imageHeight) track actual
- * image rendering within layout bounds. These default to match layout when not set.
+ * The lockAspectRatio property defaults to true to maintain image proportions.
+ * Unlike rectangles where aspect ratio lock is optional, images should almost always
+ * maintain their aspect ratio to prevent distortion.
  */
 export interface ImageObject extends BaseCanvasObject, VisualProperties, ImageProperties {
   type: 'image';
@@ -456,32 +441,4 @@ export function isGroupShape(shape: CanvasObject): shape is Group {
  */
 export function isImageShape(shape: CanvasObject): shape is ImageObject {
   return shape.type === 'image';
-}
-
-/**
- * Get image lock state (defaults to true for images)
- * @param image - Image object to check
- * @returns Image lock state (true = maintain aspect ratio, false = fill mode)
- */
-export function getImageLocked(image: ImageObject): boolean {
-  return image.imageLocked ?? true;
-}
-
-/**
- * Get image render dimensions (defaults to layout size)
- * @param image - Image object
- * @returns Image dimensions and offsets with proper defaults
- */
-export function getImageDimensions(image: ImageObject): {
-  imageWidth: number;
-  imageHeight: number;
-  imageX: number;
-  imageY: number;
-} {
-  return {
-    imageWidth: image.imageWidth ?? image.width,
-    imageHeight: image.imageHeight ?? image.height,
-    imageX: image.imageX ?? 0,
-    imageY: image.imageY ?? 0,
-  };
 }

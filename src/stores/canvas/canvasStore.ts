@@ -25,7 +25,6 @@ import { createCanvasLock } from './canvasLock';
 import { createCanvasClipboard } from './canvasClipboard';
 import { createCanvasZIndex } from './canvasZIndex';
 import { createCanvasGrouping } from './canvasGrouping';
-import { migrateCanvasObjects } from '@/lib/utils/imageMigration';
 
 /**
  * Canvas store hook
@@ -46,15 +45,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   // setObjects is critical - needs to be in main store for performance optimization
   setObjects: (objects: CanvasObject[]) =>
     set((state) => {
-      // MIGRATION: Apply image migrations for legacy objects
-      // This ensures all images have the new crop properties (imageLocked, imageWidth, etc.)
-      // Migration is idempotent - safe to run on already-migrated objects
-      const migratedObjects = migrateCanvasObjects(objects);
-
       // PERFORMANCE FIX: Skip update if arrays are shallowly equal
       // This prevents unnecessary re-renders when Firebase subscription
       // creates a new array reference with identical object values
-      if (areObjectArraysEqual(state.objects, migratedObjects)) {
+      if (areObjectArraysEqual(state.objects, objects)) {
         return state; // No update → no re-render!
       }
 
@@ -62,14 +56,14 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       // When objects are deleted remotely (via Firebase), we need to remove
       // their IDs from selectedIds to prevent the UI from trying to access
       // deleted objects. This prevents "Cannot read properties of null" errors.
-      const objectIds = new Set(migratedObjects.map((obj) => obj.id));
+      const objectIds = new Set(objects.map((obj) => obj.id));
       const cleanedSelectedIds = state.selectedIds.filter((id) => objectIds.has(id));
 
       // Only update selectedIds if it actually changed (avoid unnecessary re-renders)
       const selectedIdsChanged = cleanedSelectedIds.length !== state.selectedIds.length;
 
       return {
-        objects: migratedObjects,
+        objects,
         ...(selectedIdsChanged && { selectedIds: cleanedSelectedIds }),
       };
     }),

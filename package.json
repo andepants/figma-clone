@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --mode development",
-    "emulators": "node scripts/start-emulators.js",
+    "emulators": "firebase emulators:start",
     "build": "tsc -b && vite build --mode production",
     "lint": "eslint .",
     "preview": "vite preview",
