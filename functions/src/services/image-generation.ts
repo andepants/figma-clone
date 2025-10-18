@@ -227,16 +227,24 @@ export async function generateImage(
  *
  * @param userPrompt - Simple user description (e.g., "coffee cup", "fitness app")
  * @param type - Type of image to generate
+ * @param iconStyle - Style for icon generation ('glassmorphism' or 'minimalist')
  * @returns Enhanced prompt optimized for DALL-E 3
  *
  * @example
- * enhancePrompt('coffee cup', 'icon')
+ * enhancePrompt('coffee cup', 'icon', 'glassmorphism')
  * // Returns: "Professional mobile app icon design: coffee cup. Style: modern minimalist..."
+ *
+ * enhancePrompt('coffee cup', 'icon', 'minimalist')
+ * // Returns: "Professional mobile app icon design: coffee cup. Style: clean minimalist..."
  *
  * enhancePrompt('fitness app', 'feature')
  * // Returns: "Professional Google Play Store feature graphic: fitness app..."
  */
-export function enhancePrompt(userPrompt: string, type: 'icon' | 'feature'): string {
+export function enhancePrompt(
+  userPrompt: string,
+  type: 'icon' | 'feature',
+  iconStyle: 'glassmorphism' | 'minimalist' = 'glassmorphism'
+): string {
   // Sanitize user input (remove special chars that might confuse DALL-E)
   const sanitized = userPrompt.trim().replace(/[^\w\s-]/g, '');
 
@@ -244,34 +252,98 @@ export function enhancePrompt(userPrompt: string, type: 'icon' | 'feature'): str
     // App icon enhancement based on:
     // - Apple HIG: "App icons should be simple, recognizable, and memorable"
     // - 2025 trends: Glassmorphism 2.0 (22% higher conversion), vibrant gradients (28% better visibility)
+    // - Minimalist trend: Apple, Airbnb, Figma (clean, simple, geometric)
     // - Technical: Square format, no text (illegible at small sizes), centered composition
-    return `Professional mobile app icon design for iOS and Android: ${sanitized}.
+
+    if (iconStyle === 'glassmorphism') {
+      return `Professional mobile app icon design for iOS and Android: ${sanitized}.
+
+CRITICAL REQUIREMENTS - READ CAREFULLY:
+1. The icon design MUST fill 100% of the 1024x1024 canvas from edge to edge
+2. NO padding, NO margins, NO borders, NO dark/black/gray backgrounds around the icon
+3. The colorful icon design extends to all four edges of the square
+4. Perfect square shape - NO rounded corners on the icon itself
+5. The icon background is part of the design - it fills the entire canvas
 
 Style requirements:
-- Modern minimalist aesthetic with glassmorphism 2.0 effect (subtle depth, soft translucency)
+- Modern aesthetic with glassmorphism 2.0 effect (subtle depth, soft translucency)
 - Vibrant gradient colors with high contrast for maximum visibility
 - 3D symbolism with subtle shadows and highlights for tactile feel
 - Bold, memorable, and instantly recognizable design
-- Clean edges and smooth curves following Apple's "squircle" shape philosophy
+- The icon graphic fills the ENTIRE 1024x1024 square from corner to corner
+- Perfect square edges - NO rounded corners
 
 Technical specifications:
+- Icon design fills 100% of canvas edge-to-edge - zero padding
 - Perfectly centered composition with balanced visual weight
 - NO text or letters (illegible at small sizes, against Apple HIG)
 - Simple geometric shapes that scale well from 29px to 1024px
-- Suitable for both iOS (rounded square) and Android (adaptive icon)
-- Square format with no transparency
+- Square format (NOT rounded) with no transparency
 - Professional quality suitable for App Store and Google Play
 
 Color guidance:
-- Use vibrant, saturated colors from modern app design palettes
-- Ensure high contrast between foreground and background
-- Avoid pure black, white, or dark gray backgrounds (blends with store background)
+- Use vibrant, saturated colors as the icon background
+- Entire 1024x1024 square filled with colorful design
+- NO black, gray, dark, or white backgrounds surrounding the icon
+- Icon background color should be vibrant and eye-catching
+- Think: solid bright background with contrasting icon elements on top
 
 Design philosophy:
 - Follow Apple's principle of "simple but not simplistic"
 - Create a unique visual identity that stands out in crowded app stores
 - Design should be recognizable even at thumbnail size
-- Should work well in both light and dark mode contexts`;
+- Should work well in both light and dark mode contexts
+- MOST IMPORTANT: Icon fills entire square edge-to-edge, NO rounded corners, NO surrounding background`;
+    } else {
+      // Minimalist style inspired by Apple, Airbnb, Figma
+      return `Professional mobile app icon design for iOS and Android: ${sanitized}.
+
+CRITICAL REQUIREMENTS - READ CAREFULLY:
+1. The icon design MUST fill 100% of the 1024x1024 canvas from edge to edge
+2. NO padding, NO margins, NO borders, NO dark/black/gray backgrounds around the icon
+3. The icon design extends to all four edges of the square
+4. Perfect square shape - NO rounded corners on the icon itself
+5. The icon background is part of the design - it fills the entire canvas
+
+Style requirements (Minimalist - inspired by Apple, Airbnb, Figma):
+- Ultra-clean, minimalist aesthetic with flat design principles
+- Simple geometric shapes with perfect symmetry
+- Limited color palette (1-3 colors maximum) with intentional use of negative space
+- No gradients or shadows - pure flat design
+- Crisp, sharp square edges - NO rounded corners
+- Modern, timeless design that feels premium and refined
+- The icon graphic fills the ENTIRE 1024x1024 square from corner to corner
+
+Design inspiration:
+- Apple: Simple, iconic, instantly recognizable (Music, Photos, Settings icons)
+- Airbnb: Clean geometric shapes with purposeful negative space
+- Figma: Bold, simple shapes with vibrant solid colors
+- Emphasis on clarity and simplicity over complexity
+
+Technical specifications:
+- Icon design fills 100% of canvas edge-to-edge - zero padding
+- Perfectly centered composition with mathematical precision
+- NO text or letters (illegible at small sizes, against Apple HIG)
+- Ultra-simple geometric shapes (circles, squares, triangles)
+- Square format (NOT rounded) with no transparency
+- Professional quality suitable for App Store and Google Play
+
+Color guidance:
+- Use solid, vibrant colors from modern tech brand palettes
+- Single solid color background with contrasting simple shape on top
+- Or use 2-3 colors in clean geometric divisions
+- Entire 1024x1024 square filled with the minimalist design
+- NO black, gray, dark, or white backgrounds surrounding the icon
+- Think: Spotify green (#1DB954), Figma purple (#A259FF), Airbnb coral (#FF5A5F)
+- Icon background should be a vibrant solid color
+
+Design philosophy:
+- "Less is more" - remove everything unnecessary
+- Every element must serve a purpose
+- Negative space is as important as positive space
+- Geometric perfection and mathematical balance
+- MOST IMPORTANT: Icon fills entire square edge-to-edge, NO rounded corners, NO surrounding background`;
+    }
   } else {
     // Feature graphic enhancement based on:
     // - Google Play best practices: "Feature graphic occupies 1/3 of screen, huge impact on conversion"

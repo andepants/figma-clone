@@ -1,0 +1,29 @@
+<svg width="300" height="600" viewBox="0 0 300 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- iPhone 15 Pro Frame with Dynamic Island - Updated Design -->
+
+  <!-- Outer frame (black with more rounded corners) -->
+  <rect x="4" y="4" width="292" height="592" rx="60" fill="#1a1a1a" stroke="#000000" stroke-width="2"/>
+
+  <!-- Inner bezel (slightly lighter) -->
+  <rect x="10" y="10" width="280" height="580" rx="54" fill="#0d0d0d"/>
+
+  <!-- Screen area (white background for content) -->
+  <rect x="20" y="20" width="260" height="560" rx="44" fill="#ffffff"/>
+
+  <!-- Dynamic Island (pill-shaped cutout at top center) -->
+  <ellipse cx="150" cy="38" rx="50" ry="13" fill="#000000"/>
+
+  <!-- Side buttons (volume, power) -->
+  <!-- Left side - volume buttons -->
+  <rect x="0" y="120" width="4" height="30" rx="2" fill="#1a1a1a"/>
+  <rect x="0" y="160" width="4" height="30" rx="2" fill="#1a1a1a"/>
+
+  <!-- Right side - power button -->
+  <rect x="296" y="140" width="4" height="60" rx="2" fill="#1a1a1a"/>
+
+  <!-- Bottom speaker grilles (subtle) -->
+  <g opacity="0.3">
+    <line x1="110" y1="584" x2="140" y2="584" stroke="#333333" stroke-width="2" stroke-linecap="round"/>
+    <line x1="160" y1="584" x2="190" y2="584" stroke="#333333" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>

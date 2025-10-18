@@ -1,7 +1,8 @@
 /**
  * CreateProjectModal Component
  *
- * Modal for creating new projects with template selection.
+ * Modal for creating new projects.
+ * All projects auto-generate starter templates (app icons + feature graphic).
  * Only available for paid users (founders tier).
  *
  * @see _docs/ux/user-flows.md - Flow 2: Paid User Journey
@@ -9,21 +10,21 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { TEMPLATES, type ProjectTemplate } from '@/types/project.types';
 import { validateProjectName } from '@/types/project.types';
 import { cn } from '@/lib/utils';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (name: string, template: ProjectTemplate, isPublic: boolean) => void;
+  onCreate: (name: string, isPublic: boolean) => void;
   isCreating?: boolean;
   defaultName?: string;
 }
 
 /**
- * Modal for creating new projects with template selection.
- * Validates project name and shows template options.
+ * Modal for creating new projects.
+ * Validates project name and collects visibility preference.
+ * All projects automatically receive starter templates.
  *
  * @example
  * ```tsx
@@ -43,8 +44,6 @@ export function CreateProjectModal({
   defaultName = 'Project 1',
 }: CreateProjectModalProps) {
   const [projectName, setProjectName] = useState(defaultName);
-  const [selectedTemplate, setSelectedTemplate] =
-    useState<ProjectTemplate>('blank');
   const [isPublic, setIsPublic] = useState(false);
   const [error, setError] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,13 +72,12 @@ export function CreateProjectModal({
 
     // Clear error and create project
     setError('');
-    onCreate(projectName, selectedTemplate, isPublic);
+    onCreate(projectName, isPublic);
   };
 
   const handleClose = () => {
     if (!isCreating) {
       setProjectName(defaultName);
-      setSelectedTemplate('blank');
       setIsPublic(false);
       setError('');
       onClose();
@@ -146,59 +144,6 @@ export function CreateProjectModal({
             <p className="mt-1 text-xs text-gray-500">
               {projectName.length}/100 characters
             </p>
-          </div>
-
-          {/* Template Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Choose Template
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.values(TEMPLATES).map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => setSelectedTemplate(template.id)}
-                  disabled={isCreating}
-                  className={cn(
-                    'p-4 border-2 rounded-lg text-left transition-all',
-                    'hover:border-blue-500 hover:bg-blue-50',
-                    'disabled:opacity-50 disabled:cursor-not-allowed',
-                    selectedTemplate === template.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200'
-                  )}
-                >
-                  <div className="flex items-center justify-center h-24 bg-white rounded mb-3">
-                    {/* Template Preview Icon */}
-                    <div className="text-gray-300">
-                      <svg
-                        className="w-12 h-12"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                    {template.name}
-                  </h3>
-                  <p className="text-xs text-gray-600 mb-2">
-                    {template.description}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {template.dimensions.width} × {template.dimensions.height}
-                  </p>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Visibility Toggle */}

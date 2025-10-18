@@ -233,7 +233,7 @@ export async function exportCanvasToPNG(
   // Hide all UI overlays that shouldn't appear in exports
   // - Dimension labels (name="dimension-label")
   // - Resize handles (name="resize-handles")
-  // - Selection boxes (name contains "selection")
+  // - Text selection boxes (Group nodes that are children of text shapes)
   const dimensionLabels = objectsLayer.find('.dimension-label');
   const dimensionLabelVisibility = dimensionLabels.map(label => label.visible());
   dimensionLabels.forEach(label => label.hide());
@@ -241,6 +241,27 @@ export async function exportCanvasToPNG(
   const resizeHandles = objectsLayer.find('.resize-handles');
   const resizeHandlesVisibility = resizeHandles.map(handle => handle.visible());
   resizeHandles.forEach(handle => handle.hide());
+
+  // Hide text selection boxes (TextSelectionBox components)
+  // These are Group nodes that contain Rect and Line elements for text selection visualization
+  // They appear as siblings to Text nodes in the objects layer
+  const textSelectionBoxes: Konva.Node[] = [];
+  const textSelectionBoxVisibility: boolean[] = [];
+  objectsLayer.getChildren().forEach((node) => {
+    // TextSelectionBox is a Group with specific structure (contains Rect/Line for selection)
+    if (node.getClassName() === 'Group') {
+      // Check if this group is a text selection box by examining its children
+      const children = (node as Konva.Group).getChildren();
+      const hasRect = children.some(child => child.getClassName() === 'Rect');
+      const hasLine = children.some(child => child.getClassName() === 'Line');
+      // TextSelectionBox has both Rect (bounding box) and Line (underline)
+      if (hasRect && hasLine) {
+        textSelectionBoxes.push(node);
+        textSelectionBoxVisibility.push(node.visible());
+        node.hide();
+      }
+    }
+  });
 
   // Temporarily remove selection styling from nodes being exported
   // Store original stroke properties and reset to base values
@@ -333,6 +354,13 @@ export async function exportCanvasToPNG(
   resizeHandles.forEach((handle, index) => {
     if (resizeHandlesVisibility[index]) {
       handle.show();
+    }
+  });
+
+  // Restore text selection boxes visibility
+  textSelectionBoxes.forEach((box, index) => {
+    if (textSelectionBoxVisibility[index]) {
+      box.show();
     }
   });
 

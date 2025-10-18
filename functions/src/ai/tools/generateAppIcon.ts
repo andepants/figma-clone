@@ -2,8 +2,19 @@
  * Generate App Icon Tool
  *
  * AI tool for generating professional app icons for iOS and Android.
- * Creates two canvas objects: iOS (1024x1024) and Android (512x512)
- * from a single generated image, properly sized and labeled.
+ * Creates TWO distinct design styles (Glassmorphism & Minimalist) with 1 icon each:
+ * - 1024x1024 (Glassmorphism)
+ * - 1024x1024 (Minimalist)
+ *
+ * Also creates:
+ * - Informational text box with design guidelines and app store requirements
+ * - Text labels above each icon showing style
+ *
+ * Total canvas objects created: 5 (1 info box + 2 labels + 2 images)
+ *
+ * Design styles:
+ * - Glassmorphism: Modern, vibrant gradients, 3D depth, high contrast
+ * - Minimalist: Clean, simple geometric shapes, flat design (inspired by Apple, Airbnb, Figma)
  *
  * Follows Apple Human Interface Guidelines and Google Play design standards.
  *
@@ -40,18 +51,20 @@ const GenerateAppIconSchema = z.object({
  * Tool for generating app icons with DALL-E 3
  *
  * This tool:
- * 1. Enhances user prompt with professional design principles
- * 2. Generates 1024x1024 icon using DALL-E 3
- * 3. Uploads to Firebase Storage for permanent access
- * 4. Creates two canvas objects (iOS 1024x1024, Android 512x512)
- * 5. Places icons in horizontal row with 100px spacing
- * 6. Labels with platform and keyword
+ * 1. Validates and enhances user prompt with TWO different design styles
+ * 2. Generates TWO 1024x1024 icons using DALL-E 3 (Glassmorphism + Minimalist)
+ * 3. Uploads both images to Firebase Storage for permanent access
+ * 4. Creates 9 canvas objects in a grid layout:
+ *    - Info box with design guidelines and requirements
+ *    - 4 text labels (iOS/Android for each style)
+ *    - 4 image objects (iOS 1024, Android 512 for each style)
+ * 5. Places everything in viewport-aware grid with proper spacing
  *
  * Design principles applied:
- * - Glassmorphism 2.0 for modern aesthetic (22% higher conversion)
- * - Vibrant gradients for visibility (28% better in search)
- * - No text (per Apple HIG - illegible at small sizes)
- * - Centered composition for balance
+ * - Glassmorphism: Modern, vibrant gradients, 3D depth (22% higher conversion)
+ * - Minimalist: Clean, simple, flat design (inspired by Apple, Airbnb, Figma)
+ * - No text in icons (per Apple HIG - illegible at small sizes)
+ * - Edge-to-edge fill (NO dark backgrounds around icons)
  * - High contrast for accessibility
  */
 export class GenerateAppIconTool extends CanvasTool {
@@ -60,11 +73,13 @@ export class GenerateAppIconTool extends CanvasTool {
       'generateAppIcon',
       // Tool description for LLM (helps it understand when to use this tool)
       'Generate professional app icons for iOS and Android from a text description. ' +
-      'Creates two high-quality icons (iOS: 1024x1024, Android: 512x512) with ' +
-      'automatic prompt enhancement following Apple Human Interface Guidelines and ' +
-      '2025 design trends. Use this when user asks to create app icons, generate app icons, ' +
-      'make app icons, or design app icons. The icons will be placed on the canvas ' +
-      'side-by-side with proper labels.',
+      'Creates TWO distinct design styles (Glassmorphism & Minimalist) with 1 icon each (2 total): ' +
+      '1024x1024 for each style. Also creates an info box with ' +
+      'design guidelines and requirements, plus text labels for each icon. Total: 5 canvas objects. ' +
+      'Automatic prompt enhancement following Apple Human Interface Guidelines and ' +
+      '2025 design trends. Icons fill entire image edge-to-edge with NO dark backgrounds or rounded corners. ' +
+      'Use this when user asks to create app icons, generate app icons, ' +
+      'make app icons, or design app icons. Everything is placed in a viewport-aware grid layout.',
       GenerateAppIconSchema,
       context
     );
@@ -74,16 +89,19 @@ export class GenerateAppIconTool extends CanvasTool {
    * Execute app icon generation
    *
    * Workflow:
-   * 1. Validate and enhance prompt
-   * 2. Generate 1024x1024 image with DALL-E 3
-   * 3. Upload to Firebase Storage
-   * 4. Calculate placement on canvas (viewport-aware)
-   * 5. Create iOS icon (1024x1024)
-   * 6. Create Android icon (512x512)
-   * 7. Return success with object IDs
+   * 1. Validate user prompt
+   * 2. Enhance prompt with TWO different design styles (Glassmorphism + Minimalist)
+   * 3. Generate glassmorphism 1024x1024 image with DALL-E 3
+   * 4. Generate minimalist 1024x1024 image with DALL-E 3
+   * 5. Upload both images to Firebase Storage
+   * 6. Calculate grid layout placement (viewport-aware)
+   * 7. Create info text box with design guidelines
+   * 8. Create 2 text labels (one for each style)
+   * 9. Create 2 icon images (1024x1024 each)
+   * 10. Return success with all 5 object IDs
    *
    * @param input - Validated input from Zod schema
-   * @returns Tool result with success status and created object IDs
+   * @returns Tool result with success status and all created object IDs
    */
   async execute(input: z.infer<typeof GenerateAppIconSchema>): Promise<ToolResult> {
     const startTime = Date.now();
@@ -113,165 +131,256 @@ export class GenerateAppIconTool extends CanvasTool {
         };
       }
 
-      // Step 2: Enhance prompt with design best practices
+      // Step 2: Enhance prompts with two different design styles
       currentStep = 'prompt_enhancement';
-      logger.info('Step 2: Enhancing prompt with design best practices');
+      logger.info('Step 2: Enhancing prompts with two different design styles');
 
-      const enhancedPrompt = enhancePrompt(input.description, 'icon');
+      const glassmorphismPrompt = enhancePrompt(input.description, 'icon', 'glassmorphism');
+      const minimalistPrompt = enhancePrompt(input.description, 'icon', 'minimalist');
 
-      logger.info('Prompt enhanced successfully', {
+      logger.info('Prompts enhanced successfully', {
         original: input.description,
-        enhanced: enhancedPrompt.substring(0, 100) + '...',
-        enhancedLength: enhancedPrompt.length,
+        glassmorphismLength: glassmorphismPrompt.length,
+        minimalistLength: minimalistPrompt.length,
       });
 
-      // Step 3: Generate image with DALL-E 3
-      currentStep = 'image_generation';
-      logger.info('Step 3: Generating image with DALL-E 3', {
-        promptLength: enhancedPrompt.length,
+      // Step 3: Generate glassmorphism style image with DALL-E 3
+      currentStep = 'image_generation_glassmorphism';
+      logger.info('Step 3: Generating glassmorphism style image with DALL-E 3', {
+        promptLength: glassmorphismPrompt.length,
         type: 'icon',
         size: '1024x1024',
         quality: 'hd',
         style: 'vivid',
       });
 
-      const imageResult = await generateImage({
-        prompt: enhancedPrompt,
+      const glassmorphismImageResult = await generateImage({
+        prompt: glassmorphismPrompt,
         type: 'icon',
         size: '1024x1024',
-        quality: 'hd', // Use HD quality for icons
-        style: 'vivid', // Vivid for more saturated, eye-catching colors
+        quality: 'hd',
+        style: 'vivid',
       });
 
-      logger.info('Image generation completed', {
-        success: imageResult.success,
-        hasImageUrl: !!imageResult.imageUrl,
-        hasError: !!imageResult.error,
-        errorCode: imageResult.errorCode,
+      logger.info('Glassmorphism image generation completed', {
+        success: glassmorphismImageResult.success,
+        hasImageUrl: !!glassmorphismImageResult.imageUrl,
+        hasError: !!glassmorphismImageResult.error,
+        errorCode: glassmorphismImageResult.errorCode,
       });
 
-      if (!imageResult.success || !imageResult.imageUrl) {
-        logger.error('Image generation failed', {
-          error: imageResult.error,
-          errorCode: imageResult.errorCode,
+      if (!glassmorphismImageResult.success || !glassmorphismImageResult.imageUrl) {
+        logger.error('Glassmorphism image generation failed', {
+          error: glassmorphismImageResult.error,
+          errorCode: glassmorphismImageResult.errorCode,
           currentStep,
         });
 
-        // Return user-friendly error message
         return {
           success: false,
-          error: imageResult.error || 'Failed to generate image',
-          message: `Failed to generate app icon: ${imageResult.error}`,
+          error: glassmorphismImageResult.error || 'Failed to generate glassmorphism image',
+          message: `Failed to generate glassmorphism app icon: ${glassmorphismImageResult.error}`,
         };
       }
 
-      logger.info('Image generated successfully', {
-        url: imageResult.imageUrl.substring(0, 50) + '...',
-        urlLength: imageResult.imageUrl.length,
-        revisedPrompt: imageResult.revisedPrompt?.substring(0, 100),
-        hasRevisedPrompt: !!imageResult.revisedPrompt,
+      logger.info('Glassmorphism image generated successfully', {
+        url: glassmorphismImageResult.imageUrl.substring(0, 50) + '...',
+        urlLength: glassmorphismImageResult.imageUrl.length,
       });
 
-      // Step 4: Upload to Firebase Storage (OpenAI URLs expire in 1 hour)
-      currentStep = 'storage_upload';
-      logger.info('Step 4: Uploading image to Firebase Storage', {
-        sourceUrl: imageResult.imageUrl.substring(0, 80) + '...',
+      // Step 3b: Generate minimalist style image with DALL-E 3
+      currentStep = 'image_generation_minimalist';
+      logger.info('Step 3b: Generating minimalist style image with DALL-E 3', {
+        promptLength: minimalistPrompt.length,
+        type: 'icon',
+        size: '1024x1024',
+        quality: 'hd',
+        style: 'vivid',
+      });
+
+      const minimalistImageResult = await generateImage({
+        prompt: minimalistPrompt,
+        type: 'icon',
+        size: '1024x1024',
+        quality: 'hd',
+        style: 'vivid',
+      });
+
+      logger.info('Minimalist image generation completed', {
+        success: minimalistImageResult.success,
+        hasImageUrl: !!minimalistImageResult.imageUrl,
+        hasError: !!minimalistImageResult.error,
+        errorCode: minimalistImageResult.errorCode,
+      });
+
+      if (!minimalistImageResult.success || !minimalistImageResult.imageUrl) {
+        logger.error('Minimalist image generation failed', {
+          error: minimalistImageResult.error,
+          errorCode: minimalistImageResult.errorCode,
+          currentStep,
+        });
+
+        return {
+          success: false,
+          error: minimalistImageResult.error || 'Failed to generate minimalist image',
+          message: `Failed to generate minimalist app icon: ${minimalistImageResult.error}`,
+        };
+      }
+
+      logger.info('Minimalist image generated successfully', {
+        url: minimalistImageResult.imageUrl.substring(0, 50) + '...',
+        urlLength: minimalistImageResult.imageUrl.length,
+      });
+
+      // Step 4: Upload glassmorphism image to Firebase Storage
+      currentStep = 'storage_upload_glassmorphism';
+      logger.info('Step 4: Uploading glassmorphism image to Firebase Storage', {
+        sourceUrl: glassmorphismImageResult.imageUrl.substring(0, 80) + '...',
         projectId: this.context.canvasId,
         type: 'icon',
       });
 
-      const uploadResult = await uploadImageFromUrl(
-        imageResult.imageUrl,
+      const glassmorphismUploadResult = await uploadImageFromUrl(
+        glassmorphismImageResult.imageUrl,
         this.context.canvasId,
         'icon'
       );
 
-      logger.info('Storage upload completed', {
-        success: uploadResult.success,
-        hasPublicUrl: !!uploadResult.publicUrl,
-        hasStoragePath: !!uploadResult.storagePath,
-        hasError: !!uploadResult.error,
-        errorCode: uploadResult.errorCode,
+      logger.info('Glassmorphism storage upload completed', {
+        success: glassmorphismUploadResult.success,
+        hasPublicUrl: !!glassmorphismUploadResult.publicUrl,
+        hasStoragePath: !!glassmorphismUploadResult.storagePath,
       });
 
-      if (!uploadResult.success || !uploadResult.publicUrl) {
-        logger.error('Storage upload failed', {
-          error: uploadResult.error,
-          errorCode: uploadResult.errorCode,
+      if (!glassmorphismUploadResult.success || !glassmorphismUploadResult.publicUrl) {
+        logger.error('Glassmorphism storage upload failed', {
+          error: glassmorphismUploadResult.error,
+          errorCode: glassmorphismUploadResult.errorCode,
           currentStep,
         });
 
         return {
           success: false,
-          error: uploadResult.error || 'Failed to save image',
-          message: `Failed to save app icon: ${uploadResult.error}`,
+          error: glassmorphismUploadResult.error || 'Failed to save glassmorphism image',
+          message: `Failed to save glassmorphism app icon: ${glassmorphismUploadResult.error}`,
         };
       }
 
-      logger.info('Image uploaded to storage successfully', {
-        publicUrl: uploadResult.publicUrl.substring(0, 80) + '...',
-        publicUrlLength: uploadResult.publicUrl.length,
-        storagePath: uploadResult.storagePath,
+      logger.info('Glassmorphism image uploaded successfully', {
+        publicUrl: glassmorphismUploadResult.publicUrl.substring(0, 80) + '...',
+        storagePath: glassmorphismUploadResult.storagePath,
       });
 
-      // Step 5: Calculate canvas placement (viewport-aware)
+      // Step 4b: Upload minimalist image to Firebase Storage
+      currentStep = 'storage_upload_minimalist';
+      logger.info('Step 4b: Uploading minimalist image to Firebase Storage', {
+        sourceUrl: minimalistImageResult.imageUrl.substring(0, 80) + '...',
+        projectId: this.context.canvasId,
+        type: 'icon',
+      });
+
+      const minimalistUploadResult = await uploadImageFromUrl(
+        minimalistImageResult.imageUrl,
+        this.context.canvasId,
+        'icon'
+      );
+
+      logger.info('Minimalist storage upload completed', {
+        success: minimalistUploadResult.success,
+        hasPublicUrl: !!minimalistUploadResult.publicUrl,
+        hasStoragePath: !!minimalistUploadResult.storagePath,
+      });
+
+      if (!minimalistUploadResult.success || !minimalistUploadResult.publicUrl) {
+        logger.error('Minimalist storage upload failed', {
+          error: minimalistUploadResult.error,
+          errorCode: minimalistUploadResult.errorCode,
+          currentStep,
+        });
+
+        return {
+          success: false,
+          error: minimalistUploadResult.error || 'Failed to save minimalist image',
+          message: `Failed to save minimalist app icon: ${minimalistUploadResult.error}`,
+        };
+      }
+
+      logger.info('Minimalist image uploaded successfully', {
+        publicUrl: minimalistUploadResult.publicUrl.substring(0, 80) + '...',
+        storagePath: minimalistUploadResult.storagePath,
+      });
+
+      // Step 5: Calculate canvas placement for grid layout (viewport-aware)
       currentStep = 'position_calculation';
-      logger.info('Step 5: Calculating canvas placement', {
+      logger.info('Step 5: Calculating grid layout placement', {
         hasViewportBounds: !!this.context.viewportBounds,
         canvasSize: this.context.canvasSize,
         objectCount: this.context.currentObjects?.length || 0,
       });
 
-      // Place icons in horizontal row: [iOS 1024x1024] [100px gap] [Android 512x512]
-      // Total width: 1024 + 100 + 512 = 1636px
-      // Total height: 1024px (iOS height, Android centered vertically)
-      let startX: number;
-      let startY: number;
+      // Grid layout dimensions:
+      // Info box: 1024px wide x 250px tall
+      // Row spacing: 50px between info box and row 1, 60px between rows
+      // Label height: 40px, gap between label and image: 10px
+      // Icon size: 1024x1024 (one per style)
+      // Total width: 1024px
+      // Total height: 250 (info) + 50 (gap) + 40 (label) + 10 (gap) + 1024 (row1) + 60 (gap) + 40 (label) + 10 (gap) + 1024 (row2) = 2508px
+
+      const GRID_WIDTH = 1024;
+      const GRID_HEIGHT = 2508;
+      const INFO_BOX_HEIGHT = 250;
+      const LABEL_HEIGHT = 40;
+      const LABEL_TO_IMAGE_GAP = 10;
+      const INFO_TO_ROW1_GAP = 50;
+      const ROW_GAP = 60;
+
+      let gridStartX: number;
+      let gridStartY: number;
 
       if (this.context.viewportBounds) {
         // Use viewport center if available (user's current view)
-        startX = this.context.viewportBounds.centerX - 818; // Half of total width (1636/2)
-        startY = this.context.viewportBounds.centerY - 512; // Half of height (1024/2)
+        gridStartX = this.context.viewportBounds.centerX - GRID_WIDTH / 2;
+        gridStartY = this.context.viewportBounds.centerY - GRID_HEIGHT / 2;
 
         logger.info('Using viewport-aware placement', {
           viewportCenter: {
             x: this.context.viewportBounds.centerX,
             y: this.context.viewportBounds.centerY,
           },
-          iconTopLeft: { x: startX, y: startY },
+          gridTopLeft: { x: gridStartX, y: gridStartY },
         });
       } else {
         // Fallback to canvas center
-        startX = this.context.canvasSize.width / 2 - 818;
-        startY = this.context.canvasSize.height / 2 - 512;
+        gridStartX = this.context.canvasSize.width / 2 - GRID_WIDTH / 2;
+        gridStartY = this.context.canvasSize.height / 2 - GRID_HEIGHT / 2;
 
         logger.info('Using canvas center placement', {
           canvasSize: this.context.canvasSize,
-          iconTopLeft: { x: startX, y: startY },
+          gridTopLeft: { x: gridStartX, y: gridStartY },
         });
       }
 
       // Check for overlap and adjust if needed
       logger.info('Checking for object overlap', {
-        proposedPosition: { x: startX, y: startY },
-        dimensions: { width: 1024, height: 1024 },
+        proposedPosition: { x: gridStartX, y: gridStartY },
+        dimensions: { width: GRID_WIDTH, height: GRID_HEIGHT },
       });
 
-      const iosPosition = findEmptySpace(
-        startX,
-        startY,
-        1024,
-        1024,
+      const adjustedPosition = findEmptySpace(
+        gridStartX,
+        gridStartY,
+        GRID_WIDTH,
+        GRID_HEIGHT,
         this.context.currentObjects
       );
 
-      if (iosPosition.x !== startX || iosPosition.y !== startY) {
-        logger.info('Adjusted iOS icon position to avoid overlap', {
-          original: { x: startX, y: startY },
-          adjusted: iosPosition,
+      if (adjustedPosition.x !== gridStartX || adjustedPosition.y !== gridStartY) {
+        logger.info('Adjusted grid position to avoid overlap', {
+          original: { x: gridStartX, y: gridStartY },
+          adjusted: adjustedPosition,
         });
-        startX = iosPosition.x;
-        startY = iosPosition.y;
+        gridStartX = adjustedPosition.x;
+        gridStartY = adjustedPosition.y;
       } else {
         logger.info('No position adjustment needed - no overlap detected');
       }
@@ -297,102 +406,164 @@ export class GenerateAppIconTool extends CanvasTool {
         estimatedFileSize,
       });
 
-      // Step 7: Create iOS icon (1024x1024) on canvas
-      currentStep = 'create_ios_icon';
-      logger.info('Step 7: Creating iOS icon on canvas', {
+      // Calculate all positions for grid layout (single column)
+      const infoBoxY = gridStartY;
+      const row1LabelY = gridStartY + INFO_BOX_HEIGHT + INFO_TO_ROW1_GAP;
+      const row1ImageY = row1LabelY + LABEL_HEIGHT + LABEL_TO_IMAGE_GAP;
+      const row2LabelY = row1ImageY + 1024 + ROW_GAP;
+      const row2ImageY = row2LabelY + LABEL_HEIGHT + LABEL_TO_IMAGE_GAP;
+
+      const iconX = gridStartX;
+
+      // Step 7: Create info text box with design guidelines
+      currentStep = 'create_info_box';
+      logger.info('Step 7: Creating info box with design guidelines');
+
+      const infoText = `App Icon Design Guidelines & Requirements
+
+Icon Size:
+• 1024x1024px (required for App Store and Google Play)
+• Format: PNG - square format with no rounded corners
+• Icons fill entire canvas edge-to-edge (no padding or backgrounds)
+
+Design Guidelines:
+• Apple HIG: https://developer.apple.com/design/human-interface-guidelines/app-icons
+• Google Play: https://developer.android.com/google-play/resources/icon-design-specifications
+• Keep it simple, memorable, and recognizable at all sizes
+
+Two Styles Generated:
+• Glassmorphism: Modern, vibrant gradients, 3D depth, high contrast
+• Minimalist: Clean, simple geometric shapes, flat design (Apple/Airbnb/Figma style)
+
+Design Tips:
+• Avoid text (illegible at small sizes)
+• Use vibrant, contrasting colors that fill the entire canvas
+• Test visibility in both light and dark modes
+• Ensure icon works at 29px to 1024px
+• Stand out in app store search results`;
+
+      const infoBoxId = await createCanvasObject({
         canvasId: this.context.canvasId,
-        position: { x: startX, y: startY },
-        dimensions: { width: 1024, height: 1024 },
-        name: `iOS - ${capitalizedKeyword}`,
-        imageUrl: uploadResult.publicUrl.substring(0, 80) + '...',
+        type: 'text',
+        position: { x: gridStartX, y: infoBoxY },
+        dimensions: { width: GRID_WIDTH, height: INFO_BOX_HEIGHT },
+        appearance: {
+          fill: '#333333',
+          stroke: '#e5e7eb',
+          strokeWidth: 1,
+        },
+        text: infoText,
+        fontSize: 14,
+        fontFamily: 'Inter',
+        name: 'App Icon Guidelines',
+        userId: this.context.userId,
       });
 
-      const iosIconId = await createCanvasObject({
+      logger.info('Info box created successfully', { id: infoBoxId });
+
+      // Step 8: Create text labels for both icons
+      currentStep = 'create_labels';
+      logger.info('Step 8: Creating text labels for both icons');
+
+      const row1LabelId = await createCanvasObject({
+        canvasId: this.context.canvasId,
+        type: 'text',
+        position: { x: iconX, y: row1LabelY },
+        dimensions: { width: 1024, height: LABEL_HEIGHT },
+        appearance: { fill: '#000000' },
+        text: `1024x1024 - Glassmorphism Style`,
+        fontSize: 24,
+        fontFamily: 'Inter',
+        name: 'Glassmorphism Label',
+        userId: this.context.userId,
+      });
+
+      const row2LabelId = await createCanvasObject({
+        canvasId: this.context.canvasId,
+        type: 'text',
+        position: { x: iconX, y: row2LabelY },
+        dimensions: { width: 1024, height: LABEL_HEIGHT },
+        appearance: { fill: '#000000' },
+        text: `1024x1024 - Minimalist Style`,
+        fontSize: 24,
+        fontFamily: 'Inter',
+        name: 'Minimalist Label',
+        userId: this.context.userId,
+      });
+
+      logger.info('Text labels created successfully');
+
+      // Step 9: Create 2 icon images in vertical layout
+      currentStep = 'create_icon_images';
+      logger.info('Step 9: Creating 2 icon images in vertical layout');
+
+      // Row 1: Glassmorphism style icon
+      const row1IconId = await createCanvasObject({
         canvasId: this.context.canvasId,
         type: 'image',
-        position: { x: startX, y: startY },
+        position: { x: iconX, y: row1ImageY },
         dimensions: { width: 1024, height: 1024 },
         appearance: {},
-        imageUrl: uploadResult.publicUrl,
+        imageUrl: glassmorphismUploadResult.publicUrl,
         naturalWidth: 1024,
         naturalHeight: 1024,
-        fileName: `iOS-${fileName}`,
+        fileName: `Glassmorphism-${fileName}`,
         fileSize: estimatedFileSize,
         mimeType: 'image/png',
         storageType: 'storage',
-        storagePath: uploadResult.storagePath,
-        name: `iOS - ${capitalizedKeyword}`,
+        storagePath: glassmorphismUploadResult.storagePath,
+        name: `${capitalizedKeyword} (Glassmorphism)`,
         userId: this.context.userId,
       });
 
-      logger.info('iOS icon created on canvas successfully', {
-        id: iosIconId,
-        idLength: iosIconId?.length || 0,
-        position: { x: startX, y: startY },
-        size: '1024x1024',
-      });
-
-      // Step 8: Create Android icon (512x512) on canvas
-      currentStep = 'create_android_icon';
-      // Position: right of iOS icon with 100px gap, centered vertically
-      const androidX = startX + 1024 + 100; // iOS width + gap
-      const androidY = startY + 256; // Center vertically: (1024 - 512) / 2
-
-      logger.info('Step 8: Creating Android icon on canvas', {
-        canvasId: this.context.canvasId,
-        position: { x: androidX, y: androidY },
-        dimensions: { width: 512, height: 512 },
-        name: `Android - ${capitalizedKeyword}`,
-        imageUrl: uploadResult.publicUrl.substring(0, 80) + '...',
-      });
-
-      const androidIconId = await createCanvasObject({
+      // Row 2: Minimalist style icon
+      const row2IconId = await createCanvasObject({
         canvasId: this.context.canvasId,
         type: 'image',
-        position: { x: androidX, y: androidY },
-        dimensions: { width: 512, height: 512 },
+        position: { x: iconX, y: row2ImageY },
+        dimensions: { width: 1024, height: 1024 },
         appearance: {},
-        imageUrl: uploadResult.publicUrl, // Same image, different size
-        naturalWidth: 1024, // Original image is 1024x1024, we scale to 512 for display
+        imageUrl: minimalistUploadResult.publicUrl,
+        naturalWidth: 1024,
         naturalHeight: 1024,
-        fileName: `Android-${fileName}`,
+        fileName: `Minimalist-${fileName}`,
         fileSize: estimatedFileSize,
         mimeType: 'image/png',
         storageType: 'storage',
-        storagePath: uploadResult.storagePath,
-        name: `Android - ${capitalizedKeyword}`,
+        storagePath: minimalistUploadResult.storagePath,
+        name: `${capitalizedKeyword} (Minimalist)`,
         userId: this.context.userId,
       });
 
-      logger.info('Android icon created on canvas successfully', {
-        id: androidIconId,
-        idLength: androidIconId?.length || 0,
-        position: { x: androidX, y: androidY },
-        size: '512x512',
-      });
+      logger.info('All icon images created successfully');
 
       const duration = Date.now() - startTime;
 
       currentStep = 'completed';
       logger.info('App icon generation completed successfully', {
-        iosIconId,
-        androidIconId,
+        infoBoxId,
+        row1IconId,
+        row2IconId,
         duration: `${duration}ms`,
-        publicUrl: uploadResult.publicUrl.substring(0, 80) + '...',
         finalStep: currentStep,
       });
 
-      // Step 9: Return success result
+      // Step 10: Return success result
       return {
         success: true,
-        message: `Created iOS (1024x1024) and Android (512x512) app icons for "${capitalizedKeyword}"`,
-        objectsCreated: [iosIconId, androidIconId],
+        message: `Created 2 app icon styles (Glassmorphism & Minimalist) at 1024x1024 for "${capitalizedKeyword}"`,
+        objectsCreated: [
+          infoBoxId,
+          row1LabelId,
+          row1IconId,
+          row2LabelId,
+          row2IconId,
+        ],
         data: {
-          iosIconId,
-          androidIconId,
-          imageUrl: uploadResult.publicUrl,
-          storagePath: uploadResult.storagePath,
-          revisedPrompt: imageResult.revisedPrompt,
+          glassmorphismImageUrl: glassmorphismUploadResult.publicUrl,
+          minimalistImageUrl: minimalistUploadResult.publicUrl,
+          glassmorphismStoragePath: glassmorphismUploadResult.storagePath,
+          minimalistStoragePath: minimalistUploadResult.storagePath,
           keyword: capitalizedKeyword,
           duration: duration,
         },

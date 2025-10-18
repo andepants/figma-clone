@@ -152,6 +152,28 @@ export function generateExportPreview(
     const resizeHandlesVisibility = resizeHandles.map(handle => handle.visible());
     resizeHandles.forEach(handle => handle.hide());
 
+    // Hide text selection boxes (TextSelectionBox components)
+    // These are Group nodes that contain Rect and Line elements for text selection visualization
+    const textSelectionBoxes: Konva.Node[] = [];
+    const textSelectionBoxVisibility: boolean[] = [];
+    if (objectsLayer) {
+      objectsLayer.getChildren().forEach((node) => {
+        // TextSelectionBox is a Group with specific structure (contains Rect/Line for selection)
+        if (node.getClassName() === 'Group') {
+          // Check if this group is a text selection box by examining its children
+          const children = (node as Konva.Group).getChildren();
+          const hasRect = children.some(child => child.getClassName() === 'Rect');
+          const hasLine = children.some(child => child.getClassName() === 'Line');
+          // TextSelectionBox has both Rect (bounding box) and Line (underline)
+          if (hasRect && hasLine) {
+            textSelectionBoxes.push(node);
+            textSelectionBoxVisibility.push(node.visible());
+            node.hide();
+          }
+        }
+      });
+    }
+
     // Temporarily remove selection styling from nodes in preview
     // Store original stroke properties and reset to base values
     const nodeStrokeBackup: Array<{
@@ -244,6 +266,13 @@ export function generateExportPreview(
     resizeHandles.forEach((handle, index) => {
       if (resizeHandlesVisibility[index]) {
         handle.show();
+      }
+    });
+
+    // Restore text selection boxes visibility
+    textSelectionBoxes.forEach((box, index) => {
+      if (textSelectionBoxVisibility[index]) {
+        box.show();
       }
     });
 

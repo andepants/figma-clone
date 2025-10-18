@@ -11,6 +11,7 @@ import { PropertiesPanel } from '@/features/properties-panel';
 import { ResizeHandle } from './ResizeHandle';
 import { AISection } from './AISection';
 import { ChatInput } from '@/features/ai-agent/components/ChatInput';
+import { SidebarWidthResizeHandle } from './SidebarWidthResizeHandle';
 
 // Fixed heights for consistent layout
 const CHAT_INPUT_HEIGHT = 90; // Input area height (padding + textarea + button)
@@ -27,7 +28,7 @@ export interface RightSidebarProps {
  * RightSidebar Component
  *
  * Container for properties panel and AI chat with resizable split.
- * Width: 240px (matches current properties panel)
+ * Width: Resizable (240px min, 480px max, default 240px)
  * Layout: Flexbox with dynamic height allocation
  *
  * ChatInput is absolutely positioned at bottom (never moves):
@@ -50,14 +51,20 @@ export interface RightSidebarProps {
  * @returns {JSX.Element} Right sidebar container
  */
 export function RightSidebar({ onExport, hasObjects, hasSelection, projectId }: RightSidebarProps) {
-  const { aiPanelHeight, isAIChatCollapsed, isResizingAIPanel } = useUIStore();
+  const { aiPanelHeight, isAIChatCollapsed, isResizingAIPanel, rightSidebarWidth } = useUIStore();
 
   return (
     <div
-      className="fixed right-0 top-0 bottom-0 w-[240px] bg-white border-l border-gray-200 flex flex-col"
+      className="fixed right-0 top-0 bottom-0 bg-white border-l border-gray-200 flex flex-col"
       data-sidebar
-      style={{ paddingBottom: `${CHAT_INPUT_HEIGHT}px` }}
+      style={{
+        paddingBottom: `${CHAT_INPUT_HEIGHT}px`,
+        width: `${rightSidebarWidth}px`
+      }}
     >
+      {/* Width Resize Handle - on left edge for horizontal resizing */}
+      <SidebarWidthResizeHandle />
+
       {/* Properties Section - animates when collapsing, instant during resize drag */}
       <div
         className={`overflow-y-auto flex-1 ${

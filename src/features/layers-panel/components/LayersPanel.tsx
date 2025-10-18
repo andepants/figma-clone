@@ -15,8 +15,8 @@
  *
  * Drag & Drop:
  * - Uses @dnd-kit for smooth drag-and-drop layer reordering
- * - Pointer sensor has 200ms activation delay (prevents click interference)
- * - Quick click selects layer, press-and-hold (200ms) starts drag
+ * - Pointer sensor has 100ms activation delay (prevents click interference)
+ * - Quick click selects layer, press-and-hold (100ms) starts drag
  * - Supports both pointer and keyboard sensors
  * - Reordering syncs to canvasStore and Firebase RTDB
  * - Top of list = front of canvas (objects array reversed for display)
@@ -92,12 +92,12 @@ export function LayersPanel() {
   const toggleLayersSection = useUIStore((state) => state.toggleLayersSection);
 
   // Setup sensors for drag and drop
-  // PointerSensor has a 200ms delay to prevent interfering with click-to-select
+  // PointerSensor has a 100ms delay to prevent interfering with click-to-select
   // This allows quick clicks to select layers, while press-and-hold initiates drag
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 200,        // 200ms press before drag starts
+        delay: 100,        // 100ms press before drag starts (reduced for faster feel)
         tolerance: 5,      // Allow 5px movement during delay without canceling
       },
     }),

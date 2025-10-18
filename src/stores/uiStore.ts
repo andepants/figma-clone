@@ -18,6 +18,8 @@ import { persist } from 'zustand/middleware';
  * @property {boolean} pagesSectionCollapsed - Whether pages section is collapsed (future use)
  * @property {number} aiPanelHeight - AI panel height as percentage (0-100) of sidebar
  * @property {boolean} isAIChatCollapsed - Whether AI chat panel is collapsed
+ * @property {number} rightSidebarWidth - Right sidebar width in pixels (240-480, default 240)
+ * @property {boolean} isResizingRightSidebar - Whether user is actively resizing right sidebar
  */
 interface UIState {
   leftSidebarOpen: boolean;
@@ -28,6 +30,8 @@ interface UIState {
   aiPanelHeight: number;
   isAIChatCollapsed: boolean;
   isResizingAIPanel: boolean;
+  rightSidebarWidth: number;
+  isResizingRightSidebar: boolean;
 }
 
 /**
@@ -89,6 +93,18 @@ interface UIActions {
    * @param {boolean} isResizing - Whether user is actively resizing the panel
    */
   setIsResizingAIPanel: (isResizing: boolean) => void;
+
+  /**
+   * Set right sidebar width in pixels
+   * @param {number} width - Width in pixels (240-480), will be clamped to valid range
+   */
+  setRightSidebarWidth: (width: number) => void;
+
+  /**
+   * Set right sidebar resizing state (used to disable transitions during drag)
+   * @param {boolean} isResizing - Whether user is actively resizing the sidebar
+   */
+  setIsResizingRightSidebar: (isResizing: boolean) => void;
 }
 
 /**
@@ -113,6 +129,8 @@ export const useUIStore = create<UIStore>()(
       aiPanelHeight: 40,
       isAIChatCollapsed: false,
       isResizingAIPanel: false,
+      rightSidebarWidth: 240,
+      isResizingRightSidebar: false,
 
       // Actions
       toggleLeftSidebar: () =>
@@ -143,6 +161,14 @@ export const useUIStore = create<UIStore>()(
         set((state) => ({ isAIChatCollapsed: !state.isAIChatCollapsed })),
 
       setIsResizingAIPanel: (isResizing) => set({ isResizingAIPanel: isResizing }),
+
+      setRightSidebarWidth: (width) => {
+        // Clamp between 240 and 480 pixels
+        const clampedWidth = Math.min(480, Math.max(240, width));
+        set({ rightSidebarWidth: clampedWidth });
+      },
+
+      setIsResizingRightSidebar: (isResizing) => set({ isResizingRightSidebar: isResizing }),
     }),
     {
       name: 'ui-storage', // localStorage key
@@ -153,6 +179,7 @@ export const useUIStore = create<UIStore>()(
         pagesSectionCollapsed: state.pagesSectionCollapsed,
         aiPanelHeight: state.aiPanelHeight,
         isAIChatCollapsed: state.isAIChatCollapsed,
+        rightSidebarWidth: state.rightSidebarWidth,
       }),
     }
   )

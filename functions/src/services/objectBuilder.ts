@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
  * Matches the frontend CanvasObject types
  */
 export interface BuildObjectParams {
-  type: 'rectangle' | 'circle' | 'text' | 'line' | 'image';
+  type: 'rectangle' | 'circle' | 'text' | 'line' | 'image' | 'group';
   position: { x: number; y: number };
 
   // Dimension-based properties (rectangle, text, image)
@@ -56,6 +56,10 @@ export interface BuildObjectParams {
 
   // Transform properties
   rotation?: number;
+
+  // Hierarchy properties
+  parentId?: string | null;
+  isCollapsed?: boolean;
 
   // Metadata
   name?: string;
@@ -116,6 +120,14 @@ export function buildCanvasObject(
     skewY: 0,
   };
 
+  // Add hierarchy properties if provided
+  if (params.parentId !== undefined) {
+    canvasObject.parentId = params.parentId;
+  }
+  if (params.isCollapsed !== undefined) {
+    canvasObject.isCollapsed = params.isCollapsed;
+  }
+
   // Add type-specific properties
   addTypeSpecificProperties(canvasObject, params);
 
@@ -155,6 +167,10 @@ function addTypeSpecificProperties(
 
     case 'image':
       addImageProperties(canvasObject, params);
+      break;
+
+    case 'group':
+      // Groups don't need type-specific properties beyond base
       break;
   }
 }

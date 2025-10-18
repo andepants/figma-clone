@@ -26,7 +26,8 @@ import {
   generateProjectId,
 } from '@/lib/firebase';
 import { redirectToCheckout } from '@/lib/stripe/checkout';
-import type { Project, ProjectTemplate } from '@/types/project.types';
+import { generateTemplateObjects } from '@/lib/utils/template-generator';
+import type { Project } from '@/types/project.types';
 import { useNavigate } from 'react-router-dom';
 import { useProjectsData, usePaymentStatus } from './projects/hooks';
 
@@ -66,7 +67,6 @@ export default function ProjectsPage() {
 
   const handleCreateProject = async (
     name: string,
-    template: ProjectTemplate,
     isPublic: boolean
   ) => {
     if (!currentUser) return;
@@ -78,15 +78,19 @@ export default function ProjectsPage() {
         id: generateProjectId(),
         name,
         ownerId: currentUser.uid,
-        template,
         isPublic,
         collaborators: [currentUser.uid],
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        objectCount: 0,
+        objectCount: 10, // Will have 10 template objects (4 app icons + 6 feature graphic)
       };
 
+      // Create project in Firestore
       await createProject(newProject);
+
+      // Generate template objects in RTDB
+      await generateTemplateObjects(newProject.id);
+
       setProjects((prev) => [newProject, ...prev]);
       setShowCreateModal(false);
 

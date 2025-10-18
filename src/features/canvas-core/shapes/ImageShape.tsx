@@ -444,17 +444,6 @@ export const ImageShape = memo(function ImageShape({
     return null;
   }
 
-  console.log('[ImageShape] Rendering image on canvas:', {
-    id: image.id,
-    fileName: image.fileName,
-    x: displayX,
-    y: displayY,
-    width,
-    height,
-    visible: image.visible,
-    locked: isLocked,
-  });
-
   return (
     <Fragment>
       <Image

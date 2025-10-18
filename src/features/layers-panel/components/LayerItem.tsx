@@ -6,9 +6,10 @@
  *
  * Features:
  * - Full layer item draggable for reordering (no grip icon needed)
- * - Press-and-hold (200ms) to start drag, quick click to select
+ * - Press-and-hold (100ms) to start drag, quick click to select
  * - Visual feedback during drag (opacity-50, z-10)
  * - Cursor changes to grab/grabbing during drag interaction
+ * - Text selection disabled (select-none) to prevent drag interference
  * - Blue background + blue left border when selected
  * - Gray background on hover (when not selected)
  * - Name truncation at 160px with ellipsis
@@ -86,7 +87,7 @@ interface LayerItemProps {
  * Drag & Drop:
  * - Uses @dnd-kit/sortable for drag-and-drop functionality
  * - Entire layer item acts as drag handle (no grip icon)
- * - 200ms press delay before drag starts (prevents click interference)
+ * - 100ms press delay before drag starts (prevents click interference)
  * - Transform and transition applied via CSS.Transform
  * - isDragging state controls visual feedback
  * - Interactive elements (input, buttons, arrow) prevent drag propagation
@@ -343,7 +344,7 @@ export const LayerItem = memo(function LayerItem({
         onMouseEnter={onHover}
         onMouseLeave={onHoverEnd}
         className={`
-          group
+          group select-none
           h-7 pr-1.5 py-0.5 flex items-center gap-1 cursor-grab active:cursor-grabbing
           transition-colors duration-75
           ${isDragging ? 'opacity-50 z-10' : ''}
@@ -380,7 +381,7 @@ export const LayerItem = memo(function LayerItem({
         <span
           onDoubleClick={handleDoubleClick}
           className={`
-            text-[11px] truncate max-w-[160px] cursor-text
+            text-[11px] truncate max-w-[160px] cursor-grab active:cursor-grabbing
             ${isSelected ? 'font-medium text-gray-900' : 'font-normal text-gray-700'}
             ${!isVisible ? 'text-gray-400' : ''}
           `}

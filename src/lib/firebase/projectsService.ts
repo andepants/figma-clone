@@ -255,7 +255,6 @@ export async function createDefaultProject(
     id: generateProjectId(),
     name: `${username}'s First Project`,
     ownerId: userId,
-    template: 'blank',
     isPublic: false,
     collaborators: [userId],
     createdAt: Date.now(),
