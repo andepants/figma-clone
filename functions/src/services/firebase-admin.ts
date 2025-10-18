@@ -75,9 +75,10 @@ function ensureInitialized() {
       // Production - use Application Default Credentials
       // When running in Firebase Functions, admin.initializeApp() with no params
       // automatically uses the service account and project settings
-      // We need to specify storageBucket for Firebase Storage to work
+      // We need to specify storageBucket for Firebase Storage and databaseURL for RTDB
       logger.info('🚀 Firebase Admin: Initializing with Production (ADC)');
       admin.initializeApp({
+        databaseURL: 'https://figma-clone-d33e3-default-rtdb.firebaseio.com',
         storageBucket: 'figma-clone-d33e3.firebasestorage.app',
       });
     }

@@ -1,8 +1,8 @@
 {
   "rules": {
     "projects": {
+      ".read": "auth != null",
       "$projectId": {
-        ".read": "auth != null && (data.child('isPublic').val() == true || data.child('ownerId').val() == auth.uid)",
         ".write": "auth != null && (data.child('ownerId').val() == auth.uid || !data.exists())",
         ".validate": "newData.hasChild('id') && newData.hasChild('name') && newData.hasChild('ownerId') && newData.hasChild('isPublic') && newData.hasChild('collaborators')",
         "id": {

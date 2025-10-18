@@ -132,19 +132,6 @@ export const ImageShape = memo(function ImageShape({
   useEffect(() => {
     let isCancelled = false;
 
-    console.log('[ImageShape] Loading image:', {
-      id: image.id,
-      fileName: image.fileName,
-      srcPreview: image.src.substring(0, 100) + '...',
-      srcLength: image.src.length,
-      mimeType: image.mimeType,
-      storageType: image.storageType,
-      width: image.width,
-      height: image.height,
-      naturalWidth: image.naturalWidth,
-      naturalHeight: image.naturalHeight,
-    });
-
     // Set up 10-second timeout
     const timeoutId = setTimeout(() => {
       if (!isCancelled) {
@@ -163,14 +150,6 @@ export const ImageShape = memo(function ImageShape({
       .then((img) => {
         if (!isCancelled) {
           clearTimeout(timeoutId);
-          console.log('[ImageShape] Image loaded successfully:', {
-            id: image.id,
-            fileName: image.fileName,
-            loadedWidth: img.width,
-            loadedHeight: img.height,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-          });
           setHtmlImage(img);
           setImageLoadError(false);
         }
@@ -586,7 +565,6 @@ export const ImageShape = memo(function ImageShape({
 
   // Don't render if hidden
   if (image.visible === false) {
-    console.log('[ImageShape] Not rendering (hidden):', image.id);
     return null;
   }
 
@@ -597,7 +575,6 @@ export const ImageShape = memo(function ImageShape({
   }
 
   if (!htmlImage) {
-    console.log('[ImageShape] Not rendering (waiting for image to load):', image.id, image.fileName);
     return null;
   }
 

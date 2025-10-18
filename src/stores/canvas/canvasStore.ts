@@ -37,7 +37,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   objects: [],
   selectedIds: [],
   editingTextId: null,
-  zoom: 1.0,
+  zoom: 0.25, // Default zoom (displays as "100%" after renormalization)
   panX: 0,
   panY: 0,
   clipboard: [],

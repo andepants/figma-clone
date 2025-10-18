@@ -33,8 +33,8 @@ import { useCanvasStore } from '@/stores';
 export function ZoomDropdown() {
   const { zoom, zoomIn, zoomOut, zoomToFit, zoomTo } = useCanvasStore();
 
-  // Calculate current zoom percentage
-  const zoomPercentage = Math.round(zoom * 100);
+  // Calculate current zoom percentage (renormalized: 0.25 = 100%)
+  const zoomPercentage = Math.round(zoom * 400);
 
   // Track dropdown open state for auto-select
   const [isOpen, setIsOpen] = useState(false);
@@ -133,8 +133,8 @@ export function ZoomDropdown() {
     // Clamp to valid range (10% - 500%)
     const clampedValue = Math.max(10, Math.min(500, value));
 
-    // Only apply if value actually changed
-    const currentPercentage = Math.round(zoom * 100);
+    // Only apply if value actually changed (renormalized: 0.25 = 100%)
+    const currentPercentage = Math.round(zoom * 400);
     if (clampedValue !== currentPercentage) {
       // Apply zoom
       zoomTo(clampedValue);
