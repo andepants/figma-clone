@@ -16,12 +16,12 @@ import { PUBLIC_PLAYGROUND_ID } from '@/config/constants';
  * Requires authentication
  */
 function PublicPlaygroundPage() {
-  const { currentUser, isLoading } = useAuth();
+  const { currentUser, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Wait for auth to load
-    if (isLoading) return;
+    if (loading) return;
 
     // Redirect to login if not authenticated
     if (!currentUser) {
@@ -31,7 +31,7 @@ function PublicPlaygroundPage() {
 
     // Redirect to public playground project
     navigate(`/canvas/${PUBLIC_PLAYGROUND_ID}`, { replace: true });
-  }, [currentUser, isLoading, navigate]);
+  }, [currentUser, loading, navigate]);
 
   // Show loading state while redirecting
   return (

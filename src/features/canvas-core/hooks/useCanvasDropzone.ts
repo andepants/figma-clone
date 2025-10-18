@@ -125,7 +125,7 @@ export function useCanvasDropzone({
    * Uploads file and creates canvas object at drop position
    */
   const onDrop = useCallback(
-    async (acceptedFiles: File[], _fileRejections: unknown, event: { clientX?: number; clientY?: number }) => {
+    async (acceptedFiles: File[], _fileRejections: unknown, event: unknown) => {
       if (!currentUser) {
         console.error('User not authenticated');
         return;
@@ -138,9 +138,11 @@ export function useCanvasDropzone({
       // Use center of viewport if drop position not available (e.g., file dialog upload)
       let position: { x: number; y: number };
 
-      if (event?.clientX && event?.clientY) {
+      // Type guard for mouse events
+      const mouseEvent = event as { clientX?: number; clientY?: number } | undefined;
+      if (mouseEvent?.clientX && mouseEvent?.clientY) {
         // Drop event - use drop position
-        const canvasPos = screenToCanvasCoords(event.clientX, event.clientY);
+        const canvasPos = screenToCanvasCoords(mouseEvent.clientX, mouseEvent.clientY);
         position = canvasPos || { x: 400, y: 300 };
       } else {
         // File dialog - use center of canvas viewport
