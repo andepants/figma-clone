@@ -101,7 +101,7 @@ export function getSectionVisibility(shape: CanvasObject | null): SectionVisibil
         ...commonSections,
         layout: true,      // Show width × height with aspect ratio lock
         appearance: true,  // Show opacity
-        image: true,       // Show image-specific properties (file info, replace)
+        image: true,       // Show image-specific properties (file info, replace, crop button)
         fill: false,       // Images don't have fill
       };
 

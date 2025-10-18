@@ -5,10 +5,9 @@
  */
 
 import { useState, useEffect, useRef, memo, Fragment } from 'react';
-import { Image, Group } from 'react-konva';
+import { Image } from 'react-konva';
 import type Konva from 'konva';
 import type { ImageObject } from '@/types';
-import { getImageDimensions } from '@/types/canvas.types';
 import { useToolStore, useCanvasStore, useUIStore } from '@/stores';
 import {
   updateCanvasObject,
@@ -23,9 +22,7 @@ import { getUserColor } from '@/features/collaboration/utils';
 import { screenToCanvasCoords } from '../utils';
 import { ResizeHandles, DimensionLabel } from '../components';
 import { useResize } from '../hooks';
-import { useEdgeResize } from '../hooks/useEdgeResize';
 import { imagePool } from '@/lib/utils/imagePool';
-import { detectEdge, getCursorForEdge } from '../utils/edgeDetection';
 
 /**
  * ImageShape component props
@@ -87,17 +84,8 @@ export const ImageShape = memo(function ImageShape({
   // Resize hook
   const { isResizing, handleResizeStart, handleResizeMove, handleResizeEnd } = useResize(effectiveProjectId);
 
-  // Edge resize hook for crop/resize operations
-  const { startEdgeResize, moveEdgeResize, endEdgeResize } = useEdgeResize();
-
   // Hover state for preview interaction
   const [isHovered, setIsHovered] = useState(false);
-
-  // Track if drag is an edge resize vs object drag
-  const [isDraggingEdge, setIsDraggingEdge] = useState(false);
-
-  // Track modifier key state for crop mode
-  const [isCropModeActive, setIsCropModeActive] = useState(false);
 
   // Image loading state
   const [htmlImage, setHtmlImage] = useState<HTMLImageElement | null>(null);
@@ -121,9 +109,6 @@ export const ImageShape = memo(function ImageShape({
   const width = image.width || 100;
   const height = image.height || 100;
 
-  // Get image crop dimensions for rendering
-  const { imageX, imageY, imageWidth, imageHeight } = getImageDimensions(image);
-
   /**
    * Load image from src URL
    * Uses imagePool for caching to prevent re-loading same images
@@ -131,19 +116,6 @@ export const ImageShape = memo(function ImageShape({
    */
   useEffect(() => {
     let isCancelled = false;
-
-    console.log('[ImageShape] Loading image:', {
-      id: image.id,
-      fileName: image.fileName,
-      srcPreview: image.src.substring(0, 100) + '...',
-      srcLength: image.src.length,
-      mimeType: image.mimeType,
-      storageType: image.storageType,
-      width: image.width,
-      height: image.height,
-      naturalWidth: image.naturalWidth,
-      naturalHeight: image.naturalHeight,
-    });
 
     // Set up 10-second timeout
     const timeoutId = setTimeout(() => {
@@ -163,14 +135,6 @@ export const ImageShape = memo(function ImageShape({
       .then((img) => {
         if (!isCancelled) {
           clearTimeout(timeoutId);
-          console.log('[ImageShape] Image loaded successfully:', {
-            id: image.id,
-            fileName: image.fileName,
-            loadedWidth: img.width,
-            loadedHeight: img.height,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-          });
           setHtmlImage(img);
           setImageLoadError(false);
         }
@@ -209,32 +173,7 @@ export const ImageShape = memo(function ImageShape({
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [image.src, image.id, image.fileName, image.mimeType, image.storageType, image.storagePath, image.width, image.height, image.naturalWidth, image.naturalHeight]);
-
-  /**
-   * Track Cmd/Ctrl key for crop mode
-   */
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.metaKey || e.ctrlKey) {
-        setIsCropModeActive(true);
-      }
-    }
-
-    function handleKeyUp(e: KeyboardEvent) {
-      if (!e.metaKey && !e.ctrlKey) {
-        setIsCropModeActive(false);
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
+  }, [image.src, image.id, image.fileName, image.mimeType, image.storageType, image.width, image.height, image.naturalWidth, image.naturalHeight]);
 
   /**
    * Animate selection changes
@@ -270,41 +209,6 @@ export const ImageShape = memo(function ImageShape({
   }, [isSelected, image.scaleX, image.scaleY]);
 
   /**
-   * Handle mouse down on image
-   * Detect if clicking on edge to start edge resize
-   */
-  function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
-    if (activeTool !== 'move') return;
-    if (isLocked) return;
-
-    // Detect if clicking on edge
-    const stage = e.target.getStage();
-    if (!stage) return;
-
-    const pointerPos = stage.getPointerPosition();
-    if (!pointerPos) return;
-
-    const canvasCoords = screenToCanvasCoords(stage, pointerPos);
-    const edge = detectEdge(
-      canvasCoords.x,
-      canvasCoords.y,
-      { x: image.x, y: image.y, width: image.width, height: image.height },
-      8
-    );
-
-    if (edge) {
-      // Start edge resize
-      e.cancelBubble = true; // Prevent drag
-      setIsDraggingEdge(true);
-
-      startEdgeResize(image.id, edge, canvasCoords.x, canvasCoords.y, image, isCropModeActive);
-    } else {
-      // Not clicking on edge - allow normal drag
-      setIsDraggingEdge(false);
-    }
-  }
-
-  /**
    * Handle click on image
    * Only triggers selection when move tool is active
    * Ignores clicks on locked objects
@@ -312,10 +216,9 @@ export const ImageShape = memo(function ImageShape({
    */
   function handleClick(e: Konva.KonvaEventObject<MouseEvent>) {
     // Ignore clicks on locked objects
-    if (isLocked) return;
-
-    // Don't select if we're doing an edge resize
-    if (isDraggingEdge) return;
+    if (isLocked) {
+      return;
+    }
 
     if (activeTool === 'move') {
       onSelect(e);
@@ -473,76 +376,6 @@ export const ImageShape = memo(function ImageShape({
     }
   }
 
-  /**
-   * Handle mouse move over image
-   * Detect if cursor is near edge and update cursor style
-   * Handle edge drag movement
-   */
-  function handleMouseMove(e: Konva.KonvaEventObject<MouseEvent>) {
-    // If dragging edge, handle edge drag movement
-    if (isDraggingEdge) {
-      const stage = e.target.getStage();
-      if (!stage) return;
-
-      const pointerPos = stage.getPointerPosition();
-      if (!pointerPos) return;
-
-      const canvasCoords = screenToCanvasCoords(stage, pointerPos);
-      moveEdgeResize(canvasCoords.x, canvasCoords.y);
-      return;
-    }
-
-    // Only detect edges when move tool is active
-    if (activeTool !== 'move') return;
-
-    // Skip if locked (can't resize locked images)
-    if (isLocked) return;
-
-    const stage = e.target.getStage();
-    if (!stage) return;
-
-    // Get cursor position in stage coordinates
-    const pointerPos = stage.getPointerPosition();
-    if (!pointerPos) return;
-
-    // Convert to canvas coordinates
-    const canvasCoords = screenToCanvasCoords(stage, pointerPos);
-
-    // Detect which edge is hovered
-    const edge = detectEdge(
-      canvasCoords.x,
-      canvasCoords.y,
-      {
-        x: image.x,
-        y: image.y,
-        width: image.width,
-        height: image.height,
-      },
-      8  // 8px threshold
-    );
-
-    // Update cursor based on edge
-    if (edge) {
-      const cursor = getCursorForEdge(edge);
-      if (cursor) {
-        stage.container().style.cursor = cursor;
-      }
-    } else if (!isSelected) {
-      // Reset to move cursor when not near edge
-      stage.container().style.cursor = 'move';
-    }
-  }
-
-  /**
-   * Handle mouse up after edge resize
-   */
-  function handleMouseUp() {
-    if (!isDraggingEdge) return;
-
-    setIsDraggingEdge(false);
-    endEdgeResize();
-  }
-
   // Determine stroke styling based on state
   const getStroke = () => {
     if (isLocked && isSelected) return '#0ea5e9'; // Locked + Selected: blue (same as normal selection)
@@ -559,6 +392,11 @@ export const ImageShape = memo(function ImageShape({
     if (isSelected) return 3; // Selected: thick border
     if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
     return undefined; // Default: no border
+  };
+
+  const getOpacity = () => {
+    if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
+    return 1; // Default: fully opaque
   };
 
   const getShadow = () => {
@@ -586,7 +424,6 @@ export const ImageShape = memo(function ImageShape({
 
   // Don't render if hidden
   if (image.visible === false) {
-    console.log('[ImageShape] Not rendering (hidden):', image.id);
     return null;
   }
 
@@ -597,62 +434,54 @@ export const ImageShape = memo(function ImageShape({
   }
 
   if (!htmlImage) {
-    console.log('[ImageShape] Not rendering (waiting for image to load):', image.id, image.fileName);
     return null;
   }
 
   return (
     <Fragment>
-      {/* Clipping Group - defines visible layout bounds (crop frame) */}
-      <Group
+      <Image
+        id={image.id}
+        ref={shapeRef}
+        image={htmlImage}
+        // Position adjusted for center-based offset: x,y in data model represents top-left,
+        // but with offset we need to position at center, so add half dimensions
         x={displayX + width / 2}
         y={displayY + height / 2}
-        offsetX={width / 2}
-        offsetY={height / 2}
+        width={width}
+        height={height}
+        // Crop properties (Konva's built-in cropping)
+        cropX={image.cropX ?? 0}
+        cropY={image.cropY ?? 0}
+        cropWidth={image.cropWidth ?? image.naturalWidth}
+        cropHeight={image.cropHeight ?? image.naturalHeight}
+        // Transform properties
         rotation={image.rotation ?? 0}
+        opacity={(image.opacity ?? 1) * getOpacity()} // Combine shape opacity with state opacity
         scaleX={image.scaleX ?? 1}
         scaleY={image.scaleY ?? 1}
         skewX={image.skewX ?? 0}
         skewY={image.skewY ?? 0}
-        clipFunc={(ctx) => {
-          // Clip to layout bounds (crop frame)
-          ctx.rect(0, 0, width, height);
-        }}
-      >
-        {/* Image within clip - can extend beyond layout */}
-        <Image
-          id={image.id}
-          ref={shapeRef}
-          image={htmlImage}
-          // Position relative to group (layout bounds)
-          x={imageX}
-          y={imageY}
-          width={imageWidth}
-          height={imageHeight}
-          // Opacity
-          opacity={image.opacity ?? 1}
-          // Stroke properties (with state-based overrides for selection/hover)
-          stroke={getStroke() ?? image.stroke}
-          strokeWidth={getStrokeWidth() ?? image.strokeWidth ?? 0}
-          strokeEnabled={image.strokeEnabled ?? true}
-          dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
-          // Shadow properties (with selection glow override)
-          {...getShadow()}
-          // Interaction
-          listening={!isLocked} // Locked objects don't respond to events
-          onClick={handleClick}
-          onTap={handleClick} // Mobile support
-          draggable={!isLocked && !isDraggingEdge && (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isInMultiSelect} // Disable drag if locked, edge resizing, remotely dragging, or in multi-select
-          onMouseDown={handleMouseDown}
-          onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
-          onDragEnd={handleDragEnd}
-          onMouseEnter={handleMouseEnter}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
-        />
-      </Group>
+        // Offset for center-based rotation (shapes rotate around their center, not top-left)
+        offsetX={width / 2}
+        offsetY={height / 2}
+        // Stroke properties (with state-based overrides for selection/hover)
+        stroke={getStroke() ?? image.stroke}
+        strokeWidth={getStrokeWidth() ?? image.strokeWidth ?? 0}
+        strokeEnabled={image.strokeEnabled ?? true}
+        dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
+        // Shadow properties (with selection glow override)
+        {...getShadow()}
+        // Interaction
+        listening={!isLocked} // Locked objects don't respond to events
+        onClick={handleClick}
+        onTap={handleClick} // Mobile support
+        draggable={!isLocked && (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isInMultiSelect} // Disable drag if locked, remotely dragging, or in multi-select
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
 
       {/* Hover outline from sidebar (only when hovered in panel, not selected) */}
       {isHoveredFromSidebar && (
@@ -662,6 +491,11 @@ export const ImageShape = memo(function ImageShape({
           y={displayY + height / 2}
           width={width}
           height={height}
+          // Apply same crop to hover outline
+          cropX={image.cropX ?? 0}
+          cropY={image.cropY ?? 0}
+          cropWidth={image.cropWidth ?? image.naturalWidth}
+          cropHeight={image.cropHeight ?? image.naturalHeight}
           stroke="#9ca3af"
           strokeWidth={1.5}
           dash={[4, 4]}

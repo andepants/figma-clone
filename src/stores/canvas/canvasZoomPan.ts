@@ -32,14 +32,14 @@ export function createCanvasZoomPan(set: Parameters<StateCreator<CanvasStore>>[0
 
     zoomTo: (percentage: number) =>
       set(() => ({
-        zoom: Math.max(0.1, Math.min(5.0, percentage / 100)),
+        zoom: Math.max(0.1, Math.min(5.0, percentage / 400)), // Renormalized: 100% = 0.25
       })),
 
     zoomToFit: (viewportWidth = 1200, viewportHeight = 800) =>
       set((state) => {
-        // If no objects, reset to 100%
+        // If no objects, reset to 100% (renormalized: 0.25 = "100%")
         if (state.objects.length === 0) {
-          return { zoom: 1.0, panX: 0, panY: 0 };
+          return { zoom: 0.25, panX: 0, panY: 0 };
         }
 
         // Calculate bounding box of all objects
@@ -88,7 +88,7 @@ export function createCanvasZoomPan(set: Parameters<StateCreator<CanvasStore>>[0
 
         // Guard against zero or invalid dimensions
         if (width <= 0 || height <= 0 || !isFinite(width) || !isFinite(height)) {
-          return { zoom: 1.0, panX: 0, panY: 0 };
+          return { zoom: 0.25, panX: 0, panY: 0 }; // Renormalized: 0.25 = "100%"
         }
 
         // Add padding (20% of viewport)
@@ -101,7 +101,7 @@ export function createCanvasZoomPan(set: Parameters<StateCreator<CanvasStore>>[0
 
         // Guard against NaN zoom
         if (!isFinite(newZoom)) {
-          return { zoom: 1.0, panX: 0, panY: 0 };
+          return { zoom: 0.25, panX: 0, panY: 0 }; // Renormalized: 0.25 = "100%"
         }
 
         // Calculate center position for the content
@@ -127,7 +127,7 @@ export function createCanvasZoomPan(set: Parameters<StateCreator<CanvasStore>>[0
 
     resetView: () =>
       set(() => ({
-        zoom: 1.0,
+        zoom: 0.25, // Renormalized: 0.25 = "100%"
         panX: 0,
         panY: 0,
       })),
