@@ -183,8 +183,7 @@ export default function ProjectsPage() {
 
       await redirectToCheckout(
         priceId,
-        currentUser.email!,
-        currentUser.uid
+        currentUser.email!
       );
     } catch (error) {
       console.error('❌ Upgrade failed:', error);

@@ -9,7 +9,7 @@
  * Extracted from ProjectsPage.tsx to improve modularity and testability.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 interface UsePaymentStatusReturn {
@@ -61,9 +61,9 @@ export function usePaymentStatus(
    * Clears payment status from URL query params.
    * Used to dismiss success/error banners.
    */
-  const clearPaymentStatus = () => {
+  const clearPaymentStatus = useCallback(() => {
     setSearchParams({});
-  };
+  }, [setSearchParams]);
 
   // Auto-dismiss payment success banner when subscription updates
   useEffect(() => {
@@ -75,7 +75,7 @@ export function usePaymentStatus(
 
       return () => clearTimeout(timer);
     }
-  }, [paymentStatus, isPaidUser, subscriptionStatus]);
+  }, [paymentStatus, isPaidUser, subscriptionStatus, clearPaymentStatus]);
 
   // Webhook fallback: Manually verify session if webhook doesn't fire within 5 seconds
   useEffect(() => {

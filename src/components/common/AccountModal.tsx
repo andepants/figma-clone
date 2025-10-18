@@ -93,7 +93,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
         ? import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID // $10/year (founders - first 10 users)
         : import.meta.env.VITE_STRIPE_FOUNDERS_PRICE_ID60; // $60/year (after 10 users)
 
-      await redirectToCheckout(priceId, currentUser.email!, currentUser.uid);
+      await redirectToCheckout(priceId, currentUser.email!);
     } catch (error) {
       console.error('Upgrade failed:', error);
       alert('Failed to start upgrade. Please try again.');
