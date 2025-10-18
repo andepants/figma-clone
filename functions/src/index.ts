@@ -12,7 +12,7 @@ dotenv.config({path: resolve(__dirname, "../../.env.local")});
 
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onCall, onRequest} from "firebase-functions/v2/https";
-import {defineSecret} from "firebase-functions/params";
+import {defineSecret, defineString} from "firebase-functions/params";
 import {ProcessAICommandRequest} from "./types";
 
 // Import handlers
@@ -25,6 +25,10 @@ import {stripeWebhookHandler} from "./handlers/stripeWebhook.js";
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+
+// Define environment parameters (non-secret config)
+const stripeFoundersPriceId = defineString("STRIPE_FOUNDERS_PRICE_ID");
+const stripeProPriceId = defineString("STRIPE_PRO_PRICE_ID");
 
 // Global options for all functions
 setGlobalOptions({
@@ -103,9 +107,18 @@ export const verifyCheckoutSession = onCall(
  */
 export const stripeWebhook = onRequest(
   {
-    secrets: [stripeWebhookSecret],
+    secrets: [stripeSecretKey, stripeWebhookSecret],
   },
   async (req, res) => {
+    // Set price IDs in environment for webhook handlers to access
+    // In production, these come from Firebase params; in dev, from .env.local
+    if (!process.env.STRIPE_FOUNDERS_PRICE_ID) {
+      process.env.STRIPE_FOUNDERS_PRICE_ID = stripeFoundersPriceId.value();
+    }
+    if (!process.env.STRIPE_PRO_PRICE_ID) {
+      process.env.STRIPE_PRO_PRICE_ID = stripeProPriceId.value();
+    }
+
     // Type assertion for compatibility with handler signature
     await stripeWebhookHandler(req as never, res as never, stripeWebhookSecret);
   }

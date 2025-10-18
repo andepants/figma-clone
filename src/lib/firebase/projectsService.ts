@@ -1,39 +1,33 @@
 /**
- * Firestore Projects Service
+ * Realtime Database Projects Service
  *
- * Manages CRUD operations for projects in Firestore.
+ * Manages CRUD operations for projects in Firebase Realtime Database.
  * Handles project creation, fetching, updating, and deletion.
  *
- * @see _docs/database/firestore-schema.md
+ * @see _docs/database/database-structure.md
  */
 
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  onSnapshot,
+  ref,
+  set,
+  get,
+  update,
+  remove,
+  onValue,
   type Unsubscribe,
-  orderBy,
-  limit as queryLimit,
-} from 'firebase/firestore';
-import { firestore } from './config';
+} from 'firebase/database';
+import { realtimeDb } from './config';
 import type { Project } from '@/types/project.types';
 
 /**
- * Create a new project in Firestore
+ * Create a new project in Realtime Database
  *
- * @param project - Project data (must include id, name, ownerId, template)
+ * @param project - Project data (must include id, name, ownerId)
  * @throws Error if project creation fails
  */
 export async function createProject(project: Project): Promise<void> {
-  const projectRef = doc(firestore, 'projects', project.id);
-  await setDoc(projectRef, {
+  const projectRef = ref(realtimeDb, `projects/${project.id}`);
+  await set(projectRef, {
     ...project,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -47,14 +41,14 @@ export async function createProject(project: Project): Promise<void> {
  * @returns Project data or null if not found
  */
 export async function getProject(projectId: string): Promise<Project | null> {
-  const projectRef = doc(firestore, 'projects', projectId);
-  const projectSnap = await getDoc(projectRef);
+  const projectRef = ref(realtimeDb, `projects/${projectId}`);
+  const snapshot = await get(projectRef);
 
-  if (!projectSnap.exists()) {
+  if (!snapshot.exists()) {
     return null;
   }
 
-  return projectSnap.data() as Project;
+  return snapshot.val() as Project;
 }
 
 /**
@@ -68,20 +62,19 @@ export async function getUserProjects(
   userId: string,
   limit?: number
 ): Promise<Project[]> {
-  const projectsRef = collection(firestore, 'projects');
-  const constraints: Parameters<typeof query>[1][] = [
-    where('ownerId', '==', userId),
-    orderBy('updatedAt', 'desc'),
-  ];
+  const projectsRef = ref(realtimeDb, 'projects');
+  const snapshot = await get(projectsRef);
 
-  if (limit) {
-    constraints.push(queryLimit(limit));
+  if (!snapshot.exists()) {
+    return [];
   }
 
-  const q = query(projectsRef, ...constraints);
-  const querySnapshot = await getDocs(q);
+  const projectsData = snapshot.val() as Record<string, Project>;
+  const projects = Object.values(projectsData)
+    .filter((project) => project.ownerId === userId)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  return querySnapshot.docs.map((doc) => doc.data() as Project);
+  return limit ? projects.slice(0, limit) : projects;
 }
 
 /**
@@ -91,20 +84,19 @@ export async function getUserProjects(
  * @returns Array of public projects sorted by updatedAt (newest first)
  */
 export async function getPublicProjects(limit?: number): Promise<Project[]> {
-  const projectsRef = collection(firestore, 'projects');
-  const constraints: Parameters<typeof query>[1][] = [
-    where('isPublic', '==', true),
-    orderBy('updatedAt', 'desc'),
-  ];
+  const projectsRef = ref(realtimeDb, 'projects');
+  const snapshot = await get(projectsRef);
 
-  if (limit) {
-    constraints.push(queryLimit(limit));
+  if (!snapshot.exists()) {
+    return [];
   }
 
-  const q = query(projectsRef, ...constraints);
-  const querySnapshot = await getDocs(q);
+  const projectsData = snapshot.val() as Record<string, Project>;
+  const projects = Object.values(projectsData)
+    .filter((project) => project.isPublic === true)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  return querySnapshot.docs.map((doc) => doc.data() as Project);
+  return limit ? projects.slice(0, limit) : projects;
 }
 
 /**
@@ -116,15 +108,20 @@ export async function getPublicProjects(limit?: number): Promise<Project[]> {
 export async function getPublicProjectsForUser(
   userId: string
 ): Promise<Project[]> {
-  const projectsRef = collection(firestore, 'projects');
-  const q = query(
-    projectsRef,
-    where('isPublic', '==', true),
-    where('collaborators', 'array-contains', userId)
-  );
+  const projectsRef = ref(realtimeDb, 'projects');
+  const snapshot = await get(projectsRef);
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => doc.data() as Project);
+  if (!snapshot.exists()) {
+    return [];
+  }
+
+  const projectsData = snapshot.val() as Record<string, Project>;
+  return Object.values(projectsData)
+    .filter(
+      (project) =>
+        project.isPublic === true && project.collaborators.includes(userId)
+    )
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /**
@@ -137,8 +134,8 @@ export async function updateProject(
   projectId: string,
   updates: Partial<Omit<Project, 'id' | 'createdAt'>>
 ): Promise<void> {
-  const projectRef = doc(firestore, 'projects', projectId);
-  await updateDoc(projectRef, {
+  const projectRef = ref(realtimeDb, `projects/${projectId}`);
+  await update(projectRef, {
     ...updates,
     updatedAt: Date.now(),
   });
@@ -150,8 +147,8 @@ export async function updateProject(
  * @param projectId - Project ID
  */
 export async function deleteProject(projectId: string): Promise<void> {
-  const projectRef = doc(firestore, 'projects', projectId);
-  await deleteDoc(projectRef);
+  const projectRef = ref(realtimeDb, `projects/${projectId}`);
+  await remove(projectRef);
 }
 
 /**
@@ -165,11 +162,11 @@ export function subscribeToProject(
   projectId: string,
   callback: (project: Project | null) => void
 ): Unsubscribe {
-  const projectRef = doc(firestore, 'projects', projectId);
+  const projectRef = ref(realtimeDb, `projects/${projectId}`);
 
-  return onSnapshot(projectRef, (snapshot) => {
+  return onValue(projectRef, (snapshot) => {
     if (snapshot.exists()) {
-      callback(snapshot.data() as Project);
+      callback(snapshot.val() as Project);
     } else {
       callback(null);
     }
@@ -187,15 +184,19 @@ export function subscribeToUserProjects(
   userId: string,
   callback: (projects: Project[]) => void
 ): Unsubscribe {
-  const projectsRef = collection(firestore, 'projects');
-  const q = query(
-    projectsRef,
-    where('ownerId', '==', userId),
-    orderBy('updatedAt', 'desc')
-  );
+  const projectsRef = ref(realtimeDb, 'projects');
 
-  return onSnapshot(q, (snapshot) => {
-    const projects = snapshot.docs.map((doc) => doc.data() as Project);
+  return onValue(projectsRef, (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+
+    const projectsData = snapshot.val() as Record<string, Project>;
+    const projects = Object.values(projectsData)
+      .filter((project) => project.ownerId === userId)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+
     callback(projects);
   });
 }
