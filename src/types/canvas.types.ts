@@ -222,9 +222,17 @@ export type ImageStorageType = 'dataURL' | 'storage';
  * Image-specific properties
  * @interface ImageProperties
  * @property {boolean} [lockAspectRatio] - Maintain aspect ratio when resizing (default: true)
+ * @property {number} [cropX] - X position to start cropping from source image (default: 0)
+ * @property {number} [cropY] - Y position to start cropping from source image (default: 0)
+ * @property {number} [cropWidth] - Width of crop area from source image (default: naturalWidth)
+ * @property {number} [cropHeight] - Height of crop area from source image (default: naturalHeight)
  */
 export interface ImageProperties {
   lockAspectRatio?: boolean;
+  cropX?: number;
+  cropY?: number;
+  cropWidth?: number;
+  cropHeight?: number;
 }
 
 /**

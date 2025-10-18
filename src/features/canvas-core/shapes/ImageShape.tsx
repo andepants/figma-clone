@@ -449,6 +449,11 @@ export const ImageShape = memo(function ImageShape({
         y={displayY + height / 2}
         width={width}
         height={height}
+        // Crop properties (Konva's built-in cropping)
+        cropX={image.cropX ?? 0}
+        cropY={image.cropY ?? 0}
+        cropWidth={image.cropWidth ?? image.naturalWidth}
+        cropHeight={image.cropHeight ?? image.naturalHeight}
         // Transform properties
         rotation={image.rotation ?? 0}
         opacity={(image.opacity ?? 1) * getOpacity()} // Combine shape opacity with state opacity
@@ -486,6 +491,11 @@ export const ImageShape = memo(function ImageShape({
           y={displayY + height / 2}
           width={width}
           height={height}
+          // Apply same crop to hover outline
+          cropX={image.cropX ?? 0}
+          cropY={image.cropY ?? 0}
+          cropWidth={image.cropWidth ?? image.naturalWidth}
+          cropHeight={image.cropHeight ?? image.naturalHeight}
           stroke="#9ca3af"
           strokeWidth={1.5}
           dash={[4, 4]}
