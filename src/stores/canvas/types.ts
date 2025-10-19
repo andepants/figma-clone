@@ -288,6 +288,30 @@ export interface CanvasActions {
    * @returns Current project ID
    */
   getProjectId: () => string;
+
+  /**
+   * Create a processed version of an image (e.g., after background removal)
+   *
+   * Creates a new ImageObject next to the original with processed image.
+   * Preserves all visual properties from original (rotation, opacity, etc.).
+   * Offsets position slightly to avoid overlap.
+   * Syncs to Firebase for persistence and real-time collaboration.
+   *
+   * @param originalImage - Original image object
+   * @param processedData - Processed image data from background removal
+   * @param userId - Current user ID (for createdBy field, required by database rules)
+   */
+  createProcessedImage: (
+    originalImage: CanvasObject,
+    processedData: {
+      url: string;
+      storagePath: string;
+      naturalWidth?: number;
+      naturalHeight?: number;
+      fileSize: number;
+    },
+    userId: string
+  ) => Promise<void>;
 }
 
 /**

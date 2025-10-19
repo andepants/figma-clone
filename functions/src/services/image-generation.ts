@@ -256,93 +256,91 @@ export function enhancePrompt(
     // - Technical: Square format, no text (illegible at small sizes), centered composition
 
     if (iconStyle === 'glassmorphism') {
-      return `Professional mobile app icon design for iOS and Android: ${sanitized}.
+      return `PERFECT SQUARE logo design with SHARP 90-DEGREE CORNERS: ${sanitized}
 
-CRITICAL REQUIREMENTS - READ CAREFULLY:
-1. The icon design MUST fill 100% of the 1024x1024 canvas from edge to edge
-2. NO padding, NO margins, NO borders, NO dark/black/gray backgrounds around the icon
-3. The colorful icon design extends to all four edges of the square
-4. Perfect square shape - NO rounded corners on the icon itself
-5. The icon background is part of the design - it fills the entire canvas
+CRITICAL GEOMETRIC REQUIREMENTS:
+- SQUARE ASPECT RATIO 1:1 - Perfectly square, not rectangular
+- PERFECT SQUARE FORMAT: 1024x1024 pixels with HARD STRAIGHT EDGES
+- SHARP 90-DEGREE CORNERS: Perfectly rectangular, box-like shape
+- NO ROUNDED EDGES - Corners must be perfectly sharp and angular
+- The design MUST be FLUSH TO EDGES and BORDER-TO-BORDER
+- NEVER use rounded corners, circular masks, curved edges, or corner radius
+- Think of a perfectly cut square tile with crisp, sharp corners
 
-Style requirements:
-- Modern aesthetic with glassmorphism 2.0 effect (subtle depth, soft translucency)
-- Vibrant gradient colors with high contrast for maximum visibility
-- 3D symbolism with subtle shadows and highlights for tactile feel
-- Bold, memorable, and instantly recognizable design
-- The icon graphic fills the ENTIRE 1024x1024 square from corner to corner
-- Perfect square edges - NO rounded corners
+WHAT TO CREATE:
+Professional square logo design for mobile applications featuring: ${sanitized}
 
-Technical specifications:
-- Icon design fills 100% of canvas edge-to-edge - zero padding
+Style - Modern Glassmorphism:
+- Vibrant gradient colors with glassmorphic depth and translucency
+- 3D effect with subtle shadows and highlights for tactile feel
+- High contrast, bold, and instantly recognizable
+- Modern 2025 aesthetic with saturated colors
+
+Format Requirements:
+- Design FLUSH TO EDGES - fills entire 1024x1024 square BORDER-TO-BORDER (zero padding)
 - Perfectly centered composition with balanced visual weight
-- NO text or letters (illegible at small sizes, against Apple HIG)
-- Simple geometric shapes that scale well from 29px to 1024px
-- Square format (NOT rounded) with no transparency
-- Professional quality suitable for App Store and Google Play
+- NO text or letters (keep it purely visual and symbolic)
+- Simple iconic shapes that work at any size
+- Vibrant color background fills the entire square edge-to-edge
 
-Color guidance:
-- Use vibrant, saturated colors as the icon background
-- Entire 1024x1024 square filled with colorful design
-- NO black, gray, dark, or white backgrounds surrounding the icon
-- Icon background color should be vibrant and eye-catching
-- Think: solid bright background with contrasting icon elements on top
+FORBIDDEN ELEMENTS (do not include):
+- NO ROUNDED EDGES - corners must be perfectly sharp 90-degree angles
+- Rounded corners, curved edges, or circular masks
+- Padding, margins, or dark backgrounds around the design
+- Text, letters, or words of any kind
+- Transparency or alpha channels
 
-Design philosophy:
-- Follow Apple's principle of "simple but not simplistic"
-- Create a unique visual identity that stands out in crowded app stores
-- Design should be recognizable even at thumbnail size
-- Should work well in both light and dark mode contexts
-- MOST IMPORTANT: Icon fills entire square edge-to-edge, NO rounded corners, NO surrounding background`;
+Design Philosophy:
+- Simple but memorable - should stand out in app stores
+- Entire square filled with vibrant colorful design BORDER-TO-BORDER
+- Sharp rectangular format with SQUARE ASPECT RATIO 1:1
+- Must have perfectly square 90-degree corners with NO ROUNDED EDGES`;
     } else {
       // Minimalist style inspired by Apple, Airbnb, Figma
-      return `Professional mobile app icon design for iOS and Android: ${sanitized}.
+      return `PERFECT SQUARE logo design with SHARP 90-DEGREE CORNERS: ${sanitized}
 
-CRITICAL REQUIREMENTS - READ CAREFULLY:
-1. The icon design MUST fill 100% of the 1024x1024 canvas from edge to edge
-2. NO padding, NO margins, NO borders, NO dark/black/gray backgrounds around the icon
-3. The icon design extends to all four edges of the square
-4. Perfect square shape - NO rounded corners on the icon itself
-5. The icon background is part of the design - it fills the entire canvas
+CRITICAL GEOMETRIC REQUIREMENTS:
+- SQUARE ASPECT RATIO 1:1 - Perfectly square, not rectangular
+- PERFECT SQUARE FORMAT: 1024x1024 pixels with HARD STRAIGHT EDGES
+- SHARP 90-DEGREE CORNERS: Perfectly rectangular, box-like shape
+- NO ROUNDED EDGES - Corners must be perfectly sharp and angular
+- The design MUST be FLUSH TO EDGES and BORDER-TO-BORDER
+- NEVER use rounded corners, circular masks, curved edges, or corner radius
+- Think of a perfectly cut square tile with crisp, sharp corners
 
-Style requirements (Minimalist - inspired by Apple, Airbnb, Figma):
-- Ultra-clean, minimalist aesthetic with flat design principles
-- Simple geometric shapes with perfect symmetry
-- Limited color palette (1-3 colors maximum) with intentional use of negative space
-- No gradients or shadows - pure flat design
-- Crisp, sharp square edges - NO rounded corners
-- Modern, timeless design that feels premium and refined
-- The icon graphic fills the ENTIRE 1024x1024 square from corner to corner
+WHAT TO CREATE:
+Professional square logo design for mobile applications featuring: ${sanitized}
 
-Design inspiration:
-- Apple: Simple, iconic, instantly recognizable (Music, Photos, Settings icons)
-- Airbnb: Clean geometric shapes with purposeful negative space
-- Figma: Bold, simple shapes with vibrant solid colors
-- Emphasis on clarity and simplicity over complexity
+Style - Clean Minimalist (Apple/Airbnb/Figma inspired):
+- Ultra-clean flat design with pure geometric shapes
+- Limited color palette (1-3 solid colors only)
+- Perfect symmetry and mathematical precision
+- No gradients or shadows - pure flat aesthetic
+- Simple, iconic, instantly recognizable
+- Inspired by: Apple Music icon, Figma logo, Airbnb symbol
 
-Technical specifications:
-- Icon design fills 100% of canvas edge-to-edge - zero padding
-- Perfectly centered composition with mathematical precision
-- NO text or letters (illegible at small sizes, against Apple HIG)
-- Ultra-simple geometric shapes (circles, squares, triangles)
-- Square format (NOT rounded) with no transparency
-- Professional quality suitable for App Store and Google Play
-
-Color guidance:
-- Use solid, vibrant colors from modern tech brand palettes
-- Single solid color background with contrasting simple shape on top
-- Or use 2-3 colors in clean geometric divisions
-- Entire 1024x1024 square filled with the minimalist design
-- NO black, gray, dark, or white backgrounds surrounding the icon
+Format Requirements:
+- Design FLUSH TO EDGES - fills entire 1024x1024 square BORDER-TO-BORDER (zero padding)
+- Perfectly centered with geometric balance
+- NO text or letters (keep it purely visual and symbolic)
+- Ultra-simple shapes: circles, triangles, squares
+- Solid vibrant color background fills the entire square edge-to-edge
 - Think: Spotify green (#1DB954), Figma purple (#A259FF), Airbnb coral (#FF5A5F)
-- Icon background should be a vibrant solid color
 
-Design philosophy:
-- "Less is more" - remove everything unnecessary
-- Every element must serve a purpose
-- Negative space is as important as positive space
-- Geometric perfection and mathematical balance
-- MOST IMPORTANT: Icon fills entire square edge-to-edge, NO rounded corners, NO surrounding background`;
+FORBIDDEN ELEMENTS (do not include):
+- NO ROUNDED EDGES - corners must be perfectly sharp 90-degree angles
+- Rounded corners, curved edges, or circular masks
+- Padding, margins, or dark backgrounds around the design
+- Text, letters, or words of any kind
+- Transparency or alpha channels
+- Gradients or shadows
+
+Design Philosophy:
+- "Less is more" - pure minimalism
+- Negative space as important as positive space
+- Entire square filled with clean, vibrant design BORDER-TO-BORDER
+- Sharp rectangular format with SQUARE ASPECT RATIO 1:1
+- Must have perfectly square 90-degree corners with NO ROUNDED EDGES`;
     }
   } else {
     // Feature graphic enhancement based on:

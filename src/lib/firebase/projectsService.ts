@@ -119,7 +119,7 @@ export async function getPublicProjectsForUser(
   return Object.values(projectsData)
     .filter(
       (project) =>
-        project.isPublic === true && project.collaborators.includes(userId)
+        project.isPublic === true && project.collaborators[userId] === true
     )
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -214,7 +214,7 @@ export function canUserAccessProject(
 ): boolean {
   if (project.isPublic) return true;
   if (project.ownerId === userId) return true;
-  if (project.collaborators.includes(userId)) return true;
+  if (project.collaborators[userId] === true) return true;
   return false;
 }
 
@@ -257,7 +257,7 @@ export async function createDefaultProject(
     name: `${username}'s First Project`,
     ownerId: userId,
     isPublic: false,
-    collaborators: [userId],
+    collaborators: { [userId]: true },
     createdAt: Date.now(),
     updatedAt: Date.now(),
     objectCount: 0,
@@ -265,4 +265,139 @@ export async function createDefaultProject(
 
   await createProject(project);
   return project;
+}
+
+// ========================================
+// COLLABORATOR MANAGEMENT
+// ========================================
+
+/**
+ * Add collaborator to project
+ *
+ * Adds a user to the project's collaborators map.
+ * Validates project exists and user is not already a collaborator.
+ *
+ * @param projectId - Project ID
+ * @param userId - User ID to add as collaborator
+ * @throws Error if project not found or user already collaborator
+ */
+export async function addCollaborator(
+  projectId: string,
+  userId: string
+): Promise<void> {
+  const projectRef = ref(realtimeDb, `projects/${projectId}`);
+  const snapshot = await get(projectRef);
+
+  if (!snapshot.exists()) {
+    throw new Error('Project not found');
+  }
+
+  const project = snapshot.val() as Project;
+
+  if (project.collaborators[userId] === true) {
+    throw new Error('User is already a collaborator');
+  }
+
+  await update(projectRef, {
+    collaborators: { ...project.collaborators, [userId]: true },
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * Remove collaborator from project
+ *
+ * Removes a user from the project's collaborators map.
+ * Only the project owner can remove collaborators.
+ * Owner cannot be removed from the project.
+ *
+ * @param projectId - Project ID
+ * @param userId - User ID to remove
+ * @param requestingUserId - User making the request (for permission check)
+ * @throws Error if not owner, trying to remove owner, or user not found
+ */
+export async function removeCollaborator(
+  projectId: string,
+  userId: string,
+  requestingUserId: string
+): Promise<void> {
+  const projectRef = ref(realtimeDb, `projects/${projectId}`);
+  const snapshot = await get(projectRef);
+
+  if (!snapshot.exists()) {
+    throw new Error('Project not found');
+  }
+
+  const project = snapshot.val() as Project;
+
+  // Only owner can remove collaborators
+  if (project.ownerId !== requestingUserId) {
+    throw new Error('Only owner can remove collaborators');
+  }
+
+  // Cannot remove owner
+  if (userId === project.ownerId) {
+    throw new Error('Cannot remove project owner');
+  }
+
+  if (project.collaborators[userId] !== true) {
+    throw new Error('User is not a collaborator');
+  }
+
+  // Create new collaborators object without the removed user
+  const { [userId]: _removed, ...remainingCollaborators } = project.collaborators;
+
+  await update(projectRef, {
+    collaborators: remainingCollaborators,
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * Get projects where user is collaborator (not owner)
+ *
+ * Returns projects where the user is in the collaborators map
+ * but is not the owner. Excludes PUBLIC_PLAYGROUND.
+ *
+ * @param userId - User ID
+ * @returns Array of projects where user is collaborator, sorted by updatedAt
+ */
+export async function getCollaboratedProjects(
+  userId: string
+): Promise<Project[]> {
+  const projectsRef = ref(realtimeDb, 'projects');
+  const snapshot = await get(projectsRef);
+
+  if (!snapshot.exists()) {
+    return [];
+  }
+
+  const projectsData = snapshot.val() as Record<string, Project>;
+  return Object.values(projectsData)
+    .filter(
+      (project) =>
+        project.collaborators[userId] === true &&
+        project.ownerId !== userId &&
+        project.id !== 'PUBLIC_PLAYGROUND' // Exclude playground
+    )
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/**
+ * Get all projects accessible by user (owned + collaborated)
+ *
+ * Combines both owned and collaborated projects into a single array.
+ * Useful for displaying all accessible projects in the projects portal.
+ *
+ * @param userId - User ID
+ * @returns Combined array of owned and collaborated projects, sorted by updatedAt
+ */
+export async function getAllUserProjects(userId: string): Promise<Project[]> {
+  const ownedProjects = await getUserProjects(userId);
+  const collaboratedProjects = await getCollaboratedProjects(userId);
+
+  // Combine and sort by updatedAt (newest first)
+  return [...ownedProjects, ...collaboratedProjects].sort(
+    (a, b) => b.updatedAt - a.updatedAt
+  );
 }

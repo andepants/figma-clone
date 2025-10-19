@@ -172,5 +172,84 @@ export function createCanvasActions(
         objects: [],
         selectedIds: [],
       })),
+
+    /**
+     * Create processed image from background removal
+     *
+     * Creates a new ImageObject next to the original with processed image.
+     * Preserves all visual properties from original (rotation, opacity, etc.).
+     * Offsets position slightly to avoid overlap.
+     * Syncs to Firebase for persistence and real-time collaboration.
+     *
+     * @param originalImage - Original image object
+     * @param processedData - Processed image data from background removal
+     * @param userId - Current user ID (for createdBy field, required by database rules)
+     */
+    createProcessedImage: async (
+      originalImage: CanvasObject,
+      processedData: {
+        url: string;
+        storagePath: string;
+        naturalWidth?: number;
+        naturalHeight?: number;
+        fileSize: number;
+      },
+      userId: string
+    ) => {
+      if (originalImage.type !== 'image') {
+        console.error('createProcessedImage called with non-image object');
+        return;
+      }
+
+      const now = Date.now();
+
+      // Extract base filename without extension
+      const originalFileName = originalImage.fileName || 'image.png';
+      const fileNameParts = originalFileName.split('.');
+      const extension = fileNameParts.length > 1 ? fileNameParts.pop() : 'png';
+      const baseName = fileNameParts.join('.');
+
+      // Create new image object with same properties as original
+      const newImage: CanvasObject = {
+        ...originalImage,
+        id: crypto.randomUUID(),
+        name: `${originalImage.name || 'Image'} (no bg)`,
+        fileName: `${baseName} (no bg).${extension}`,
+        src: processedData.url,
+        storagePath: processedData.storagePath,
+        storageType: 'storage' as const,
+        fileSize: processedData.fileSize,
+        // Update dimensions if provided, otherwise keep original
+        ...(processedData.naturalWidth
+          ? { naturalWidth: processedData.naturalWidth }
+          : {}),
+        ...(processedData.naturalHeight
+          ? { naturalHeight: processedData.naturalHeight }
+          : {}),
+        // Offset position to avoid overlap
+        x: originalImage.x + 20,
+        y: originalImage.y + 20,
+        // IMPORTANT: Explicitly set createdBy (required by database rules)
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      // Add object locally (optimistic update)
+      get().addObject(newImage);
+      get().selectObjects([newImage.id]);
+
+      // Sync to Firebase for persistence
+      const { addCanvasObject } = await import('@/lib/firebase');
+      try {
+        await addCanvasObject(get().projectId, newImage);
+        console.log('[createProcessedImage] Successfully synced to Firebase RTDB');
+      } catch (error) {
+        console.error('[createProcessedImage] Failed to sync image to Firebase:', error);
+        // Rollback optimistic update on error
+        get().removeObject(newImage.id);
+        throw error; // Re-throw so caller can handle
+      }
+    },
   };
 }

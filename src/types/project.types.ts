@@ -11,7 +11,12 @@ export interface Project {
   name: string;
   ownerId: string;
   isPublic: boolean;
-  collaborators: string[];
+  /**
+   * Map of user IDs who can collaborate on this project.
+   * Structure: { [userId]: true }
+   * This format enables efficient permission checks in Firebase RTDB rules.
+   */
+  collaborators: Record<string, boolean>;
   createdAt: number;
   updatedAt: number;
   thumbnail?: string;
@@ -61,7 +66,7 @@ export function canUserAccessProject(
 
   // Owner and collaborators can access private projects
   return (
-    project.ownerId === userId || project.collaborators.includes(userId)
+    project.ownerId === userId || project.collaborators[userId] === true
   );
 }
 

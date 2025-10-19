@@ -16,6 +16,7 @@ import { useToolShortcuts } from '@/features/toolbar/hooks';
 import { useCanvasStore, usePageStore, useUIStore } from '@/stores';
 import { getProject } from '@/lib/firebase/projectsService';
 import { useAuth } from '@/features/auth/hooks';
+import { useProjectAccess } from '@/features/collaboration/hooks';
 import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SyncIndicator, ShortcutsModal } from '@/components/common';
@@ -39,6 +40,9 @@ function CanvasPage() {
 
   // Get current user for access control
   const { currentUser } = useAuth();
+
+  // Monitor project access - will redirect if user is removed
+  useProjectAccess(projectId, currentUser?.uid || null);
 
   // Project state
   const [project, setProject] = useState<Project | null>(null);

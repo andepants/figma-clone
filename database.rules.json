@@ -3,7 +3,7 @@
     "projects": {
       ".read": "auth != null",
       "$projectId": {
-        ".write": "auth != null && (data.child('ownerId').val() == auth.uid || !data.exists())",
+        ".write": "auth != null && (data.child('ownerId').val() == auth.uid || data.child('collaborators').child(auth.uid).exists() || !data.exists())",
         ".validate": "newData.hasChild('id') && newData.hasChild('name') && newData.hasChild('ownerId') && newData.hasChild('isPublic') && newData.hasChild('collaborators')",
         "id": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
@@ -18,7 +18,10 @@
           ".validate": "newData.isBoolean()"
         },
         "collaborators": {
-          ".validate": "newData.hasChildren()"
+          ".validate": "newData.hasChildren()",
+          "$userId": {
+            ".validate": "newData.isBoolean() && newData.val() == true"
+          }
         },
         "createdAt": {
           ".validate": "newData.isNumber() && newData.val() > 0"
@@ -38,7 +41,7 @@
       "$canvasId": {
         "objects": {
           ".read": "auth != null",
-          ".write": "auth != null",
+          ".write": "auth != null && (root.child('projects').child($canvasId).child('ownerId').val() == auth.uid || root.child('projects').child($canvasId).child('collaborators').child(auth.uid).exists())",
           "$objectId": {
             ".write": "auth != null",
             ".validate": "newData.hasChild('id') && newData.hasChild('type') && newData.hasChild('createdBy')",

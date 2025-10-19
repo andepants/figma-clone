@@ -158,6 +158,7 @@ export function CropEditor({ image, htmlImage, crop, onCropChange }: CropEditorP
 
   /**
    * Limit crop frame to image bounds
+   * Note: Receives coordinates in stage space, so must account for layer offset
    */
   function boundBoxFunc(oldBox: any, newBox: any) {
     // Minimum size
@@ -165,18 +166,25 @@ export function CropEditor({ image, htmlImage, crop, onCropChange }: CropEditorP
       return oldBox;
     }
 
-    // Keep within image bounds
-    if (newBox.x < 0) {
-      newBox.x = 0;
+    // Keep within image bounds (stage coordinates = offsetX/Y + display coordinates)
+    // Left boundary
+    if (newBox.x < offsetX) {
+      newBox.x = offsetX;
     }
-    if (newBox.y < 0) {
-      newBox.y = 0;
+
+    // Top boundary
+    if (newBox.y < offsetY) {
+      newBox.y = offsetY;
     }
-    if (newBox.x + newBox.width > displayWidth) {
-      newBox.width = displayWidth - newBox.x;
+
+    // Right boundary (stage coords: offsetX + displayWidth)
+    if (newBox.x + newBox.width > offsetX + displayWidth) {
+      newBox.width = (offsetX + displayWidth) - newBox.x;
     }
-    if (newBox.y + newBox.height > displayHeight) {
-      newBox.height = displayHeight - newBox.y;
+
+    // Bottom boundary (stage coords: offsetY + displayHeight)
+    if (newBox.y + newBox.height > offsetY + displayHeight) {
+      newBox.height = (offsetY + displayHeight) - newBox.y;
     }
 
     return newBox;

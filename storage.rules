@@ -15,6 +15,19 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // Processed images (background-removed images)
+    // Created by Cloud Functions (removeImageBackground) and publicly accessible
+    match /processed-images/{projectId}/{fileName} {
+      // Allow public read for processed images
+      allow read: if true;
+
+      // Only Cloud Functions can write (checked via admin SDK, not rules)
+      allow write: if false;
+
+      // Only Cloud Functions can delete
+      allow delete: if false;
+    }
+
     // Image uploads with strict validation
     match /images/{roomId}/{userId}/{fileName} {
       // Allow read for authenticated users

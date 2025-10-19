@@ -6,6 +6,7 @@
  * Displays active users presence at the top.
  */
 
+import { useState, useEffect } from 'react';
 import { Square, Circle as CircleIcon, Type, Minus, Download, ImageIcon } from 'lucide-react';
 import { useSelectedShape } from '../hooks/useSelectedShape';
 import { getSectionVisibility } from '../utils/section-visibility';
@@ -19,10 +20,13 @@ import { StrokeSection } from './StrokeSection';
 import { ImageSection } from './ImageSection';
 import { PageSection } from './PageSection';
 import { ZoomDropdown } from './ZoomDropdown';
-import { AvatarStack, PresenceDropdown, type PresenceUser } from '@/features/collaboration/components';
+import { AvatarStack, PresenceDropdown, AddUserModal, type PresenceUser } from '@/features/collaboration/components';
 import { usePresence } from '@/features/collaboration/hooks';
 import { useAuth } from '@/features/auth/hooks';
 import { useCanvasStore } from '@/stores/canvas';
+import { getProject, removeCollaborator } from '@/lib/firebase';
+import type { Project } from '@/types/project.types';
+import { toast } from 'sonner';
 
 export interface PropertiesPanelProps {
   onExport: () => void;
@@ -56,6 +60,27 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
   const onlineUsers = usePresence(projectId);
   const { currentUser } = useAuth();
 
+  // Project and modal state
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+
+  // Load current project
+  useEffect(() => {
+    async function loadProject() {
+      if (!projectId) return;
+      try {
+        const project = await getProject(projectId);
+        setCurrentProject(project);
+      } catch (error) {
+        console.error('Failed to load project:', error);
+      }
+    }
+    loadProject();
+  }, [projectId]);
+
+  // Check if current user is owner
+  const isOwner = currentProject?.ownerId === currentUser?.uid;
+
   // Map users to PresenceUser format with current user flag
   const presenceUsers: PresenceUser[] = onlineUsers.map(user => ({
     userId: user.userId,
@@ -63,6 +88,30 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
     color: user.color,
     isCurrentUser: user.userId === currentUser?.uid,
   }));
+
+  // Handle add user
+  const handleAddUser = () => {
+    setIsAddUserModalOpen(true);
+  };
+
+  // Handle remove user
+  const handleRemoveUser = async (userId: string) => {
+    if (!currentUser || !projectId) return;
+
+    try {
+      await removeCollaborator(projectId, userId, currentUser.uid);
+      toast.success('User removed from project');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to remove user';
+      toast.error(message);
+    }
+  };
+
+  // Handle user added successfully
+  const handleUserAdded = () => {
+    setIsAddUserModalOpen(false);
+    toast.success('User added to project');
+  };
 
   // Empty state - no selection
   if (!shape) {
@@ -74,6 +123,10 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
             {presenceUsers.length > 0 && (
               <PresenceDropdown
                 users={presenceUsers}
+                ownerId={currentProject?.ownerId}
+                currentUserId={currentUser?.uid}
+                onAddUser={isOwner ? handleAddUser : undefined}
+                onRemoveUser={isOwner ? handleRemoveUser : undefined}
                 trigger={<AvatarStack users={presenceUsers} maxVisible={3} size="sm" />}
               />
             )}
@@ -138,6 +191,10 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
           {presenceUsers.length > 0 && (
             <PresenceDropdown
               users={presenceUsers}
+              ownerId={currentProject?.ownerId}
+              currentUserId={currentUser?.uid}
+              onAddUser={isOwner ? handleAddUser : undefined}
+              onRemoveUser={isOwner ? handleRemoveUser : undefined}
               trigger={<AvatarStack users={presenceUsers} maxVisible={3} size="sm" />}
             />
           )}
@@ -179,6 +236,15 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
         {visibility.fill && <FillSection />}
         {visibility.stroke && <StrokeSection />}
       </div>
+
+      {/* Add User Modal */}
+      <AddUserModal
+        isOpen={isAddUserModalOpen}
+        onClose={() => setIsAddUserModalOpen(false)}
+        projectId={projectId}
+        currentCollaborators={currentProject?.collaborators || []}
+        onUserAdded={handleUserAdded}
+      />
     </div>
   );
 }

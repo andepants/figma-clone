@@ -91,7 +91,8 @@ export function createImageObject(
     fileSize: uploadedData.fileSize,
     mimeType: uploadedData.mimeType,
     storageType: uploadedData.storageType,
-    storagePath: uploadedData.storagePath ?? undefined, // Optional storage path
+    // Note: storagePath omitted when undefined - Firebase RTDB doesn't accept undefined values
+    ...(uploadedData.storagePath ? { storagePath: uploadedData.storagePath } : {}),
     lockAspectRatio: true, // Default to locked aspect ratio
 
     // Organizational properties

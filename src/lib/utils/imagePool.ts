@@ -98,44 +98,34 @@ function createImagePool(): ImagePoolAPI {
     return new Promise((resolve, reject) => {
       const img = new window.Image();
 
-      // CRITICAL FIX: Don't set crossOrigin for Firebase Storage URLs
-      // Firebase Storage getDownloadURL() returns URLs with embedded access tokens
-      // Setting crossOrigin='anonymous' prevents auth credentials from being sent
-      // This causes 403 errors in production when storage rules require authentication
+      // CRITICAL: Set crossOrigin='anonymous' for ALL cross-origin images
+      // This is REQUIRED for canvas export (toDataURL) to work.
       //
-      // Only set crossOrigin for true cross-origin URLs that need CORS
-      const isFirebaseStorage = src.includes('firebasestorage.googleapis.com') || src.includes(':9199');
+      // Without crossOrigin, loading external images "taints" the canvas,
+      // preventing export with the error: "Tainted canvases may not be exported"
+      //
+      // Firebase Storage URLs work perfectly with crossOrigin='anonymous' because:
+      // - Firebase Storage uses URL-based access tokens (query parameters like ?token=xyz)
+      // - crossOrigin='anonymous' only prevents cookies and auth headers from being sent
+      // - It does NOT prevent query parameters from being sent
+      // - Therefore, Firebase Storage authentication still works correctly
+      //
+      // Reference: https://konvajs.org/docs/posts/Tainted_Canvas.html
       const isDataURL = src.startsWith('data:');
       const isSameOrigin = src.startsWith('/') || src.startsWith(window.location.origin);
 
-      // Only set crossOrigin for external URLs that aren't Firebase Storage
-      if (!isFirebaseStorage && !isDataURL && !isSameOrigin) {
+      // Set crossOrigin for ALL cross-origin images (including Firebase Storage)
+      if (!isDataURL && !isSameOrigin) {
         img.crossOrigin = 'anonymous';
       }
 
-      console.log('[ImagePool] Loading image:', {
-        srcPreview: src.substring(0, 100) + '...',
-        srcLength: src.length,
-        isDataURL,
-        isFirebaseStorage,
-        isSameOrigin,
-        crossOrigin: img.crossOrigin || 'not-set',
-        hasToken: src.includes('token=') || src.includes('alt=media'),
-      });
-
       img.onload = () => {
-        console.log('[ImagePool] Image loaded successfully:', {
-          srcPreview: src.substring(0, 100) + '...',
-          width: img.width,
-          height: img.height,
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight,
-        });
         resolve(img);
       };
 
       img.onerror = (error) => {
         // Enhanced error logging for debugging production issues
+        const isFirebaseStorage = src.includes('firebasestorage.googleapis.com') || src.includes(':9199');
         const errorDetails = {
           srcPreview: src.substring(0, 100) + '...',
           srcLength: src.length,

@@ -21,3 +21,4 @@ export {
   type ResizeStateWithObject,
 } from './useRemoteResizes'
 export { useEditStates } from './useEditStates'
+export { useProjectAccess } from './useProjectAccess'

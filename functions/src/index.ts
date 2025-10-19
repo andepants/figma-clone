@@ -20,11 +20,13 @@ import {processAICommandHandler} from "./handlers/processAICommand.js";
 import {createCheckoutSessionHandler} from "./handlers/createCheckoutSession.js";
 import {verifyCheckoutSessionHandler} from "./handlers/verifyCheckoutSession.js";
 import {stripeWebhookHandler} from "./handlers/stripeWebhook.js";
+import {removeImageBackgroundHandler} from "./handlers/removeImageBackground.js";
 
 // Define secrets (for production deployment)
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+const replicateApiToken = defineSecret("REPLICATE_API_TOKEN");
 
 // Define environment parameters (non-secret config)
 const stripeFoundersPriceId = defineString("STRIPE_FOUNDERS_PRICE_ID");
@@ -122,4 +124,30 @@ export const stripeWebhook = onRequest(
     // Type assertion for compatibility with handler signature
     await stripeWebhookHandler(req as never, res as never, stripeWebhookSecret);
   }
+);
+
+/**
+ * Remove Image Background
+ *
+ * Callable function to remove background from canvas images.
+ * Uses Replicate's rembg model to process images and return transparent PNG.
+ *
+ * Flow:
+ * - Validates authentication and input
+ * - Calls Replicate API with image URL
+ * - Downloads processed image result
+ * - Uploads to Firebase Storage at processed-images/{projectId}/
+ * - Tracks usage in RTDB for analytics
+ * - Returns processed image URL and metadata
+ *
+ * @param request - Contains imageUrl, projectId, originalImageId
+ * @returns Processed image URL, storage path, and file size
+ */
+export const removeImageBackground = onCall(
+  {
+    secrets: [replicateApiToken],
+    timeoutSeconds: 120, // 2 minutes (Replicate can take 60s+ for processing)
+    memory: "512MiB",
+  },
+  removeImageBackgroundHandler
 );

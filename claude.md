@@ -442,3 +442,7 @@ Example: `canvasicons-2025-10-16-14-30-45.png`
 - Properties panel top-right (persistent across all states)
 - Tooltip: "Export Canvas... (Shift+Cmd+E)"
 - Disabled when canvas has no objects
+
+## Task Master AI Instructions
+**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
+@./.taskmaster/CLAUDE.md
