@@ -345,6 +345,7 @@ export async function removeCollaborator(
   }
 
   // Create new collaborators object without the removed user
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [userId]: _removed, ...remainingCollaborators } = project.collaborators;
 
   await update(projectRef, {

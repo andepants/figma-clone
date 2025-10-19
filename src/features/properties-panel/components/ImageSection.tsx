@@ -309,13 +309,12 @@ export function ImageSection() {
       />
 
       {/* Crop Image Modal */}
-      {isCropModalOpen && (
-        <CropModal
-          image={shape}
-          onApply={handleCropApply}
-          onCancel={() => setIsCropModalOpen(false)}
-        />
-      )}
+      <CropModal
+        isOpen={isCropModalOpen}
+        image={shape}
+        onApply={handleCropApply}
+        onClose={() => setIsCropModalOpen(false)}
+      />
     </>
   );
 }

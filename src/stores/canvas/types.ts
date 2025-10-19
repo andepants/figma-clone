@@ -217,24 +217,30 @@ export interface CanvasActions {
    * - New unique IDs
    * - Offset position (+20, +20)
    * - Preserved parent-child relationships
+   * - Updated createdBy field (set to current user)
    * - Synced to Firebase Realtime Database
    *
    * Does nothing if clipboard is empty.
    * Selects the pasted objects after creation.
+   *
+   * @param userId - Current user ID (for createdBy field, required by database rules)
    */
-  pasteObjects: () => void;
+  pasteObjects: (userId: string) => void;
 
   /**
    * Group selected objects under new group
    *
    * Creates new group object with calculated position (bounding box center).
    * Sets parentId on all selected objects to group ID.
+   * Sets createdBy to current user (required by database rules).
    * Syncs to Firebase RTDB.
    * Selects the new group.
    *
    * Does nothing if < 2 objects selected.
+   *
+   * @param userId - Current user ID (for createdBy field, required by database rules)
    */
-  groupObjects: () => void;
+  groupObjects: (userId: string) => void;
 
   /**
    * Ungroup selected group(s)

@@ -29,6 +29,8 @@ interface CropEditorProps {
     cropWidth: number;
     cropHeight: number;
   }) => void;
+  /** Whether to maintain aspect ratio when resizing */
+  keepRatio?: boolean;
 }
 
 /**
@@ -49,7 +51,7 @@ interface CropEditorProps {
  * />
  * ```
  */
-export function CropEditor({ image, htmlImage, crop, onCropChange }: CropEditorProps) {
+export function CropEditor({ image, htmlImage, crop, onCropChange, keepRatio = false }: CropEditorProps) {
   const cropFrameRef = useRef<Konva.Rect>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
 
@@ -160,6 +162,7 @@ export function CropEditor({ image, htmlImage, crop, onCropChange }: CropEditorP
    * Limit crop frame to image bounds
    * Note: Receives coordinates in stage space, so must account for layer offset
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function boundBoxFunc(oldBox: any, newBox: any) {
     // Minimum size
     if (newBox.width < 10 || newBox.height < 10) {
@@ -271,7 +274,7 @@ export function CropEditor({ image, htmlImage, crop, onCropChange }: CropEditorP
           />
           <Transformer
             ref={transformerRef}
-            keepRatio={false}
+            keepRatio={keepRatio}
             enabledAnchors={[
               'top-left',
               'top-center',

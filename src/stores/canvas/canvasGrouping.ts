@@ -21,14 +21,9 @@ export function createCanvasGrouping(
   get: Parameters<StateCreator<CanvasStore>>[1]
 ) {
   return {
-    groupObjects: () => {
+    groupObjects: (userId: string) => {
       const state = get();
       const { selectedIds, objects } = state;
-
-      console.log('[GroupObjects] Starting grouping operation:', {
-        selectedCount: selectedIds.length,
-        selectedIds,
-      });
 
       // Need at least 2 objects to group (can't group a single object)
       if (selectedIds.length < 2) {
@@ -44,15 +39,7 @@ export function createCanvasGrouping(
             // Pass all objects so groups can recursively include their children
             const selectedObjects = objects.filter((obj) => selectedIds.includes(obj.id));
 
-            console.log('[GroupObjects] Selected objects:', selectedObjects.map(obj => ({
-              id: obj.id,
-              type: obj.type,
-              name: obj.name,
-            })));
-
             const bbox = calculateBoundingBox(selectedObjects, objects);
-
-            console.log('[GroupObjects] Calculated bounding box:', bbox);
 
             // Check if all selected objects share the same parent
             // If yes, create nested group inside that parent
@@ -90,7 +77,7 @@ export function createCanvasGrouping(
               shadowOffsetY: 0,
               shadowOpacity: 1,
               shadowEnabled: false,
-              createdBy: 'user-unknown',
+              createdBy: userId, // IMPORTANT: Set creator to current user (required by database rules)
               createdAt: Date.now(),
               updatedAt: Date.now(),
               name: groupName,
@@ -116,18 +103,10 @@ export function createCanvasGrouping(
             set({ objects: updatedObjects });
             state.selectObjects([groupId]);
 
-            console.log('[GroupObjects] Group created successfully:', {
-              groupId,
-              groupName,
-              childCount: selectedIds.length,
-              position: { x: group.x, y: group.y },
-            });
-
             // Sync to Firebase - add group first, then update children
             try {
               const projectId = get().projectId;
 
-              console.log('[GroupObjects] Syncing group to Firebase...', { projectId, groupId });
               await addCanvasObject(projectId, group);
 
               // Update children with new parentId
@@ -137,10 +116,7 @@ export function createCanvasGrouping(
                 childUpdates[id] = { parentId: groupId, updatedAt: Date.now() };
               });
 
-              console.log('[GroupObjects] Updating children with parentId:', { groupId, childCount: selectedIds.length });
               await batchUpdateCanvasObjects(projectId, childUpdates);
-
-              console.log('[GroupObjects] Group synced to Firebase successfully');
             } catch (error) {
               console.error('[GroupObjects] Failed to sync group to Firebase:', error);
             }

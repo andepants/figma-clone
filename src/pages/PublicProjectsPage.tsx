@@ -154,6 +154,7 @@ export default function PublicProjectsPage() {
               <ProjectCard
                 key={project.id}
                 project={project}
+                currentUserId={currentUser?.uid || ''}
                 onRename={handleRenameProject}
                 onDelete={handleDeleteProject}
               />

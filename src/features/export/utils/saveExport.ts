@@ -33,24 +33,17 @@ export async function saveExportToFirebase(
   userId: string,
   exportResult: ExportResult
 ): Promise<string> {
-  const isDev = import.meta.env.DEV
-
-  if (isDev) console.log('Saving export to Firebase...', exportResult.filename)
-
   // Generate unique export ID
   const exportId = `export_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
   // Upload PNG to Storage
-  if (isDev) console.log('Uploading to Storage...')
   const { url: storageUrl, storagePath } = await uploadExportToStorage(
     exportResult.dataUrl,
     userId,
     exportId
   )
-  if (isDev) console.log('Storage upload complete:', storageUrl)
 
   // Save metadata to Firestore
-  if (isDev) console.log('Saving metadata to Firestore...')
   const exportData: CreateExportInput = {
     userId,
     filename: exportResult.filename,
@@ -61,7 +54,6 @@ export async function saveExportToFirebase(
   }
 
   const savedExportId = await createExportRecord(exportData)
-  if (isDev) console.log('Firestore save complete:', savedExportId)
 
   return savedExportId
 }

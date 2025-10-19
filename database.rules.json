@@ -2,6 +2,39 @@
   "rules": {
     "projects": {
       ".read": "auth != null",
+      "PUBLIC_PLAYGROUND": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChild('id') && newData.hasChild('name') && newData.hasChild('ownerId') && newData.hasChild('isPublic') && newData.hasChild('collaborators')",
+        "id": {
+          ".validate": "newData.isString() && newData.val() == 'PUBLIC_PLAYGROUND'"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "ownerId": {
+          ".validate": "newData.isString() && newData.val() == 'system'"
+        },
+        "isPublic": {
+          ".validate": "newData.isBoolean() && newData.val() == true"
+        },
+        "collaborators": {
+          "$userId": {
+            ".validate": "newData.isBoolean() && newData.val() == true"
+          }
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "objectCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "$other": {
+          ".validate": "true"
+        }
+      },
       "$projectId": {
         ".write": "auth != null && (data.child('ownerId').val() == auth.uid || data.child('collaborators').child(auth.uid).exists() || !data.exists())",
         ".validate": "newData.hasChild('id') && newData.hasChild('name') && newData.hasChild('ownerId') && newData.hasChild('isPublic') && newData.hasChild('collaborators')",
@@ -38,6 +71,259 @@
       }
     },
     "canvases": {
+      "PUBLIC_PLAYGROUND": {
+        "objects": {
+          ".read": "auth != null",
+          ".write": "auth != null",
+          "$objectId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChild('id') && newData.hasChild('type') && newData.hasChild('createdBy')",
+            "id": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "type": {
+              ".validate": "newData.isString() && (newData.val() == 'rectangle' || newData.val() == 'circle' || newData.val() == 'text' || newData.val() == 'line' || newData.val() == 'group' || newData.val() == 'image')"
+            },
+            "text": {
+              ".validate": "newData.isString() && newData.val().length <= 50000"
+            },
+            "x": {
+              ".validate": "newData.isNumber()"
+            },
+            "y": {
+              ".validate": "newData.isNumber()"
+            },
+            "width": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000"
+            },
+            "height": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000"
+            },
+            "radius": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 25000"
+            },
+            "fill": {
+              ".validate": "newData.isString() && newData.val().length <= 50"
+            },
+            "fontSize": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 500"
+            },
+            "fontFamily": {
+              ".validate": "newData.isString() && newData.val().length <= 100"
+            },
+            "stroke": {
+              ".validate": "newData.isString() && newData.val().length <= 50"
+            },
+            "strokeWidth": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "points": {
+              ".validate": "newData.hasChildren(['0', '1', '2', '3'])",
+              "0": {
+                ".validate": "newData.isNumber()"
+              },
+              "1": {
+                ".validate": "newData.isNumber()"
+              },
+              "2": {
+                ".validate": "newData.isNumber()"
+              },
+              "3": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": "false"
+              }
+            },
+            "rotation": {
+              ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+            },
+            "src": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500000"
+            },
+            "naturalWidth": {
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 50000"
+            },
+            "naturalHeight": {
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 50000"
+            },
+            "fileName": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
+            },
+            "fileSize": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10485760"
+            },
+            "mimeType": {
+              ".validate": "newData.isString() && newData.val().matches(/^image\\/(png|jpeg|jpg|gif|webp|svg\\+xml)$/)"
+            },
+            "storageType": {
+              ".validate": "newData.isString() && (newData.val() == 'dataURL' || newData.val() == 'storage')"
+            },
+            "storagePath": {
+              ".validate": "newData.isString() && newData.val().length <= 1000"
+            },
+            "lockAspectRatio": {
+              ".validate": "newData.isBoolean()"
+            },
+            "$other": {
+              ".validate": "true"
+            }
+          }
+        },
+        "cursors": {
+          ".read": "auth != null",
+          "$userId": {
+            ".write": "auth.uid == $userId",
+            ".validate": "newData.hasChild('x') && newData.hasChild('y') && newData.hasChild('username') && newData.hasChild('color')",
+            "x": {
+              ".validate": "newData.isNumber()"
+            },
+            "y": {
+              ".validate": "newData.isNumber()"
+            },
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[0-9A-Fa-f]{6}$/)"
+            }
+          }
+        },
+        "drag-states": {
+          ".read": "auth != null",
+          "$objectId": {
+            ".write": "auth != null",
+            "x": {
+              ".validate": "newData.isNumber()"
+            },
+            "y": {
+              ".validate": "newData.isNumber()"
+            },
+            "userId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            },
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[0-9A-Fa-f]{6}$/)"
+            },
+            "startedAt": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "lastUpdate": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "$other": {
+              ".validate": "false"
+            }
+          }
+        },
+        "resize-states": {
+          ".read": "auth != null",
+          "$objectId": {
+            ".write": "auth != null",
+            "objectId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "userId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            },
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[0-9A-Fa-f]{6}$/)"
+            },
+            "handle": {
+              ".validate": "newData.isString() && (newData.val() == 'nw' || newData.val() == 'ne' || newData.val() == 'sw' || newData.val() == 'se' || newData.val() == 'n' || newData.val() == 's' || newData.val() == 'e' || newData.val() == 'w')"
+            },
+            "startBounds": {
+              "x": {
+                ".validate": "newData.isNumber()"
+              },
+              "y": {
+                ".validate": "newData.isNumber()"
+              },
+              "width": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "height": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              }
+            },
+            "currentBounds": {
+              "x": {
+                ".validate": "newData.isNumber()"
+              },
+              "y": {
+                ".validate": "newData.isNumber()"
+              },
+              "width": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "height": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              }
+            },
+            "anchor": {
+              "x": {
+                ".validate": "newData.isNumber()"
+              },
+              "y": {
+                ".validate": "newData.isNumber()"
+              }
+            },
+            "timestamp": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            }
+          }
+        },
+        "edit-states": {
+          ".read": "auth != null",
+          "$textId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChild('userId') && newData.hasChild('username') && newData.hasChild('color') && newData.hasChild('lastUpdate')",
+            "userId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            },
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[0-9A-Fa-f]{6}$/)"
+            },
+            "liveText": {
+              ".validate": "newData.isString() && newData.val().length <= 50000"
+            },
+            "lastUpdate": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "startedAt": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            }
+          }
+        },
+        "selections": {
+          ".read": "auth != null",
+          "$userId": {
+            ".write": "auth.uid == $userId"
+          }
+        },
+        "presence": {
+          ".read": "auth != null",
+          "$userId": {
+            ".write": "auth.uid == $userId",
+            ".validate": "newData.hasChild('username') && newData.hasChild('online')",
+            "username": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "online": {
+              ".validate": "newData.isBoolean()"
+            }
+          }
+        }
+      },
       "$canvasId": {
         "objects": {
           ".read": "auth != null",

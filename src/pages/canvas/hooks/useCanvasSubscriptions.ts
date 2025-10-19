@@ -208,12 +208,8 @@ export function useCanvasSubscriptions({
         if (isFirstLoad) {
           // Check if migration is needed and hasn't been run yet
           if (!migrationRunRef.current && needsMigration(remoteObjects)) {
-            console.log('[Hierarchy Migration] Detected non-group parent-child relationships. Running migration...');
-
             // Run migration to flatten non-group hierarchies
             const result = flattenNonGroupHierarchies(remoteObjects);
-
-            console.log(`[Hierarchy Migration] Flattened ${result.flattenedCount} objects to root level:`, result.flattenedIds);
 
             // Update local state with migrated objects
             setObjects(result.objects);
@@ -227,7 +223,6 @@ export function useCanvasSubscriptions({
                 });
 
                 await batchUpdateCanvasObjects(projectId, updates);
-                console.log('[Hierarchy Migration] Successfully synced flattened hierarchies to Firebase');
               } catch (error) {
                 console.error('[Hierarchy Migration] Failed to sync to Firebase:', error);
               }

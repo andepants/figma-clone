@@ -36,15 +36,6 @@ export async function removeImageBackgroundHandler(
     const userId = request.auth.uid;
     const { imageUrl, projectId, originalImageId } = request.data;
 
-    // Log ALL incoming data for debugging
-    logger.info('=== FULL REQUEST DATA ===', {
-      authUid: userId,
-      requestData: JSON.stringify(request.data, null, 2),
-      imageUrlLength: imageUrl?.length,
-      imageUrlType: typeof imageUrl,
-      imageUrlPreview: imageUrl?.substring(0, 200),
-    });
-
     // Validate required fields
     if (!imageUrl || !projectId || !originalImageId) {
       logger.error('Missing required fields', {
@@ -55,48 +46,7 @@ export async function removeImageBackgroundHandler(
       throw new HttpsError('invalid-argument', 'Missing required fields: imageUrl, projectId, originalImageId');
     }
 
-    logger.info('Processing background removal request', {
-      userId,
-      projectId,
-      originalImageId,
-      imageUrl: imageUrl.substring(0, 100) + '...',
-      imageUrlFull: imageUrl, // Log full URL
-      isDataUrl: imageUrl.startsWith('data:'),
-      isHttpUrl: imageUrl.startsWith('http'),
-      isStorageUrl: imageUrl.includes('firebasestorage.googleapis.com') || imageUrl.includes('127.0.0.1:9199'),
-    });
-
-    // Test URL accessibility (if it's an HTTP URL, not a data URL)
-    if (imageUrl.startsWith('http')) {
-      try {
-        logger.info('Testing URL accessibility...');
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-        const testResponse = await fetch(imageUrl, {
-          method: 'HEAD',
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        logger.info('URL accessibility test result', {
-          status: testResponse.status,
-          statusText: testResponse.statusText,
-          contentType: testResponse.headers.get('content-type'),
-          contentLength: testResponse.headers.get('content-length'),
-          accessible: testResponse.ok,
-        });
-      } catch (urlError) {
-        logger.error('URL accessibility test FAILED', {
-          error: urlError instanceof Error ? urlError.message : 'Unknown error',
-          url: imageUrl,
-        });
-        // Continue anyway - Replicate might still be able to access it
-      }
-    }
-
     // Step 1: Call Replicate API to remove background
-    logger.info('Calling Replicate API', { imageUrl });
     const replicateResult = await removeBackground(imageUrl);
 
     if (!replicateResult.success || !replicateResult.resultUrl) {
@@ -115,12 +65,7 @@ export async function removeImageBackgroundHandler(
       };
     }
 
-    logger.info('Replicate processing successful', {
-      resultUrl: replicateResult.resultUrl.substring(0, 100) + '...',
-    });
-
     // Step 2: Download processed image from Replicate
-    logger.info('Downloading processed image from Replicate');
     const downloadController = new AbortController();
     const downloadTimeoutId = setTimeout(() => downloadController.abort(), 30000);
 
@@ -139,17 +84,10 @@ export async function removeImageBackgroundHandler(
       throw new Error('Downloaded empty file from Replicate');
     }
 
-    logger.info('Processed image downloaded', {
-      sizeBytes: buffer.length,
-      sizeKB: Math.round(buffer.length / 1024),
-    });
-
     // Step 3: Upload to Firebase Storage
     const timestamp = Date.now();
     const uniqueId = uuidv4().slice(0, 8);
     const filename = `processed-images/${projectId}/${timestamp}-${uniqueId}.png`;
-
-    logger.info('Uploading to Firebase Storage', { filename });
 
     const bucket = getStorage().bucket();
     const file = bucket.file(filename);
@@ -169,8 +107,6 @@ export async function removeImageBackgroundHandler(
       },
     });
 
-    logger.info('Uploaded to Firebase Storage successfully', { filename });
-
     // Step 4: Generate public download URL
     const bucketName = bucket.name;
     const encodedPath = encodeURIComponent(filename);
@@ -185,24 +121,12 @@ export async function removeImageBackgroundHandler(
       ? `http://127.0.0.1:9199/v0/b/${bucketName}/o/${encodedPath}?alt=media`
       : `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media`;
 
-    logger.info('Public URL generated', {
-      url: publicUrl.substring(0, 100) + '...',
-      isEmulator,
-    });
-
     // Step 5: Get image dimensions (from downloaded buffer)
     // For now, we'll let the frontend handle dimensions via Image.onload
     // Alternatively, we could use sharp package here to get dimensions server-side
 
     // Step 6: Track usage in RTDB
     await trackUsage(userId, projectId, originalImageId, true);
-
-    const duration = Date.now() - startTime;
-    logger.info('Background removal completed successfully', {
-      duration: `${duration}ms`,
-      storagePath: filename,
-      fileSize: buffer.length,
-    });
 
     return {
       success: true,
@@ -295,8 +219,6 @@ async function trackUsage(
       success,
       ...(errorCode ? { errorCode } : {}),
     });
-
-    logger.info('Usage tracked', { userId, projectId, success });
   } catch (error) {
     logger.error('Failed to track usage', {
       error: error instanceof Error ? error.message : 'Unknown error',

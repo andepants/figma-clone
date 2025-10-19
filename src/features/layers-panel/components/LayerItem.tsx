@@ -44,6 +44,7 @@ import { useCanvasStore } from '@/stores/canvas';
 import { ContextMenu } from '@/components/common/ContextMenu';
 import { getContextMenuItems } from '@/features/layers-panel/utils/contextMenu';
 import { updateCanvasObject } from '@/lib/firebase';
+import { useAuth } from '@/features/auth/hooks';
 
 /**
  * Props for LayerItem component
@@ -162,6 +163,9 @@ export const LayerItem = memo(function LayerItem({
   const objects = useCanvasStore((state) => state.objects);
   const selectedIds = useCanvasStore((state) => state.selectedIds);
   const projectId = useCanvasStore((state) => state.projectId);
+
+  // Get current user for context menu actions
+  const { currentUser } = useAuth();
 
   // Hierarchy support
   const hasChildObjects = hasChildren(object.id, objects);
@@ -427,7 +431,7 @@ export const LayerItem = memo(function LayerItem({
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          items={getContextMenuItems(object, objects, selectedIds)}
+          items={getContextMenuItems(object, objects, selectedIds, currentUser?.uid)}
           onClose={() => setContextMenu(null)}
         />
       )}

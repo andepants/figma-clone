@@ -197,7 +197,6 @@ export function createCanvasActions(
       userId: string
     ) => {
       if (originalImage.type !== 'image') {
-        console.error('createProcessedImage called with non-image object');
         return;
       }
 
@@ -243,7 +242,6 @@ export function createCanvasActions(
       const { addCanvasObject } = await import('@/lib/firebase');
       try {
         await addCanvasObject(get().projectId, newImage);
-        console.log('[createProcessedImage] Successfully synced to Firebase RTDB');
       } catch (error) {
         console.error('[createProcessedImage] Failed to sync image to Firebase:', error);
         // Rollback optimistic update on error

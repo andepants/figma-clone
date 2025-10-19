@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { useToolStore, useUIStore } from '@/stores';
 import { useCanvasStore } from '@/stores';
 import { removeCanvasObject } from '@/lib/firebase';
+import { useAuth } from '@/features/auth/hooks';
 
 /**
  * Check if user is currently typing in an input field
@@ -75,6 +76,7 @@ export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: (
   const { setActiveTool } = useToolStore();
   const { toggleAIChatCollapse, toggleLeftSidebar } = useUIStore();
   const { clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, projectId } = useCanvasStore();
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     /**
@@ -124,9 +126,9 @@ export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: (
       // Handle Cmd/Ctrl+V for paste (supports multi-select, preserves hierarchy)
       if ((event.metaKey || event.ctrlKey) && key === 'v') {
         // Only prevent default if we're not in an input (allow normal paste in inputs)
-        if (!isInputFocused()) {
+        if (!isInputFocused() && currentUser) {
           event.preventDefault();
-          pasteObjects();
+          pasteObjects(currentUser.uid);
         }
         return;
       }
@@ -332,8 +334,9 @@ export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: (
       // Handle Cmd/Ctrl+G for group (without Shift)
       if (!event.shiftKey && (event.metaKey || event.ctrlKey) && key === 'g') {
         event.preventDefault();
-        console.log('[Shortcut] Cmd/Ctrl+G pressed - calling groupObjects()');
-        groupObjects();
+        if (currentUser) {
+          groupObjects(currentUser.uid);
+        }
         return;
       }
 
@@ -420,5 +423,5 @@ export function useToolShortcuts(onShowShortcuts?: () => void, onImageUpload?: (
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, projectId, onShowShortcuts, onImageUpload]);
+  }, [setActiveTool, toggleAIChatCollapse, toggleLeftSidebar, clearSelection, selectedIds, removeObject, objects, selectObjects, resetView, setZoom, setPan, zoom, zoomIn, zoomOut, zoomTo, copyObjects, pasteObjects, groupObjects, ungroupObjects, bringToFront, sendToBack, toggleVisibility, projectId, onShowShortcuts, onImageUpload, currentUser]);
 }

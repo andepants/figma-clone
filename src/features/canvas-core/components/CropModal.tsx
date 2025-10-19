@@ -6,13 +6,16 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, RotateCcw } from 'lucide-react';
+import { RotateCcw, Link2, Unlink } from 'lucide-react';
 import { Button } from '@/components/ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CropEditor } from './CropEditor';
 import { imagePool } from '@/lib/utils/imagePool';
 import type { ImageObject } from '@/types';
 
 interface CropModalProps {
+  /** Whether modal is open */
+  isOpen: boolean;
   /** Image to crop */
   image: ImageObject;
   /** Callback when crop is applied */
@@ -22,8 +25,8 @@ interface CropModalProps {
     cropWidth: number;
     cropHeight: number;
   }) => void;
-  /** Callback when modal is canceled */
-  onCancel: () => void;
+  /** Callback when modal is closed/canceled */
+  onClose: () => void;
 }
 
 /**
@@ -38,13 +41,14 @@ interface CropModalProps {
  * @example
  * ```tsx
  * <CropModal
+ *   isOpen={isCropModalOpen}
  *   image={selectedImage}
  *   onApply={(crop) => updateImage(crop)}
- *   onCancel={() => setShowCropModal(false)}
+ *   onClose={() => setIsCropModalOpen(false)}
  * />
  * ```
  */
-export function CropModal({ image, onApply, onCancel }: CropModalProps) {
+export function CropModal({ isOpen, image, onApply, onClose }: CropModalProps) {
   // Load image
   const [htmlImage, setHtmlImage] = useState<HTMLImageElement | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
@@ -56,6 +60,9 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
     cropWidth: image.cropWidth ?? image.naturalWidth,
     cropHeight: image.cropHeight ?? image.naturalHeight,
   });
+
+  // Aspect ratio lock state
+  const [isAspectRatioLocked, setIsAspectRatioLocked] = useState(false);
 
   /**
    * Load image from cache
@@ -77,13 +84,10 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
    * Keyboard shortcuts
    */
   useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      // Escape - Cancel
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCancel();
-      }
+    if (!isOpen) return;
 
+    function handleKeyDown(e: KeyboardEvent) {
+      // Escape - handled by Dialog component
       // Enter - Apply
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -95,11 +99,17 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
         e.preventDefault();
         handleReset();
       }
+
+      // L - Toggle aspect ratio lock
+      if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        setIsAspectRatioLocked((prev) => !prev);
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cropData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, cropData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Reset crop to full image
@@ -123,26 +133,28 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
   // Show error if image failed to load
   if (imageLoadError) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-md">
-          <h2 className="text-lg font-semibold mb-2">Failed to Load Image</h2>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Failed to Load Image</DialogTitle>
+          </DialogHeader>
           <p className="text-gray-600 mb-4">Could not load the image for cropping.</p>
-          <Button onClick={onCancel} variant="outline">
+          <Button onClick={onClose} variant="outline">
             Close
           </Button>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   // Show loading state
   if (!htmlImage) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6">
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
           <p className="text-gray-600">Loading image...</p>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
@@ -154,22 +166,15 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
     cropData.cropHeight !== image.naturalHeight;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full flex flex-col" style={{ maxHeight: '90vh' }}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-5xl p-0 gap-0 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <DialogHeader className="px-6 py-4 border-b border-gray-200">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Crop Image</h2>
+            <DialogTitle className="text-lg font-semibold text-gray-900">Crop Image</DialogTitle>
             <p className="text-sm text-gray-500 mt-0.5">Drag the handles to adjust the crop area</p>
           </div>
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Crop Editor */}
         <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
@@ -178,6 +183,7 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
             htmlImage={htmlImage}
             crop={cropData}
             onCropChange={setCropData}
+            keepRatio={isAspectRatioLocked}
           />
         </div>
 
@@ -192,6 +198,23 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
               <span>
                 Crop: <span className="font-mono">{cropData.cropWidth} × {cropData.cropHeight}</span>
               </span>
+              <button
+                onClick={() => setIsAspectRatioLocked((prev) => !prev)}
+                className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 transition-colors"
+                title="Lock aspect ratio (L)"
+              >
+                {isAspectRatioLocked ? (
+                  <>
+                    <Link2 className="w-3.5 h-3.5" />
+                    <span>Locked</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlink className="w-3.5 h-3.5" />
+                    <span>Unlocked</span>
+                  </>
+                )}
+              </button>
             </div>
             {isCropped && (
               <button
@@ -208,7 +231,7 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
           <div className="flex items-center justify-end gap-2">
             <Button
               variant="outline"
-              onClick={onCancel}
+              onClick={onClose}
               className="px-4 py-2"
             >
               Cancel (Esc)
@@ -221,7 +244,7 @@ export function CropModal({ image, onApply, onCancel }: CropModalProps) {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

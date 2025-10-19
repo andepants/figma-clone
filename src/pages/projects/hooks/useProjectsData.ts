@@ -37,23 +37,19 @@ interface UseProjectsDataReturn {
  * Behavior:
  * - Fetches all projects accessible by user (owned + collaborated)
  * - Always fetches founders deal configuration
- * - canCreateProjects parameter kept for backwards compatibility but not used
  *
  * @param currentUserId - Current user's ID (null if not authenticated)
- * @param canCreateProjects - (Deprecated) Kept for backwards compatibility
  * @returns Projects data and loading state
  *
  * @example
  * ```tsx
  * const { projects, isLoading, paidUserCount } = useProjectsData(
- *   currentUser?.uid || null,
- *   canCreateProjects
+ *   currentUser?.uid || null
  * );
  * ```
  */
 export function useProjectsData(
-  currentUserId: string | null,
-  canCreateProjects: boolean
+  currentUserId: string | null
 ): UseProjectsDataReturn {
   const [projects, setProjects] = useState<Project[]>([]);
   const [publicProjects, setPublicProjects] = useState<Project[]>([]);

@@ -12,6 +12,7 @@ import { ProjectCard } from './ProjectCard';
 
 interface PublicProjectsSectionProps {
   projects: Project[];
+  currentUserId: string;
 }
 
 /**
@@ -20,10 +21,10 @@ interface PublicProjectsSectionProps {
  *
  * @example
  * ```tsx
- * <PublicProjectsSection projects={publicProjects} />
+ * <PublicProjectsSection projects={publicProjects} currentUserId={userId} />
  * ```
  */
-export function PublicProjectsSection({ projects }: PublicProjectsSectionProps) {
+export function PublicProjectsSection({ projects, currentUserId }: PublicProjectsSectionProps) {
   // Gracefully hide if no public projects
   if (projects.length === 0) return null;
 
@@ -39,6 +40,7 @@ export function PublicProjectsSection({ projects }: PublicProjectsSectionProps) 
           <ProjectCard
             key={project.id}
             project={project}
+            currentUserId={currentUserId}
             onRename={() => {}} // No-op for read-only mode
             onDelete={() => {}} // No-op for read-only mode
             // Note: readOnly prop not yet implemented in ProjectCard

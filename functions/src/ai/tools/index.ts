@@ -24,6 +24,12 @@ import {GetViewportCenterTool} from "./getViewportCenter.js";
 import {FindEmptySpaceTool} from "./findEmptySpace.js";
 import {GenerateAppIconTool} from "./generateAppIcon";
 import {GenerateFeatureGraphicTool} from "./generateFeatureGraphic";
+import {CreateBatchTool} from "./createBatch";
+import {FindObjectsTool} from "./findObjects";
+import {DistributeObjectsTool} from "./distributeObjects";
+import {CreateFormTool} from "./createForm";
+import {CreateNavBarTool} from "./createNavBar";
+import {CreateCardTool} from "./createCard";
 
 /**
  * Get all available canvas tools
@@ -50,11 +56,13 @@ export function getTools(context: CanvasToolContext): DynamicStructuredTool[] {
 
     // Query tools
     new GetCanvasStateTool(context),
+    new FindObjectsTool(context),
 
     // Layout tools
     new ArrangeInRowTool(context),
     new ArrangeInColumnTool(context),
     new ArrangeInGridTool(context),
+    new DistributeObjectsTool(context),
 
     // Spatial awareness tools
     new GetViewportCenterTool(context),
@@ -63,6 +71,14 @@ export function getTools(context: CanvasToolContext): DynamicStructuredTool[] {
     // AI Image Generation tools
     new GenerateAppIconTool(context),
     new GenerateFeatureGraphicTool(context),
+
+    // Batch operation tools
+    new CreateBatchTool(context),
+
+    // Composite template tools
+    new CreateFormTool(context),
+    new CreateNavBarTool(context),
+    new CreateCardTool(context),
 
     // TODO Phase 4: Add grouping tool
     // - groupObjects (parent-child relationships)
