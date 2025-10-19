@@ -9,12 +9,13 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Trash2, Lock, Globe } from 'lucide-react';
+import { Pencil, Trash2, Lock, Globe, User, Users } from 'lucide-react';
 import type { Project } from '@/types/project.types';
 import { cn } from '@/lib/utils';
 
 interface ProjectCardProps {
   project: Project;
+  currentUserId: string;
   onRename: (projectId: string, newName: string) => void;
   onDelete: (projectId: string) => void;
   onToggleVisibility?: (projectId: string, isPublic: boolean) => void;
@@ -33,11 +34,14 @@ interface ProjectCardProps {
  * />
  * ```
  */
-export function ProjectCard({ project, onRename, onDelete, onToggleVisibility }: ProjectCardProps) {
+export function ProjectCard({ project, currentUserId, onRename, onDelete, onToggleVisibility }: ProjectCardProps) {
   const navigate = useNavigate();
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(project.name);
   const [showActions, setShowActions] = useState(false);
+
+  // Check if current user is the owner
+  const isOwner = project.ownerId === currentUserId;
 
   const handleCardClick = () => {
     if (!isRenaming) {
@@ -126,23 +130,23 @@ export function ProjectCard({ project, onRename, onDelete, onToggleVisibility }:
           </div>
         )}
 
-        {/* Visibility Badge */}
+        {/* Role Badge */}
         <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md bg-white/90 backdrop-blur-sm shadow-sm">
-          {project.isPublic ? (
+          {isOwner ? (
             <>
-              <Globe className="w-3 h-3 text-blue-600" />
-              <span className="text-xs font-medium text-blue-600">Public</span>
+              <User className="w-3 h-3 text-blue-600" />
+              <span className="text-xs font-medium text-blue-600">Owner</span>
             </>
           ) : (
             <>
-              <Lock className="w-3 h-3 text-gray-600" />
-              <span className="text-xs font-medium text-gray-600">Private</span>
+              <Users className="w-3 h-3 text-green-600" />
+              <span className="text-xs font-medium text-green-600">Shared</span>
             </>
           )}
         </div>
 
-        {/* Hover Actions */}
-        {showActions && !isRenaming && (
+        {/* Hover Actions (owner only) */}
+        {showActions && !isRenaming && isOwner && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-2 transition-opacity">
             <button
               onClick={handleRenameClick}
@@ -208,7 +212,7 @@ export function ProjectCard({ project, onRename, onDelete, onToggleVisibility }:
         </div>
 
         {/* Collaborators count (if applicable) */}
-        {project.collaborators.length > 1 && (
+        {Object.keys(project.collaborators).length > 1 && (
           <div className="mt-2 flex items-center text-xs text-gray-500">
             <svg
               className="w-4 h-4 mr-1"
@@ -223,7 +227,7 @@ export function ProjectCard({ project, onRename, onDelete, onToggleVisibility }:
                 d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
               />
             </svg>
-            <span>{project.collaborators.length} collaborators</span>
+            <span>{Object.keys(project.collaborators).length} collaborators</span>
           </div>
         )}
       </div>

@@ -33,3 +33,17 @@ dist-ssr
 test-results/
 playwright-report/
 playwright/.cache/
+
+dev-debug.log
+# Dependency directories
+node_modules/
+# Environment variables
+.vscode
+# OS specific
+
+# Task files
+# tasks.json
+# tasks/
+
+# MCP configuration with API keys
+.mcp.json

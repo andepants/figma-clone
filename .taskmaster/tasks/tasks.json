@@ -1,0 +1,106 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Fix background removal 422 error",
+        "description": "Fix Replicate API 422 error by converting Firebase Storage URLs to base64 data URLs before sending to Replicate",
+        "details": "Root cause: Replicate API cannot access Firebase Storage URLs directly, returning 422 Unprocessable Entity.\n\nSolution: Download image from Firebase Storage URL and convert to base64 data URL (data:image/png;base64,...) before passing to Replicate API.\n\nFiles to modify:\n- functions/src/services/replicate-background-removal.ts\n\nImplementation:\n1. Download image buffer from imageUrl using node-fetch\n2. Extract MIME type from response headers\n3. Convert buffer to base64 string\n4. Create data URL: data:{mimeType};base64,{base64}\n5. Pass data URL to Replicate API instead of Firebase Storage URL",
+        "testStrategy": "Test with an image on canvas, click \"Remove Background\" button, verify successful background removal and new image creation",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement image download and MIME type extraction",
+            "description": "Download image buffer from Firebase Storage URL and extract MIME type from response headers",
+            "dependencies": [],
+            "details": "Use node-fetch to download the image from the provided Firebase Storage URL. Extract the MIME type from the response headers (Content-Type). Store both the buffer and MIME type for the next conversion step. Handle errors for network failures or invalid URLs.",
+            "status": "done",
+            "testStrategy": "Unit test with mock Firebase Storage URL, verify buffer is retrieved and MIME type is correctly extracted from headers"
+          },
+          {
+            "id": 2,
+            "title": "Convert image buffer to base64 data URL",
+            "description": "Convert the downloaded image buffer to base64 string and create a properly formatted data URL",
+            "dependencies": [
+              1
+            ],
+            "details": "Take the image buffer from subtask 1 and convert it to a base64 string using Node.js Buffer methods. Construct the data URL in the format: data:{mimeType};base64,{base64String}. Ensure the MIME type is correctly included in the data URL format.",
+            "status": "done",
+            "testStrategy": "Unit test the base64 conversion and data URL formatting, verify the output matches expected data URL pattern"
+          },
+          {
+            "id": 3,
+            "title": "Update Replicate API call to use base64 data URL",
+            "description": "Modify replicate-background-removal.ts to pass the base64 data URL instead of Firebase Storage URL to Replicate API",
+            "dependencies": [
+              2
+            ],
+            "details": "Update functions/src/services/replicate-background-removal.ts to integrate the data URL conversion logic. Replace the direct Firebase Storage URL parameter with the converted base64 data URL when calling the Replicate API. Test end-to-end with the background removal workflow to ensure 422 error is resolved.\n<info added on 2025-10-19T00:51:03.573Z>\nImplementation completed successfully in replicate-background-removal.ts (lines 80-145). Image download step added with node-fetch and 30s timeout, including response validation and MIME type extraction from Content-Type header with image/png default. Base64 conversion implemented using buffer.toString('base64') with data URL formatting as data:{mimeType};base64,{base64String}, including length and preview logging for debugging. Replicate API call updated to use base64 data URL instead of Firebase Storage URL, resolving 422 error by providing direct image data access without authentication or CORS issues. Error handling includes download_failed returns for failed downloads or empty buffers, with all existing error handling and retry logic preserved. Ready for end-to-end testing with real image on canvas to verify 422 error resolution.\n</info added on 2025-10-19T00:51:03.573Z>",
+            "status": "done",
+            "testStrategy": "Integration test: upload image to canvas, click Remove Background button, verify successful API response without 422 error, confirm new image is created with background removed"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Debug 422 error - verify image download and base64 conversion",
+        "description": "Found root cause! Line 138 in replicate-background-removal.ts has incorrect version format. The Replicate API expects only the version hash, not the full model path. Fixing this now.",
+        "status": "in-progress",
+        "dependencies": [],
+        "priority": "high",
+        "details": "Root cause identified:\n\nBug: Using full model path instead of just version hash\n- Wrong: version: 'cjwbw/rembg:34bd50c3...'\n- Correct: version: '34bd50c3cdcf667a839abdcdde7201d5b39bbebb54aa037da542ee6e670d9786'\n\nReplicate API expects only the version hash. The 422 error was caused by passing the incorrect version format.\n\nFix:\n1. Update line 138 in replicate-background-removal.ts\n2. Replace full model path with version hash only\n3. Redeploy Firebase Function\n4. Test with canvas image to verify background removal works",
+        "testStrategy": "Update version format in replicate-background-removal.ts, redeploy Firebase Function, test with canvas image to verify 422 error is resolved and background removal completes successfully",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Update version format in replicate-background-removal.ts",
+            "description": "Fix line 138 to use only the version hash instead of the full model path",
+            "dependencies": [],
+            "details": "Change the version parameter from 'cjwbw/rembg:34bd50c3cdcf667a839abdcdde7201d5b39bbebb54aa037da542ee6e670d9786' to just '34bd50c3cdcf667a839abdcdde7201d5b39bbebb54aa037da542ee6e670d9786'. The Replicate API only accepts the version hash, not the full model path.",
+            "status": "done",
+            "testStrategy": "Verify the change is made correctly and code compiles without errors"
+          },
+          {
+            "id": 2,
+            "title": "Redeploy Firebase Function",
+            "description": "Deploy the updated replicate-background-removal.ts to Firebase Functions",
+            "dependencies": [
+              1
+            ],
+            "details": "Run the deployment command to push the updated Firebase Function with the corrected version format to the production environment",
+            "status": "in-progress",
+            "testStrategy": "Verify deployment completes successfully and function is active in Firebase Console"
+          },
+          {
+            "id": 3,
+            "title": "Test background removal with canvas image",
+            "description": "Test the background removal feature end-to-end with a canvas image",
+            "dependencies": [
+              2
+            ],
+            "details": "Upload an image to canvas, click 'Remove Background' button, and verify that the background removal completes successfully without 422 error and the new image is created properly",
+            "status": "pending",
+            "testStrategy": "Verify no 422 error is returned, background removal completes, and new image is created in Firebase Storage"
+          },
+          {
+            "id": 4,
+            "title": "Review backgroundRemovalService.ts frontend service",
+            "description": "Verify that the frontend backgroundRemovalService.ts correctly calls the Firebase Function and handles responses",
+            "details": "Review src/lib/firebase/backgroundRemovalService.ts to ensure:\n1. Correctly imports Firebase Functions\n2. Properly types request/response interfaces\n3. Calls removeImageBackground function with correct parameters\n4. Returns response data correctly\n5. No modifications needed (this is just a thin wrapper)\n<info added on 2025-10-19T01:03:18.842Z>\nReview complete! The backgroundRemovalService.ts frontend service is working correctly.\n\nVerified:\n✅ Imports Firebase Functions correctly (lines 8-9)\n✅ Request/Response interfaces properly typed (lines 14-32)\n✅ httpsCallable created with correct generics (lines 71-74)\n✅ All parameters passed correctly: imageUrl, projectId, originalImageId (lines 76-80)\n✅ Returns result.data properly (line 82)\n\nConclusion: No changes needed in the frontend service. It's a proper thin wrapper around the Firebase callable function. The 422 error was caused by the backend version format bug (already fixed in task 2.1).\n\nThe complete flow is:\n1. Frontend calls removeImageBackground() with image URL\n2. Firebase Function downloads image and converts to base64\n3. Firebase Function sends base64 to Replicate API (with correct version hash)\n4. Response flows back through the chain\n\nReady for deployment testing.\n</info added on 2025-10-19T01:03:18.842Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-19T00:50:24.692Z",
+      "description": "Default tasks context",
+      "updated": "2025-10-19T01:03:18.930Z"
+    }
+  }
+}

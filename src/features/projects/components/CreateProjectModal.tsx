@@ -16,14 +16,14 @@ import { cn } from '@/lib/utils';
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (name: string, isPublic: boolean) => void;
+  onCreate: (name: string) => void;
   isCreating?: boolean;
   defaultName?: string;
 }
 
 /**
  * Modal for creating new projects.
- * Validates project name and collects visibility preference.
+ * All new projects are created as private by default.
  * All projects automatically receive starter templates.
  *
  * @example
@@ -44,7 +44,6 @@ export function CreateProjectModal({
   defaultName = 'Project 1',
 }: CreateProjectModalProps) {
   const [projectName, setProjectName] = useState(defaultName);
-  const [isPublic, setIsPublic] = useState(false);
   const [error, setError] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -72,13 +71,12 @@ export function CreateProjectModal({
 
     // Clear error and create project
     setError('');
-    onCreate(projectName, isPublic);
+    onCreate(projectName);
   };
 
   const handleClose = () => {
     if (!isCreating) {
       setProjectName(defaultName);
-      setIsPublic(false);
       setError('');
       onClose();
     }
@@ -144,96 +142,9 @@ export function CreateProjectModal({
             <p className="mt-1 text-xs text-gray-500">
               {projectName.length}/100 characters
             </p>
-          </div>
-
-          {/* Visibility Toggle */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Project Visibility
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Private Option */}
-              <button
-                type="button"
-                onClick={() => setIsPublic(false)}
-                disabled={isCreating}
-                className={cn(
-                  'p-4 border-2 rounded-lg text-left transition-all',
-                  'hover:border-blue-500 hover:bg-blue-50',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
-                  !isPublic
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200'
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5">
-                    <svg
-                      className="w-5 h-5 text-gray-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                      Private
-                    </h3>
-                    <p className="text-xs text-gray-600">
-                      Only you and invited collaborators can access this project
-                    </p>
-                  </div>
-                </div>
-              </button>
-
-              {/* Public Option */}
-              <button
-                type="button"
-                onClick={() => setIsPublic(true)}
-                disabled={isCreating}
-                className={cn(
-                  'p-4 border-2 rounded-lg text-left transition-all',
-                  'hover:border-blue-500 hover:bg-blue-50',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
-                  isPublic
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200'
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5">
-                    <svg
-                      className="w-5 h-5 text-gray-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                      Public
-                    </h3>
-                    <p className="text-xs text-gray-600">
-                      Anyone can view and collaborate on this project
-                    </p>
-                  </div>
-                </div>
-              </button>
-            </div>
+            <p className="mt-2 text-xs text-gray-600">
+              All projects are private by default. You can share with collaborators or make public later.
+            </p>
           </div>
 
           {/* Actions */}

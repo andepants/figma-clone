@@ -1,0 +1,607 @@
+<context>
+# Overview
+
+Canvas Icons is a real-time collaborative canvas application (Figma clone) built with modern web technologies. It enables multiple users to design, create, and collaborate on visual content in real-time with professional-grade tools and workflows.
+
+**Problem Statement:**
+Existing design tools are either too complex, too expensive, or lack real-time collaboration features. Canvas Icons aims to provide a fast, intuitive, web-based design tool with enterprise-grade collaboration at its core.
+
+**Target Users:**
+- Design teams needing real-time collaboration
+- Product teams creating mockups and prototypes
+- Educators teaching design concepts
+- Individual designers wanting a lightweight Figma alternative
+
+**Value Proposition:**
+- 60 FPS canvas performance even with 500+ objects
+- <150ms sync latency for real-time collaboration
+- Professional design tools (layers, groups, locking, z-index)
+- AI-powered design assistance
+- Free and open-source
+
+# Core Features
+
+## 1. Real-Time Collaborative Canvas
+**What it does:** Multiple users can work on the same canvas simultaneously with live cursor tracking and presence indicators.
+
+**Why it's important:** Enables seamless team collaboration without the overhead of sharing screens or files.
+
+**How it works:**
+- Firebase Realtime Database for all real-time data (objects, cursors, presence)
+- 50ms throttling for optimal performance
+- Optimistic updates for instant visual feedback
+- Automatic conflict resolution
+
+## 2. Object Hierarchy System
+**What it does:** Parent-child relationships between canvas objects (like Figma's frames/groups).
+
+**Why it's important:** Enables complex design organization and nested structures.
+
+**How it works:**
+- Objects can have parentId references
+- Circular reference prevention
+- Cascade operations (move, lock, delete)
+- Collapsible tree view in layers panel
+
+## 3. Layer Management
+**What it does:** Visual hierarchy panel for organizing, selecting, and reordering objects.
+
+**Why it's important:** Essential for managing complex designs with many overlapping objects.
+
+**How it works:**
+- Drag-to-reorder z-index
+- Multi-select with shift/cmd
+- Context menu for quick actions
+- Visibility and lock toggles
+- Keyboard shortcuts for bring to front/send to back
+
+## 4. Object Locking System
+**What it does:** Lock objects to prevent selection, dragging, or editing (Figma behavior).
+
+**Why it's important:** Protects important design elements from accidental modification.
+
+**How it works:**
+- Locked objects have `listening: false` on canvas
+- Can still be unlocked from layers panel
+- Lock cascades to descendants
+- Keyboard shortcut: Shift + Cmd/Ctrl + L
+
+## 5. Grouping System
+**What it does:** Combine multiple objects into a logical group for easier management.
+
+**Why it's important:** Simplifies working with related design elements as a single unit.
+
+**How it works:**
+- Groups use parent-child hierarchy
+- Groups have no visual representation (container only)
+- Auto-delete empty groups
+- Keyboard shortcuts: Cmd/Ctrl + G (group), Shift + Cmd/Ctrl + G (ungroup)
+
+## 6. Properties Panel
+**What it does:** Context-aware panel for editing object properties (position, size, fill, stroke, etc.).
+
+**Why it's important:** Provides precise control over object attributes without cluttering the main canvas.
+
+**How it works:**
+- Dynamic sections based on selected object type
+- Collapsible sections for organization
+- Live updates sync to Firebase
+- Supports multi-select for batch editing
+
+## 7. Export System
+**What it does:** Export canvas or selected objects as high-quality PNG images.
+
+**Why it's important:** Essential for sharing designs outside the application.
+
+**How it works:**
+- Modal-based workflow with configuration options
+- Resolution scaling (1x, 2x, 3x)
+- Export selection or entire canvas
+- Transparent background with tight bounding box
+- Accounts for strokes, shadows, and hidden objects
+- Keyboard shortcut: Shift + Cmd/Ctrl + E
+
+## 8. AI Design Assistant
+**What it does:** Natural language interface for canvas operations powered by Firebase AI Logic.
+
+**Why it's important:** Speeds up common tasks and makes the tool accessible to non-designers.
+
+**How it works:**
+- Chat panel in bottom-right corner
+- Command history (last 50 commands)
+- Status tracking (pending, success, error)
+- Keyboard shortcut: Cmd/Ctrl + K
+
+## 9. Image Tools
+**What it does:** Advanced image manipulation including crop, resize, and background removal.
+
+**Why it's important:** Enables complete design workflows without switching to external tools.
+
+**How it works:**
+- Interactive crop editor with visual feedback
+- Background removal via Replicate API (rembg model)
+- Image pool system for performance
+- Firebase Storage integration
+
+## 10. Authentication & Projects
+**What it does:** User authentication and project management with sharing capabilities.
+
+**Why it's important:** Enables collaboration and persistent storage of designs.
+
+**How it works:**
+- Firebase Authentication
+- Project-based organization (Realtime Database)
+- User presence tracking
+- Project sharing with email-based access control
+
+# User Experience
+
+## User Personas
+
+### Primary: Professional Designer (Sarah)
+- **Needs:** Fast performance, precise tools, keyboard shortcuts
+- **Pain points:** Slow collaboration tools, expensive licenses
+- **Goals:** Create production-ready designs with team
+
+### Secondary: Product Manager (Mike)
+- **Needs:** Quick mockups, easy sharing, no learning curve
+- **Pain points:** Complex design tools, can't make simple edits
+- **Goals:** Create wireframes and communicate ideas
+
+### Tertiary: Design Student (Alex)
+- **Needs:** Free tools, learning resources, simple interface
+- **Pain points:** Can't afford professional tools
+- **Goals:** Learn design principles and build portfolio
+
+## Key User Flows
+
+### 1. Creating a New Design
+1. User clicks "New Project" from projects page
+2. Enters project name in modal
+3. Canvas page loads with empty workspace
+4. User creates shapes using toolbar
+5. Properties panel updates for precise editing
+6. Changes auto-save to Firebase every 50ms
+
+### 2. Collaborating in Real-Time
+1. User shares project with team member email
+2. Team member opens project from their projects page
+3. Both users see each other's cursors and presence
+4. Objects update in real-time as either user edits
+5. Optimistic updates prevent lag
+6. Conflict resolution happens automatically
+
+### 3. Exporting a Design
+1. User selects objects to export (or works with entire canvas)
+2. Presses Shift + Cmd/Ctrl + E
+3. Export modal opens with configuration options
+4. User selects PNG, 2x resolution, selection scope
+5. Presses Enter to trigger export
+6. PNG downloads with timestamped filename
+
+## UI/UX Considerations
+
+- **Canvas-first design:** Workspace dominates, minimal UI chrome
+- **Figma-inspired aesthetics:** Minimalist, subtle shadows, soft borders
+- **Fast feedback:** All operations complete in <150ms
+- **Functional color:** 90% neutral grays, color only for actions/states
+- **Inter font:** Clean typography with clear hierarchy
+- **Keyboard-driven:** Comprehensive shortcuts for power users
+- **Context-aware:** Tools and panels adapt to current selection
+</context>
+
+<PRD>
+# Technical Architecture
+
+## System Components
+
+### Frontend Stack
+- **React 18+:** Functional components and hooks only
+- **Konva.js:** Canvas rendering with 3-5 optimized layers
+- **Tailwind CSS:** Utility-first styling (bg: #f5f5f5, primary: #0ea5e9)
+- **Zustand:** Lightweight state management (multiple focused stores)
+- **Shadcn UI / Radix UI:** Component library for modals, dropdowns, etc.
+
+### Backend Stack
+- **Firebase Auth:** User authentication (email/password, Google OAuth)
+- **Firebase Realtime Database:** All real-time data (objects, cursors, presence, projects)
+- **Firebase Storage:** Image uploads and assets
+- **Firebase AI Logic:** AI assistant backend
+- **Firebase Cloud Functions:** Background removal, image processing
+
+### State Management (Zustand Stores)
+- **canvasStore:** Canvas objects, selection, transform, CRUD operations
+- **authStore:** User authentication state
+- **uiStore:** UI state (panels, modals, active tools)
+- **aiStore:** AI chat history and command status
+
+### External Integrations
+- **Replicate API:** Background removal (rembg model)
+- **Firebase AI Logic:** Natural language canvas operations
+
+## Data Models
+
+### Canvas Object (Base)
+```typescript
+interface BaseCanvasObject {
+  id: string;                    // UUID
+  type: 'rectangle' | 'circle' | 'line' | 'text' | 'image' | 'group';
+  x: number;                     // Position X
+  y: number;                     // Position Y
+  name: string;                  // Layer name
+  visible?: boolean;             // Visibility toggle
+  locked?: boolean;              // Lock state
+  parentId?: string;             // Parent object ID
+  isCollapsed?: boolean;         // Collapse state in layers panel
+  createdBy: string;             // User ID
+  createdAt: number;             // Timestamp
+  updatedAt: number;             // Timestamp
+}
+```
+
+### Project
+```typescript
+interface Project {
+  id: string;
+  name: string;
+  ownerId: string;
+  collaborators: string[];       // Array of user emails
+  createdAt: number;
+  updatedAt: number;
+  thumbnailUrl?: string;
+}
+```
+
+### User Presence
+```typescript
+interface UserPresence {
+  userId: string;
+  userName: string;
+  cursor: { x: number; y: number };
+  color: string;                 // Assigned color for cursor
+  lastActive: number;            // Timestamp
+}
+```
+
+## Infrastructure Requirements
+
+### Performance Targets
+- **60 FPS rendering:** Even with 500+ objects
+- **<150ms sync latency:** 50ms throttle + 50-100ms network
+- **Virtual rendering:** For 500+ objects on canvas
+- **Optimized layers:** 3-5 Konva layers maximum
+
+### Optimization Techniques
+- React.memo for expensive components
+- useCallback and useMemo where appropriate
+- Throttle real-time updates (50ms for cursors and objects)
+- Debounce property changes (150ms)
+- Image pool system for efficient image loading
+
+### Scalability Considerations
+- Firebase Realtime Database scales automatically
+- Object pooling for large canvases
+- Lazy loading for project thumbnails
+- Client-side rendering for offline support
+
+## Vertical Slice Architecture
+
+**Dependency Flow:** Features → Stores → Services (no circular dependencies)
+
+### Feature Slices
+- `/src/features/canvas-core/` - Core canvas rendering and interaction
+- `/src/features/toolbar/` - Tool selection and tool-specific UI
+- `/src/features/properties-panel/` - Object property editing
+- `/src/features/layers-panel/` - Layer hierarchy and management
+- `/src/features/collaboration/` - Real-time presence and cursors
+- `/src/features/projects/` - Project listing and creation
+- `/src/features/auth/` - Authentication UI and flows
+- `/src/features/ai-assistant/` - AI chat panel and commands
+- `/src/features/export/` - Export modal and logic
+
+### Shared Infrastructure
+- `/src/stores/` - Zustand state stores
+- `/src/lib/firebase/` - Firebase service layer
+- `/src/lib/utils/` - Shared utilities
+- `/src/components/common/` - Reusable UI components
+
+# Development Roadmap
+
+## Phase 1: Core Canvas Foundation ✅ (COMPLETE)
+- Basic shape creation (rectangle, circle, line, text)
+- Canvas rendering with Konva.js
+- Selection and transformation
+- Properties panel
+- Toolbar with tool selection
+- Firebase setup (Auth, Realtime DB, Storage)
+- Real-time object synchronization
+
+## Phase 2: Collaboration & Organization ✅ (COMPLETE)
+- Real-time cursors and presence
+- User authentication (email/password, Google OAuth)
+- Project creation and management
+- Layers panel with hierarchy
+- Object locking system
+- Z-index management (bring to front, send to back)
+- Grouping system
+- Context menu for quick actions
+
+## Phase 3: Advanced Editing ✅ (COMPLETE)
+- Hierarchy system (parent-child relationships)
+- Multi-select operations
+- Keyboard shortcuts
+- Copy/paste functionality
+- Show/hide objects
+- Drag-to-reorder layers
+- Collapse/expand groups
+
+## Phase 4: Image & Export ✅ (COMPLETE)
+- Image upload and placement
+- Image crop tool with interactive editor
+- Background removal integration (Replicate API)
+- PNG export system with modal
+- Resolution scaling (1x, 2x, 3x)
+- Export selected objects or entire canvas
+
+## Phase 5: AI Integration ✅ (COMPLETE)
+- AI assistant chat panel
+- Firebase AI Logic integration
+- Natural language canvas operations
+- Command history tracking
+- Status indicators (pending, success, error)
+
+## Phase 6: Polish & Performance (IN PROGRESS)
+- Performance optimization for 500+ objects
+- Virtual rendering implementation
+- Undo/redo system
+- Snap-to-grid and smart guides
+- Alignment tools
+- Distribution tools
+- Color picker improvements
+- Gradient support
+
+## Phase 7: Advanced Features (FUTURE)
+- Vector path editing
+- Pen tool for custom shapes
+- Boolean operations (union, subtract, intersect)
+- Text formatting (bold, italic, alignment)
+- Comments and annotations
+- Version history
+- Component system (reusable elements)
+- Auto-layout (Figma-style frames)
+- Plugins and extensions
+
+## Phase 8: Enterprise Features (FUTURE)
+- Team workspaces
+- Role-based permissions
+- Activity logs and audit trails
+- Advanced sharing controls
+- Single sign-on (SSO)
+- On-premise deployment option
+- API for integrations
+
+# Logical Dependency Chain
+
+## Foundation First (Must Build First)
+1. **Firebase Setup** - Required for all features
+   - Authentication
+   - Realtime Database
+   - Storage
+   - Cloud Functions
+
+2. **Canvas Rendering** - Core rendering engine
+   - Konva.js setup
+   - Basic shapes
+   - Layer system
+   - Transform controls
+
+3. **State Management** - Data flow architecture
+   - Zustand stores
+   - Service layer
+   - Real-time sync
+
+## Quick Wins (Fast Value)
+4. **Toolbar & Properties Panel** - Make it usable
+   - Tool selection
+   - Property editing
+   - Live updates
+
+5. **Projects System** - Persistence
+   - Project CRUD
+   - Navigation
+   - Auto-save
+
+## Collaboration Layer (Build Upon Foundation)
+6. **Real-Time Presence** - Collaboration core
+   - Cursors
+   - User list
+   - Activity indicators
+
+7. **Layers Panel** - Organization
+   - Hierarchy view
+   - Selection
+   - Visibility toggles
+
+## Professional Features (Enhance UX)
+8. **Locking & Grouping** - Power user tools
+   - Lock system
+   - Group operations
+   - Z-index control
+
+9. **Context Menu** - Efficiency
+   - Right-click actions
+   - Keyboard shortcuts
+   - Quick operations
+
+## Advanced Capabilities (Differentiation)
+10. **Image Tools** - Complete workflow
+    - Upload and placement
+    - Crop and resize
+    - Background removal
+
+11. **Export System** - Output
+    - PNG export
+    - Resolution options
+    - Selection vs. all
+
+12. **AI Assistant** - Innovation
+    - Natural language
+    - Command execution
+    - Smart suggestions
+
+## Polish & Scale (Production Ready)
+13. **Undo/Redo** - Professional baseline
+    - Command pattern
+    - History management
+    - Keyboard shortcuts
+
+14. **Performance Optimization** - Scale
+    - Virtual rendering
+    - Object pooling
+    - Throttling/debouncing
+
+15. **Snap & Align** - Precision tools
+    - Snap to grid
+    - Smart guides
+    - Alignment helpers
+    - Distribution tools
+
+# Risks and Mitigations
+
+## Technical Challenges
+
+### Risk: Real-time sync conflicts
+**Mitigation:**
+- Implement operational transformation or CRDT
+- Use Firebase's built-in conflict resolution
+- Optimistic updates with rollback capability
+- Last-write-wins for simple properties
+
+### Risk: Canvas performance with many objects (500+)
+**Mitigation:**
+- Virtual rendering (only render visible objects)
+- Object pooling and recycling
+- Layer optimization (3-5 layers max)
+- Throttle all real-time updates (50ms)
+- Use React.memo aggressively
+
+### Risk: Firebase costs at scale
+**Mitigation:**
+- Implement connection pooling
+- Throttle writes (50ms batching)
+- Use Firebase emulator for development
+- Monitor usage with alerts
+- Implement usage limits per user/project
+
+### Risk: Image processing reliability (background removal)
+**Mitigation:**
+- Implement retry logic with exponential backoff
+- Provide manual fallback option
+- Cache processed images in Firebase Storage
+- Handle API rate limits gracefully
+- Show clear error messages to users
+
+## MVP Scope
+
+### Minimum Viable Product
+The MVP is **Phase 1-3** from the roadmap:
+- Core canvas with basic shapes
+- Real-time collaboration (cursors, presence)
+- Project management
+- Layers panel with hierarchy
+- Locking and grouping
+- Basic keyboard shortcuts
+
+**Goal:** Ship a functional, collaborative canvas that teams can use for basic design work.
+
+**Success Metrics:**
+- <150ms sync latency
+- 60 FPS rendering with 100+ objects
+- 5+ users can collaborate simultaneously
+- Zero data loss on sync conflicts
+
+### Post-MVP Enhancements
+Everything in **Phase 4-8** can be built iteratively:
+- Image tools (Phase 4)
+- AI assistant (Phase 5)
+- Performance optimization (Phase 6)
+- Advanced features (Phase 7)
+- Enterprise features (Phase 8)
+
+## Resource Constraints
+
+### API Rate Limits
+- **Replicate API:** 50 requests/second (background removal)
+- **Firebase AI Logic:** TBD based on plan
+- **Firebase Realtime DB:** 200,000 simultaneous connections (Spark plan has 100)
+
+**Mitigation:** Implement queuing, caching, and graceful degradation
+
+### Development Resources
+- **Single developer** (AI-assisted)
+- **Time to MVP:** 3-4 months (Phases 1-3)
+- **Time to full feature set:** 6-8 months (Phases 1-5)
+
+**Mitigation:** Use AI tools, leverage open-source libraries, focus on MVP first
+
+# Appendix
+
+## Research Findings
+
+### Performance Benchmarks
+- **Figma:** Achieves 60 FPS with 1000+ objects using WebGL
+- **Canva:** Uses canvas-based rendering, slower with complex designs
+- **Penpot:** Open-source alternative, good performance but fewer features
+
+**Takeaway:** Konva.js can achieve Figma-level performance with proper optimization
+
+### Collaboration Latency
+- **Google Docs:** ~50-100ms sync latency
+- **Figma:** ~100-150ms sync latency
+- **Miro:** ~150-200ms sync latency
+
+**Takeaway:** Our 150ms target is competitive if we can achieve it consistently
+
+### Firebase Pricing Analysis
+- **Spark (Free):** 100 simultaneous connections, 1GB storage, 10GB/month transfer
+- **Blaze (Pay-as-you-go):** $1/month per 200k writes, $5/GB storage, $0.15/GB transfer
+
+**Takeaway:** Free tier sufficient for MVP and small teams, costs scale reasonably
+
+## Technical Specifications
+
+### Browser Support
+- **Chrome:** 90+ (primary target)
+- **Firefox:** 88+
+- **Safari:** 14+
+- **Edge:** 90+
+
+**Rationale:** Focus on modern browsers with canvas and WebSocket support
+
+### Accessibility
+- **Keyboard navigation:** All features accessible via keyboard
+- **Screen reader support:** Announce selection and object changes
+- **High contrast mode:** Support system preferences
+- **Focus indicators:** Clear visual focus for all interactive elements
+
+**Goal:** WCAG 2.1 Level AA compliance
+
+### Security
+- **Authentication:** Firebase Auth with secure token management
+- **Authorization:** Row-level security rules in Realtime Database
+- **Data validation:** Client and server-side validation
+- **XSS protection:** Sanitize all user input
+- **CSRF protection:** Firebase handles this automatically
+
+### Monitoring & Observability
+- **Error tracking:** Sentry or similar
+- **Performance monitoring:** Firebase Performance Monitoring
+- **Analytics:** Firebase Analytics for user behavior
+- **Logging:** Cloud Functions logs for backend operations
+
+---
+
+**Document Version:** 1.0
+**Last Updated:** 2025-10-18
+**Status:** Active development (Phase 6)
+</PRD>

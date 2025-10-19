@@ -126,3 +126,51 @@ export interface AIAction {
   /** Error if tool failed */
   error?: string;
 }
+
+/**
+ * Remove background from image request
+ *
+ * Request payload for removeImageBackground callable function.
+ * Processes image through Replicate's rembg API to remove background.
+ */
+export interface RemoveBackgroundRequest {
+  /** URL of image to process (Firebase Storage URL or data URL) */
+  imageUrl: string;
+
+  /** Project ID for organizing processed images in storage */
+  projectId: string;
+
+  /** Original image object ID (for usage tracking) */
+  originalImageId: string;
+}
+
+/**
+ * Remove background from image response
+ *
+ * Response from removeImageBackground callable function.
+ */
+export interface RemoveBackgroundResponse {
+  /** Whether background removal succeeded */
+  success: boolean;
+
+  /** Firebase Storage URL of processed image (transparent background) */
+  processedImageUrl?: string;
+
+  /** Storage path for cleanup (e.g., 'processed-images/project123/1234-uuid.png') */
+  storagePath?: string;
+
+  /** Natural width of processed image in pixels */
+  naturalWidth?: number;
+
+  /** Natural height of processed image in pixels */
+  naturalHeight?: number;
+
+  /** File size of processed image in bytes */
+  fileSize?: number;
+
+  /** Error message if success=false */
+  error?: string;
+
+  /** Error code for programmatic handling */
+  errorCode?: 'api_error' | 'download_failed' | 'upload_failed' | 'invalid_url' | 'timeout' | 'network_error';
+}

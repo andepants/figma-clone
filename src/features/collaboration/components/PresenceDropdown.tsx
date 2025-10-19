@@ -15,6 +15,7 @@
  */
 
 import React, { useState } from 'react'
+import { X, UserPlus } from 'lucide-react'
 import { UserAvatar } from './UserAvatar'
 import {
   Popover,
@@ -40,6 +41,14 @@ interface PresenceDropdownProps {
   users: PresenceUser[]
   /** Trigger element (usually AvatarStack) */
   trigger: React.ReactNode
+  /** Owner user ID to show owner badge */
+  ownerId?: string
+  /** Current user ID for permission checks */
+  currentUserId?: string
+  /** Callback when owner clicks add user button */
+  onAddUser?: () => void
+  /** Callback when owner removes a collaborator */
+  onRemoveUser?: (userId: string) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -61,6 +70,10 @@ interface PresenceDropdownProps {
 export function PresenceDropdown({
   users,
   trigger,
+  ownerId,
+  currentUserId,
+  onAddUser,
+  onRemoveUser,
   className = '',
 }: PresenceDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -136,11 +149,31 @@ export function PresenceDropdown({
                   <span className="text-sm text-gray-700 truncate flex-1">
                     {user.username}
                   </span>
-                  {user.isCurrentUser && (
-                    <span className="text-xs text-gray-500 font-medium">
-                      (You)
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {ownerId && user.userId === ownerId && (
+                      <span className="text-xs text-blue-600 font-medium">
+                        Owner
+                      </span>
+                    )}
+                    {user.isCurrentUser && (
+                      <span className="text-xs text-gray-500 font-medium">
+                        (You)
+                      </span>
+                    )}
+                    {currentUserId === ownerId && user.userId !== ownerId && onRemoveUser && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onRemoveUser(user.userId)
+                        }}
+                        className="text-gray-400 hover:text-red-600 transition-colors"
+                        title="Remove from project"
+                        aria-label={`Remove ${user.username} from project`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -151,6 +184,19 @@ export function PresenceDropdown({
             </div>
           )}
         </div>
+
+        {/* Add User Button (owner only) */}
+        {currentUserId === ownerId && onAddUser && (
+          <div className="border-t border-gray-200 p-2">
+            <button
+              onClick={onAddUser}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 rounded-md hover:bg-primary-100 transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add User
+            </button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   )

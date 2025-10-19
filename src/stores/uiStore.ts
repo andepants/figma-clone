@@ -20,6 +20,7 @@ import { persist } from 'zustand/middleware';
  * @property {boolean} isAIChatCollapsed - Whether AI chat panel is collapsed
  * @property {number} rightSidebarWidth - Right sidebar width in pixels (240-480, default 240)
  * @property {boolean} isResizingRightSidebar - Whether user is actively resizing right sidebar
+ * @property {Set<string>} processingImages - Set of image IDs currently being processed (background removal, etc.)
  */
 interface UIState {
   leftSidebarOpen: boolean;
@@ -32,6 +33,7 @@ interface UIState {
   isResizingAIPanel: boolean;
   rightSidebarWidth: number;
   isResizingRightSidebar: boolean;
+  processingImages: Set<string>;
 }
 
 /**
@@ -105,6 +107,18 @@ interface UIActions {
    * @param {boolean} isResizing - Whether user is actively resizing the sidebar
    */
   setIsResizingRightSidebar: (isResizing: boolean) => void;
+
+  /**
+   * Add image ID to processing set (e.g., background removal in progress)
+   * @param {string} id - Image object ID
+   */
+  addProcessingImage: (id: string) => void;
+
+  /**
+   * Remove image ID from processing set (processing complete or failed)
+   * @param {string} id - Image object ID
+   */
+  removeProcessingImage: (id: string) => void;
 }
 
 /**
@@ -119,7 +133,7 @@ type UIStore = UIState & UIActions;
  */
 export const useUIStore = create<UIStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state
       leftSidebarOpen: true,
       rightSidebarOpen: true,
@@ -131,6 +145,7 @@ export const useUIStore = create<UIStore>()(
       isResizingAIPanel: false,
       rightSidebarWidth: 240,
       isResizingRightSidebar: false,
+      processingImages: new Set<string>(),
 
       // Actions
       toggleLeftSidebar: () =>
@@ -169,6 +184,18 @@ export const useUIStore = create<UIStore>()(
       },
 
       setIsResizingRightSidebar: (isResizing) => set({ isResizingRightSidebar: isResizing }),
+
+      addProcessingImage: (id) => {
+        const newSet = new Set(get().processingImages);
+        newSet.add(id);
+        set({ processingImages: newSet });
+      },
+
+      removeProcessingImage: (id) => {
+        const newSet = new Set(get().processingImages);
+        newSet.delete(id);
+        set({ processingImages: newSet });
+      },
     }),
     {
       name: 'ui-storage', // localStorage key

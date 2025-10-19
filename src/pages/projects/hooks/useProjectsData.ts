@@ -11,16 +11,15 @@
 
 import { useState, useEffect } from 'react';
 import {
-  getUserProjects,
-  getPublicProjectsForUser,
+  getAllUserProjects,
   getFoundersDealConfig,
 } from '@/lib/firebase';
 import type { Project } from '@/types/project.types';
 
 interface UseProjectsDataReturn {
-  /** User's owned projects (paid users only) */
+  /** All projects accessible by user (owned + collaborated) */
   projects: Project[];
-  /** Public/collaborative projects (free users) */
+  /** Public/collaborative projects (deprecated - kept for backwards compatibility) */
   publicProjects: Project[];
   /** Number of users who have paid for founders offer */
   paidUserCount: number;
@@ -28,7 +27,7 @@ interface UseProjectsDataReturn {
   isLoading: boolean;
   /** Update projects state */
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
-  /** Update public projects state */
+  /** Update public projects state (deprecated - kept for backwards compatibility) */
   setPublicProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
 
@@ -36,17 +35,17 @@ interface UseProjectsDataReturn {
  * Fetches and manages projects data for current user.
  *
  * Behavior:
- * - Paid users: fetch owned projects
- * - Free users: fetch public/collaborative projects
+ * - Fetches all projects accessible by user (owned + collaborated)
  * - Always fetches founders deal configuration
+ * - canCreateProjects parameter kept for backwards compatibility but not used
  *
  * @param currentUserId - Current user's ID (null if not authenticated)
- * @param canCreateProjects - Whether user has paid subscription
+ * @param canCreateProjects - (Deprecated) Kept for backwards compatibility
  * @returns Projects data and loading state
  *
  * @example
  * ```tsx
- * const { projects, publicProjects, isLoading, paidUserCount } = useProjectsData(
+ * const { projects, isLoading, paidUserCount } = useProjectsData(
  *   currentUser?.uid || null,
  *   canCreateProjects
  * );
@@ -79,7 +78,7 @@ export function useProjectsData(
     fetchFoundersDealConfig();
   }, []);
 
-  // Fetch user's projects based on subscription status
+  // Fetch all user's projects (owned + collaborated)
   useEffect(() => {
     async function fetchProjects() {
       if (!currentUserId) return;
@@ -87,17 +86,10 @@ export function useProjectsData(
       try {
         setIsLoading(true);
 
-        if (canCreateProjects) {
-          // Paid user: fetch owned projects
-          const userProjects = await getUserProjects(currentUserId);
-          setProjects(userProjects);
-          setPublicProjects([]); // Clear public projects
-        } else {
-          // Free user: fetch public projects they're in
-          const collabProjects = await getPublicProjectsForUser(currentUserId);
-          setPublicProjects(collabProjects);
-          setProjects([]); // No owned projects
-        }
+        // Fetch all projects accessible by user (owned + collaborated)
+        const allProjects = await getAllUserProjects(currentUserId);
+        setProjects(allProjects);
+        setPublicProjects([]); // Clear deprecated public projects
       } catch (error) {
         console.error('Failed to fetch projects:', error);
       } finally {
@@ -106,7 +98,7 @@ export function useProjectsData(
     }
 
     fetchProjects();
-  }, [currentUserId, canCreateProjects]);
+  }, [currentUserId]);
 
   return {
     projects,

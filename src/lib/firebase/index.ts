@@ -18,6 +18,9 @@ export {
   type User,
 } from './auth'
 
+// Export authentication service utilities
+export { findUserByEmailOrUsername } from './authService'
+
 // Export Firestore utilities
 export {
   collection,
@@ -170,6 +173,10 @@ export {
   canUserModifyProject,
   generateProjectId,
   createDefaultProject,
+  addCollaborator,
+  removeCollaborator,
+  getCollaboratedProjects,
+  getAllUserProjects,
 } from './projectsService'
 
 // Export Users Service

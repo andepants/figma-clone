@@ -66,10 +66,7 @@ export default function ProjectsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
-  const handleCreateProject = async (
-    name: string,
-    isPublic: boolean
-  ) => {
+  const handleCreateProject = async (name: string) => {
     if (!currentUser) return;
 
     try {
@@ -79,8 +76,8 @@ export default function ProjectsPage() {
         id: generateProjectId(),
         name,
         ownerId: currentUser.uid,
-        isPublic,
-        collaborators: [currentUser.uid],
+        isPublic: false, // All new projects are private by default
+        collaborators: { [currentUser.uid]: true }, // Map format for Firebase RTDB rules
         createdAt: Date.now(),
         updatedAt: Date.now(),
         objectCount: 10, // Will have 10 template objects (4 app icons + 6 feature graphic)
@@ -403,6 +400,7 @@ export default function ProjectsPage() {
               <ProjectCard
                 key={project.id}
                 project={project}
+                currentUserId={currentUser?.uid || ''}
                 onRename={handleRenameProject}
                 onDelete={(projectId) => {
                   const project = projects.find((p) => p.id === projectId);
