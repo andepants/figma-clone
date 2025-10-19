@@ -91,8 +91,11 @@ export function createCanvasActions(
         // Remove the object
         let updatedObjects = state.objects.filter((obj) => obj.id !== id);
 
-        // Recursively delete empty ancestor groups (or groups with only empty groups)
-        const deleteEmptyAncestors = (parentId: string | null | undefined) => {
+        // Collect all objects to delete (initial object + empty ancestors)
+        const objectsToDelete: string[] = [id];
+
+        // Recursively collect empty ancestor groups (or groups with only empty groups)
+        const collectEmptyAncestors = (parentId: string | null | undefined) => {
           if (!parentId) return;
 
           const parent = updatedObjects.find((obj) => obj.id === parentId);
@@ -102,26 +105,28 @@ export function createCanvasActions(
           const siblings = updatedObjects.filter((obj) => obj.parentId === parentId);
 
           if (siblings.length === 0 || hasOnlyEmptyGroups(parentId, updatedObjects)) {
-            // Parent is empty or only contains empty groups - remove it
+            // Parent is empty or only contains empty groups - mark for removal
+            objectsToDelete.push(parentId);
             updatedObjects = updatedObjects.filter((obj) => obj.id !== parentId);
 
             // Recursively check parent's parent
-            deleteEmptyAncestors(parent.parentId);
-
-            // Sync removal to Firebase
-            import('@/lib/firebase').then(async ({ removeCanvasObject }) => {
-              try {
-                const projectId = get().projectId;
-                await removeCanvasObject(projectId, parentId);
-              } catch (error) {
-                console.error('Failed to sync group deletion to Firebase:', error);
-              }
-            });
+            collectEmptyAncestors(parent.parentId);
           }
         };
 
         // Start recursive cleanup from removed object's parent
-        deleteEmptyAncestors(objectToRemove.parentId);
+        collectEmptyAncestors(objectToRemove.parentId);
+
+        // Atomically delete all objects in a single Firebase transaction
+        import('@/features/layers-panel/utils/transactions').then(async ({ batchDeleteObjects }) => {
+          try {
+            const projectId = get().projectId;
+            await batchDeleteObjects(projectId, objectsToDelete);
+          } catch (error) {
+            console.error('Failed to sync cascade deletion to Firebase:', error);
+            // Don't throw - local state already updated, Firebase sync is best-effort
+          }
+        });
 
         return {
           objects: updatedObjects,

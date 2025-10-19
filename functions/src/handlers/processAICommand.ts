@@ -250,14 +250,41 @@ export async function processAICommandHandler(
     }
 
     // Create tool context with optimized state
+    const hasViewport = !!optimizedState._viewportBounds;
+    const viewportBounds = optimizedState._viewportBounds || {
+      centerX: 2500,
+      centerY: 2500,
+      minX: 0,
+      maxX: 5000,
+      minY: 0,
+      maxY: 5000,
+    };
+
+    if (!hasViewport) {
+      logger.warn("⚠️ No viewport data provided - using canvas center as fallback", {
+        fallbackCenter: {x: viewportBounds.centerX, y: viewportBounds.centerY},
+        canvasSize: optimizedState.canvasSize,
+      });
+    } else {
+      logger.info("📍 Viewport context provided", {
+        center: {x: viewportBounds.centerX, y: viewportBounds.centerY},
+        bounds: {
+          minX: viewportBounds.minX,
+          maxX: viewportBounds.maxX,
+          minY: viewportBounds.minY,
+          maxY: viewportBounds.maxY,
+        },
+      });
+    }
+
     const toolContext = {
       canvasId: data.canvasId,
       userId: auth.uid,
       currentObjects: optimizedState.objects,
       canvasSize: optimizedState.canvasSize,
       selectedObjectIds: optimizedState.selectedObjectIds,
-      // Pass viewport bounds from optimized state
-      viewportBounds: optimizedState._viewportBounds,
+      // Pass viewport bounds from optimized state (with fallback)
+      viewportBounds,
       // Will be populated from conversation memory in Phase 3
       lastCreatedObjectIds: [],
     };
@@ -314,6 +341,12 @@ export async function processAICommandHandler(
     for (const msg of messages) {
       if (msg.tool_calls && msg.tool_calls.length > 0) {
         for (const toolCall of msg.tool_calls) {
+          logger.info("🔧 Tool executed", {
+            toolName: toolCall.name,
+            params: JSON.stringify(toolCall.args).substring(0, 200),
+            messageId: msg.id,
+          });
+
           actions.push({
             tool: toolCall.name,
             params: toolCall.args,
@@ -322,6 +355,13 @@ export async function processAICommandHandler(
         }
       }
     }
+
+    logger.info("📊 Execution summary", {
+      totalActions: actions.length,
+      toolsUsed: Array.from(new Set(actions.map(a => a.tool))),
+      commandLength: data.command.length,
+      responseTime: `${responseTime}ms`,
+    });
 
     // Count objects created/modified
     const objectsCreated = actions.filter(

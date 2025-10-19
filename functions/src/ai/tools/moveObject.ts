@@ -70,12 +70,26 @@ export class MoveObjectTool extends CanvasTool {
         if (this.context.lastCreatedObjectIds &&
             this.context.lastCreatedObjectIds.length > 0) {
           objectIds = this.context.lastCreatedObjectIds;
-          logger.info("Using last created objects for move", {objectIds});
+          logger.info("✨ Using last created objects for move", {
+            objectIds,
+            count: objectIds.length,
+          });
         } else {
+          const selectedCount = this.context.selectedObjectIds?.length || 0;
+          const totalObjects = this.context.currentObjects.length;
+
+          logger.warn("❌ moveObject called without object IDs", {
+            hasLastCreated: false,
+            selectedCount,
+            totalObjects,
+          });
+
           return {
             success: false,
             error: "No objects specified and no recently created objects",
-            message: "Please specify which objects to move or create objects first",
+            message: `❌ Cannot move objects - no IDs provided. ` +
+                    `Canvas has ${totalObjects} objects (${selectedCount} selected). ` +
+                    `TIP: Use findObjects first to get IDs, or specify objects by properties.`,
           };
         }
       }

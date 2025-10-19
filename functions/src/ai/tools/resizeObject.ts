@@ -16,8 +16,12 @@ import {updateCanvasObject, getCanvasObject} from "../../services/canvas-objects
  * Schema for resize object parameters
  */
 const ResizeObjectSchema = z.object({
+  objectIds: z.array(z.string())
+    .optional()
+    .describe("IDs of objects to resize (optional - can use single objectId instead)"),
   objectId: z.string()
-    .describe("ID of the object to resize"),
+    .optional()
+    .describe("ID of single object to resize (optional - can use objectIds array instead)"),
   width: z.number()
     .min(1)
     .max(50000)
@@ -65,16 +69,33 @@ export class ResizeObjectTool extends CanvasTool {
     input: z.infer<typeof ResizeObjectSchema>
   ): Promise<ToolResult> {
     try {
+      // Determine which objects to resize
+      let objectIds: string[];
+      if (input.objectIds && input.objectIds.length > 0) {
+        objectIds = input.objectIds;
+      } else if (input.objectId) {
+        objectIds = [input.objectId];
+      } else {
+        return {
+          success: false,
+          error: "Either objectId or objectIds must be provided",
+          message: "❌ Cannot resize - no object IDs specified. TIP: Use findObjects first to get IDs.",
+        };
+      }
+
+      // For now, process first object (TODO: support batch resize)
+      const objectId = objectIds[0];
+
       // Check if object exists
       const existingObject = await getCanvasObject(
         this.context.canvasId,
-        input.objectId
+        objectId
       );
 
       if (!existingObject) {
         return {
           success: false,
-          error: `Object ${input.objectId} not found in canvas`,
+          error: `Object ${objectId} not found in canvas`,
           message: "Failed to resize object - object not found",
         };
       }
@@ -148,16 +169,16 @@ export class ResizeObjectTool extends CanvasTool {
       // Apply updates to RTDB
       await updateCanvasObject(
         this.context.canvasId,
-        input.objectId,
+        objectId,
         updates
       );
 
       return {
         success: true,
         message,
-        objectsModified: [input.objectId],
+        objectsModified: [objectId],
         data: {
-          objectId: input.objectId,
+          objectId,
           updates,
         },
       };

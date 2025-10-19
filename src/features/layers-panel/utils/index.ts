@@ -14,3 +14,23 @@ export {
   hasLockedParent,
   moveToParent,
 } from './hierarchy';
+
+export {
+  validateAndFixOrphans,
+  validateAndFixParentTypes,
+  wouldCreateCircularReference,
+  isValidParent,
+  objectExists,
+  allObjectsExist,
+  validateAndFixHierarchy,
+  validateDragDrop,
+} from './validation';
+
+export {
+  batchUpdateObjects,
+  batchDeleteObjects,
+  atomicMoveWithZIndexes,
+  cascadeDeleteGroup,
+  atomicReorderObjects,
+  withRollback,
+} from './transactions';
