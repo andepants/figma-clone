@@ -5,7 +5,7 @@
  * This is the core of the collaborative canvas application.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import type Konva from 'konva';
 import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures, useGroupDrag, useDragToSelect, useArrowKeyPan, useCanvasDropzone } from '../hooks';
@@ -158,13 +158,19 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
   const bgColorWithOpacity = hexToRgba(backgroundColor, opacity);
 
   // Handler for object selection
-  function handleSelectObject(objectId: string, shiftKey?: boolean) {
+  // IMPORTANT: Wrapped in useCallback to prevent infinite re-renders in StageObjects memo
+  const handleSelectObject = useCallback((objectId: string, shiftKey?: boolean) => {
     if (shiftKey) {
       toggleSelection(objectId);
     } else {
       selectObjects([objectId]);
     }
-  }
+  }, [toggleSelection, selectObjects]);
+
+  // Cache buster - verify new code is loaded
+  useEffect(() => {
+    console.log('[CanvasStage] Component loaded - useCallback fix applied at', new Date().toISOString());
+  }, []);
 
   return (
     <div {...getRootProps()} className="relative w-full h-full">

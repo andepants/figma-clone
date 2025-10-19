@@ -28,6 +28,7 @@ import type Konva from 'konva';
 import type { CanvasObject } from '@/types';
 import { saveExportToFirebase } from '../utils/saveExport';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
 import type { ExportResult } from '@/lib/utils/export';
 import { ExportHistoryTab } from './ExportHistoryTab';
 
@@ -96,13 +97,107 @@ export function ExportModal({
     format: 'png',
     scale: 2,
     scope: 'selection', // Always selection - no full canvas option
+    padding: 0,
   });
+
+  // Separate padding state for input control
+  const [padding, setPadding] = useState<number>(0);
 
   // Loading state during export - use state machine for better UX
   const [exportStatus, setExportStatus] = useState<'idle' | 'generating' | 'uploading' | 'complete'>('idle');
 
   // Preview state (single preview of selection)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Dimension state (calculated from bounding box)
+  const [dimensions, setDimensions] = useState<{
+    contentWidth: number;
+    contentHeight: number;
+    finalWidth: number;
+    finalHeight: number;
+  } | null>(null);
+
+  /**
+   * Calculate dimensions from bounding box
+   * Updates dimensions state based on current selection, scale, and padding
+   */
+  const calculateDimensions = useCallback(() => {
+    if (!stageRef.current || selectedObjects.length === 0) {
+      setDimensions(null);
+      return;
+    }
+
+    try {
+      const stage = stageRef.current;
+      const layers = stage.getLayers();
+      const objectsLayer = layers[1];
+
+      if (!objectsLayer) {
+        setDimensions(null);
+        return;
+      }
+
+      // Get IDs of selected objects (including group descendants)
+      const expandedIds = new Set<string>();
+      selectedObjects.forEach(obj => {
+        expandedIds.add(obj.id);
+        if (obj.type === 'group') {
+          const descendantIds = getAllDescendantIds(obj.id, allObjects);
+          descendantIds.forEach((id: string) => expandedIds.add(id));
+        }
+      });
+
+      // Find Konva nodes
+      const nodesToExport: Konva.Node[] = [];
+      objectsLayer.getChildren().forEach((node) => {
+        const nodeId = node.id();
+        if (nodeId && expandedIds.has(nodeId)) {
+          nodesToExport.push(node);
+        }
+      });
+
+      if (nodesToExport.length === 0) {
+        setDimensions(null);
+        return;
+      }
+
+      // Calculate bounding box
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      nodesToExport.forEach((node) => {
+        const rect = node.getClientRect({
+          skipTransform: false,
+          skipShadow: false,
+          skipStroke: false,
+        });
+
+        minX = Math.min(minX, rect.x);
+        minY = Math.min(minY, rect.y);
+        maxX = Math.max(maxX, rect.x + rect.width);
+        maxY = Math.max(maxY, rect.y + rect.height);
+      });
+
+      const contentWidth = maxX - minX;
+      const contentHeight = maxY - minY;
+
+      // Apply padding and scale
+      const finalWidth = (contentWidth + padding * 2) * options.scale;
+      const finalHeight = (contentHeight + padding * 2) * options.scale;
+
+      setDimensions({
+        contentWidth: Math.round(contentWidth * options.scale),
+        contentHeight: Math.round(contentHeight * options.scale),
+        finalWidth: Math.round(finalWidth),
+        finalHeight: Math.round(finalHeight),
+      });
+    } catch (error) {
+      console.error('Failed to calculate dimensions:', error);
+      setDimensions(null);
+    }
+  }, [stageRef, selectedObjects, allObjects, options.scale, padding]);
 
   /**
    * Handle export button click
@@ -160,9 +255,19 @@ export function ExportModal({
         format: 'png',
         scale: 2,
         scope: 'selection',
+        padding: 0,
       });
+      setPadding(0);
+      setDimensions(null);
     }
   }
+
+  /**
+   * Update padding value in options when padding state changes
+   */
+  useEffect(() => {
+    setOptions(prev => ({ ...prev, padding }));
+  }, [padding]);
 
 
   /**
@@ -176,13 +281,14 @@ export function ExportModal({
       if (previewUrl) {
         setPreviewUrl(null);
       }
+      setDimensions(null);
       return;
     }
 
     try {
-      // Generate selection preview at current export scale
+      // Generate selection preview at current export scale with padding
       // This ensures preview matches final export quality
-      const preview = generateExportPreview(stageRef, selectedObjects, allObjects, options.scale);
+      const preview = generateExportPreview(stageRef, selectedObjects, allObjects, options.scale, padding);
 
       // Cleanup: revoke old preview URL before setting new one
       if (previewUrl && previewUrl !== preview) {
@@ -190,11 +296,15 @@ export function ExportModal({
       }
 
       setPreviewUrl(preview);
+
+      // Calculate dimensions for display
+      calculateDimensions();
     } catch (error) {
       console.error('Failed to generate preview:', error);
       setPreviewUrl(null);
+      setDimensions(null);
     }
-  }, [isOpen, hasSelection, selectedObjects, allObjects, stageRef, options.scale, previewUrl]);
+  }, [isOpen, hasSelection, selectedObjects, allObjects, stageRef, options.scale, padding, previewUrl, calculateDimensions]);
 
   /**
    * Cleanup preview URL on unmount
@@ -348,6 +458,25 @@ export function ExportModal({
                   </div>
                 )}
               </div>
+
+              {/* Dimension Display */}
+              {dimensions && (
+                <div className="mt-3 text-center">
+                  <p className="text-xs text-gray-600">
+                    {padding > 0 ? (
+                      <>
+                        Content: <span className="font-medium text-gray-900">{dimensions.contentWidth} × {dimensions.contentHeight} px</span>
+                        {' '}&rarr;{' '}
+                        Export: <span className="font-medium text-gray-900">{dimensions.finalWidth} × {dimensions.finalHeight} px</span>
+                        {' '}
+                        <span className="text-gray-500">({padding}px padding)</span>
+                      </>
+                    ) : (
+                      <span className="font-medium text-gray-900">{dimensions.contentWidth} × {dimensions.contentHeight} px</span>
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Settings Section */}
@@ -378,6 +507,36 @@ export function ExportModal({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Padding */}
+              <div className="space-y-2">
+                <label htmlFor="padding-input" className="text-xs font-medium text-gray-700">Padding</label>
+                <div className="relative">
+                  <input
+                    id="padding-input"
+                    type="number"
+                    min="0"
+                    max="200"
+                    value={padding}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (!isNaN(value) && value >= 0 && value <= 200) {
+                        setPadding(value);
+                      } else if (e.target.value === '') {
+                        setPadding(0);
+                      }
+                    }}
+                    className="w-full h-10 px-3 pr-10 text-xs bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0ea5e9] focus:border-[#0ea5e9]"
+                    placeholder="0"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                    px
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-500">
+                  Transparent space around content (0-200px)
+                </p>
               </div>
 
               {/* Format */}

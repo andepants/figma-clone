@@ -29,11 +29,13 @@ export type ExportScope = 'selection' | 'all';
  * @property {ExportFormat} format - File format (currently PNG only)
  * @property {ExportScale} scale - Resolution multiplier (1x, 2x, 3x)
  * @property {ExportScope} scope - What to export (selection or all objects)
+ * @property {number} padding - Transparent padding around export in pixels (default: 0)
  */
 export interface ExportOptions {
   format: ExportFormat;
   scale: ExportScale;
   scope: ExportScope;
+  padding?: number;
 }
 
 /**
@@ -65,10 +67,16 @@ export interface ExportRecord {
     scope: ExportScope
     /** Number of objects exported */
     objectCount: number
-    /** Exported image width in pixels */
+    /** Content width in pixels (without padding) */
+    contentWidth: number
+    /** Content height in pixels (without padding) */
+    contentHeight: number
+    /** Final exported image width in pixels (with padding) */
     width: number
-    /** Exported image height in pixels */
+    /** Final exported image height in pixels (with padding) */
     height: number
+    /** Padding applied around content in pixels */
+    padding: number
   }
 }
 

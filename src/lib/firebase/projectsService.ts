@@ -119,7 +119,9 @@ export async function getPublicProjectsForUser(
   return Object.values(projectsData)
     .filter(
       (project) =>
-        project.isPublic === true && project.collaborators[userId] === true
+        project.isPublic === true &&
+        project.collaborators &&
+        project.collaborators[userId] === true
     )
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -214,7 +216,7 @@ export function canUserAccessProject(
 ): boolean {
   if (project.isPublic) return true;
   if (project.ownerId === userId) return true;
-  if (project.collaborators[userId] === true) return true;
+  if (project.collaborators && project.collaborators[userId] === true) return true;
   return false;
 }
 
@@ -294,12 +296,12 @@ export async function addCollaborator(
 
   const project = snapshot.val() as Project;
 
-  if (project.collaborators[userId] === true) {
+  if (project.collaborators && project.collaborators[userId] === true) {
     throw new Error('User is already a collaborator');
   }
 
   await update(projectRef, {
-    collaborators: { ...project.collaborators, [userId]: true },
+    collaborators: { ...(project.collaborators || {}), [userId]: true },
     updatedAt: Date.now(),
   });
 }
@@ -340,7 +342,7 @@ export async function removeCollaborator(
     throw new Error('Cannot remove project owner');
   }
 
-  if (project.collaborators[userId] !== true) {
+  if (!project.collaborators || project.collaborators[userId] !== true) {
     throw new Error('User is not a collaborator');
   }
 
@@ -377,6 +379,7 @@ export async function getCollaboratedProjects(
   return Object.values(projectsData)
     .filter(
       (project) =>
+        project.collaborators && // Check collaborators exists
         project.collaborators[userId] === true &&
         project.ownerId !== userId &&
         project.id !== 'PUBLIC_PLAYGROUND' // Exclude playground

@@ -29,10 +29,16 @@ export interface ExportResult {
     scope: ExportScope
     /** Number of objects exported */
     objectCount: number
-    /** Exported image width in pixels */
+    /** Content width in pixels (without padding) */
+    contentWidth: number
+    /** Content height in pixels (without padding) */
+    contentHeight: number
+    /** Exported image width in pixels (with padding) */
     width: number
-    /** Exported image height in pixels */
+    /** Exported image height in pixels (with padding) */
     height: number
+    /** Padding applied around content in pixels */
+    padding: number
   }
 }
 
@@ -78,7 +84,7 @@ export async function exportCanvasToPNG(
   stageRef: React.RefObject<Konva.Stage | null>,
   selectedObjects: CanvasObject[],
   allObjects: CanvasObject[],
-  options: ExportOptions = { format: 'png', scale: 2, scope: 'selection' }
+  options: ExportOptions = { format: 'png', scale: 2, scope: 'selection', padding: 0 }
 ): Promise<ExportResult> {
   // Validate stage ref
   if (!stageRef.current) {
@@ -211,10 +217,29 @@ export async function exportCanvasToPNG(
     throw new Error('Invalid bounding box - cannot export');
   }
 
+  // Apply padding to bounding box
+  // Padding is applied in canvas coordinates (before scaling)
+  // This ensures padding is consistent regardless of export scale
+  const padding = options.padding ?? 0;
+  const paddedBbox = {
+    x: bbox.x - padding,
+    y: bbox.y - padding,
+    width: bbox.width + (padding * 2),
+    height: bbox.height + (padding * 2),
+  };
+
+  // Calculate content and final dimensions
+  // Content = original object bounds (without padding)
+  // Final = content + padding, then scaled
+  const contentWidth = Math.round(bbox.width * options.scale);
+  const contentHeight = Math.round(bbox.height * options.scale);
+  const finalWidth = Math.round(paddedBbox.width * options.scale);
+  const finalHeight = Math.round(paddedBbox.height * options.scale);
+
   // Export stage as data URL
   // Use configurable quality settings from options.scale
   // PNG format automatically provides transparent background
-  // Export only the bounding box without padding (exact screenshot)
+  // Export the padded bounding box (content + padding)
 
   // CRITICAL FIX: Export from the entire stage, not just one layer
   // This ensures all shape properties (fill, stroke, etc.) are captured correctly.
@@ -336,11 +361,12 @@ export async function exportCanvasToPNG(
   objectsLayer.batchDraw();
 
   // Export the stage (now only includes objects layer)
+  // Use padded bounding box to include transparent padding around content
   const dataURL = stage.toDataURL({
-    x: bbox.x,
-    y: bbox.y,
-    width: bbox.width,
-    height: bbox.height,
+    x: paddedBbox.x,
+    y: paddedBbox.y,
+    width: paddedBbox.width,
+    height: paddedBbox.height,
     pixelRatio: options.scale, // Use scale from options (1x, 2x, or 3x)
     mimeType: 'image/png',
   });
@@ -410,8 +436,11 @@ export async function exportCanvasToPNG(
       scale: options.scale,
       scope: options.scope,
       objectCount: visibleObjects.length,
-      width: Math.round(bbox.width * options.scale),
-      height: Math.round(bbox.height * options.scale),
+      contentWidth,
+      contentHeight,
+      width: finalWidth,
+      height: finalHeight,
+      padding,
     }
   };
 

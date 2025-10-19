@@ -16,6 +16,7 @@
 import { useEffect, useState, useRef } from 'react';
 import type { SyncStatus } from '@/components/common';
 import type { User } from '@/types/auth.types';
+import type { CanvasObject } from '@/types';
 import { useCanvasStore } from '@/stores';
 import { markManipulated, unmarkManipulated, isManipulated } from '@/stores/manipulationTracker';
 import {
@@ -28,10 +29,12 @@ import {
   cleanupStaleCursors,
   batchUpdateCanvasObjects,
   getAllCanvasObjects,
+  updateCursor,
 } from '@/lib/firebase';
 import { subscribeToLayerDragLock } from '@/lib/firebase/layerPanelDragService';
 import { getUserDisplayName } from '@/lib/utils';
 import { flattenNonGroupHierarchies, needsMigration } from '@/lib/utils/hierarchyMigration';
+import { getUserColor } from '@/features/collaboration/utils/colorAssignment';
 
 /**
  * Hook parameters
@@ -90,6 +93,7 @@ export function useCanvasSubscriptions({
   const [isLoading, setIsLoading] = useState(true);
   const migrationRunRef = useRef(false); // Track if migration has been executed for this project
   const isLayerDragActiveRef = useRef(false); // Track if layer panel drag is in progress
+  const loadedObjectsRef = useRef<CanvasObject[] | null>(null); // Store loaded objects for re-render
 
   /**
    * Clean up stale states from previous sessions
@@ -222,18 +226,35 @@ export function useCanvasSubscriptions({
     migrationRunRef.current = false;
 
     const initSubscriptions = async () => {
+      // ACCUMULATION FIX: Track all unique objects across multiple callbacks
+      // Firebase may send objects in batches, we need to accumulate them instead of replacing
+      const objectsMap = new Map<string, import('@/types').CanvasObject>();
+
       try {
-        // FORCE CONNECTION: Ensure presence write completes FIRST
-        // This write operation forces the Firebase RTDB connection to fully establish,
-        // which ensures subscriptions fire immediately instead of waiting for user interaction.
+        // FORCE CONNECTION: Double write to guarantee connection establishment
+        // This mimics what happens when user naturally interacts (moves mouse, drags object)
         const username = getUserDisplayName(currentUser.username, currentUser.email);
+        const userColor = getUserColor(currentUser.uid);
+
+        // 1. Set presence (online status)
         await setOnline(projectId, currentUser.uid, username).catch(() => {});
 
+        // 2. Send initial cursor update (simulates mouse movement)
+        // This is the same write operation that happens when user moves mouse,
+        // which previously forced connection and made objects load.
+        await updateCursor(
+          projectId,
+          currentUser.uid,
+          { x: 0, y: 0 }, // Viewport center (will update on first real mouse move)
+          username,
+          userColor
+        ).catch(() => {});
+
         if (process.env.NODE_ENV === 'development') {
-          console.log('[Canvas Subscriptions] setOnline completed - connection established');
+          console.log('[Canvas Subscriptions] Presence + cursor sent - connection fully established');
         }
 
-        // NOW subscribe - connection is guaranteed to be active
+        // NOW subscribe - connection is GUARANTEED to be active
         const unsubscribe = subscribeToCanvasObjects(projectId, async (remoteObjects) => {
         callbackCount++;
 
@@ -258,10 +279,24 @@ export function useCanvasSubscriptions({
             clearTimeout(stableSnapshotTimer);
           }
 
+          // ACCUMULATE objects from this callback (Firebase may send in batches)
+          // Use Map for O(1) deduplication and to keep latest version of each object
+          remoteObjects.forEach(obj => {
+            objectsMap.set(obj.id, obj);
+          });
+
+          // Convert accumulated objects to array
+          // IMPORTANT: Always create new array to ensure store detects change
+          const accumulatedObjects = [...Array.from(objectsMap.values())];
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[Canvas Subscriptions] Accumulated ${accumulatedObjects.length} unique objects so far`);
+          }
+
           // Check if migration is needed and hasn't been run yet
-          if (!migrationRunRef.current && needsMigration(remoteObjects)) {
+          if (!migrationRunRef.current && needsMigration(accumulatedObjects)) {
             // Run migration to flatten non-group hierarchies
-            const result = flattenNonGroupHierarchies(remoteObjects);
+            const result = flattenNonGroupHierarchies(accumulatedObjects);
 
             // Update local state with migrated objects
             setObjects(result.objects);
@@ -283,8 +318,9 @@ export function useCanvasSubscriptions({
             // Mark migration as run
             migrationRunRef.current = true;
           } else {
-            // No migration needed - just set objects
-            setObjects(remoteObjects);
+            // No migration needed - set accumulated objects
+            setObjects(accumulatedObjects);
+            loadedObjectsRef.current = accumulatedObjects; // Store for re-render
           }
 
           // Start 200ms debounce timer to detect stable snapshot
@@ -296,6 +332,18 @@ export function useCanvasSubscriptions({
             }
             setIsLoading(false);
             isFirstLoad = false;
+
+            // FORCE CANVAS REDRAW: Call setObjects again with new array reference
+            // This ensures template objects render without user interaction
+            if (loadedObjectsRef.current) {
+              setTimeout(() => {
+                // Create new array reference to force re-render
+                setObjects([...loadedObjectsRef.current!]);
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[Canvas Subscriptions] Forced canvas re-render');
+                }
+              }, 100);
+            }
           }, 200);
 
           return;

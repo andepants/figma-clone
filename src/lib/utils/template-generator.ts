@@ -11,6 +11,8 @@ import { ref, set } from 'firebase/database';
 import { realtimeDb } from '@/lib/firebase/realtimedb';
 import type { CanvasObject, ImageObject } from '@/types/canvas.types';
 import defaultTemplate from '@/lib/templates/default-template.json';
+import { setOnline } from '@/lib/firebase/presenceService';
+import { updateCursor } from '@/lib/firebase/cursorService';
 
 /**
  * Get Template Image URL
@@ -85,13 +87,20 @@ function deepCloneCanvasObject(
  * Template images use pre-uploaded Firebase Storage URLs (see TEMPLATE_IMAGE_URLS).
  * This ensures instant project creation with no upload delays.
  *
+ * After writing template objects, this function triggers a connection refresh
+ * to ensure proper synchronization when the user opens the canvas.
+ *
  * @param projectId - Firebase project ID
  * @param userId - Current user ID (for ownership)
+ * @param username - Username for presence/cursor updates (optional, defaults to 'User')
+ * @param userColor - User color for cursor (optional, defaults to '#3b82f6')
  * @throws Error if Firebase write fails
  */
 export async function generateTemplateObjects(
   projectId: string,
-  userId: string
+  userId: string,
+  username: string = 'User',
+  userColor: string = '#3b82f6'
 ): Promise<void> {
   try {
     // Load template objects from JSON
@@ -150,6 +159,34 @@ export async function generateTemplateObjects(
     // Write to Firebase RTDB: /canvases/{projectId}/objects
     const objectsRef = ref(realtimeDb, `canvases/${projectId}/objects`);
     await set(objectsRef, objectsMap);
+
+    console.log(`✅ Template objects written to Firebase for project ${projectId}`);
+
+    // FORCE CONNECTION REFRESH: Ensure objects sync properly when user opens canvas
+    // This mimics what happens when user interacts (moves mouse, drags object)
+    // Without this, batch-written template objects may not appear until first interaction
+    try {
+      // Small delay to ensure Firebase write completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 1. Set presence (online status) - establishes connection
+      await setOnline(projectId, userId, username).catch(() => {});
+
+      // 2. Send cursor update - simulates user interaction
+      // This triggers subscription callbacks and ensures objects load
+      await updateCursor(
+        projectId,
+        userId,
+        { x: 0, y: 0 }, // Dummy position
+        username,
+        userColor
+      ).catch(() => {});
+
+      console.log(`✅ Connection refresh complete for project ${projectId}`);
+    } catch (error) {
+      // Don't fail template generation if connection refresh fails
+      console.warn('⚠️ Connection refresh failed (non-critical):', error);
+    }
 
     console.log(`✅ Template generation complete for project ${projectId}`);
   } catch (error) {

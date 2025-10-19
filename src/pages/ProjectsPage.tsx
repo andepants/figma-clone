@@ -27,6 +27,8 @@ import {
 } from '@/lib/firebase';
 import { redirectToCheckout } from '@/lib/stripe/checkout';
 import { generateTemplateObjects } from '@/lib/utils/template-generator';
+import { getUserDisplayName } from '@/lib/utils';
+import { getUserColor } from '@/features/collaboration/utils/colorAssignment';
 import type { Project } from '@/types/project.types';
 import { useNavigate } from 'react-router-dom';
 import { useProjectsData, usePaymentStatus } from './projects/hooks';
@@ -87,7 +89,10 @@ export default function ProjectsPage() {
       await createProject(newProject);
 
       // Generate template objects in RTDB with user ownership
-      await generateTemplateObjects(newProject.id, currentUser.uid);
+      // Pass username and color for connection refresh
+      const username = getUserDisplayName(currentUser.username, currentUser.email);
+      const userColor = getUserColor(currentUser.uid);
+      await generateTemplateObjects(newProject.id, currentUser.uid, username, userColor);
 
       setProjects((prev) => [newProject, ...prev]);
       setShowCreateModal(false);
