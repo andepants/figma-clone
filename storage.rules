@@ -58,6 +58,17 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Template images (public read access)
+    // Pre-uploaded template images used for new projects
+    match /templates/{fileName} {
+      // Allow public read for template images
+      allow read: if true;
+
+      // Only admins can write/delete (must be done manually via console)
+      allow write: if false;
+      allow delete: if false;
+    }
+
     // Deny all other paths by default (not matched by specific rules above)
     // If you need to add more paths, create specific rules instead of using a catch-all
     match /{allPaths=**} {

@@ -225,7 +225,7 @@ export const ResizeHandles = memo(function ResizeHandles({
   // These positions are relative to the center point (since Group uses center as origin)
   const handles: ResizeHandleType[] = ['nw', 'ne', 'sw', 'se'];
   const handlePositions = handles.map((handle) => {
-    const absolutePos = getHandlePosition(handle, bounds, handleSize);
+    const absolutePos = getHandlePosition(handle, bounds);
     // Convert to relative position from center
     return {
       handle,

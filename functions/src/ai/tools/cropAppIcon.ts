@@ -68,10 +68,9 @@ export class CropAppIconTool extends CanvasTool {
    * - Create new processed image object
    * - Clean up temporary file
    *
-   * @param input - Empty object (no parameters needed)
    * @returns Tool result with success status and instructions
    */
-  async execute(input: z.infer<typeof CropAppIconSchema>): Promise<ToolResult> {
+  async execute(): Promise<ToolResult> {
     try {
       logger.info('Starting app icon crop validation', {
         userId: this.context.userId,

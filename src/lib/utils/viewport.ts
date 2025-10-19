@@ -77,7 +77,7 @@ export function getObjectBounds(obj: CanvasObject): {
 
   // Handle different object types
   switch (obj.type) {
-    case 'circle':
+    case 'circle': {
       const radius = obj.radius || 0
       return {
         x: obj.x - radius - padding,
@@ -85,6 +85,7 @@ export function getObjectBounds(obj: CanvasObject): {
         width: radius * 2 + padding * 2,
         height: radius * 2 + padding * 2,
       }
+    }
 
     case 'line':
       return {

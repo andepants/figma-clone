@@ -27,7 +27,6 @@ import type {
   DragState,
 } from '@/types';
 import { filterVisibleObjects } from '@/lib/utils/viewport';
-import { useCanvasStore } from '@/stores/canvas';
 
 /**
  * Remote selection interface
@@ -88,18 +87,16 @@ export const StageObjects = memo(
   stageRef,
 }: StageObjectsProps) {
   // Get viewport state for culling dependencies
-  const zoom = useCanvasStore((state) => state.zoom);
-  const panX = useCanvasStore((state) => state.panX);
-  const panY = useCanvasStore((state) => state.panY);
-
   /**
    * Filter objects to only those visible in viewport
    * Performance optimization: Reduces render count from 500 to ~50-100 objects
-   * Dependencies: objects, stageRef.current, zoom, panX, panY (re-filter when viewport changes)
+   * Dependencies: objects, stageRef.current (re-filter when objects change)
+   * Note: stageRef.current contains viewport info (zoom, position) which changes frequently,
+   * so we rely on objects changing to trigger re-filtering rather than viewport changes
    */
   const visibleObjects = useMemo(() => {
     return filterVisibleObjects(objects, stageRef.current);
-  }, [objects, stageRef, zoom, panX, panY]);
+  }, [objects, stageRef]);
 
   /**
    * Set of visible object IDs for O(1) lookup

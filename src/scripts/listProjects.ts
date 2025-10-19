@@ -45,7 +45,7 @@ async function listProjects(): Promise<void> {
     return;
   }
 
-  const canvases = snapshot.val() as Record<string, any>;
+  const canvases = snapshot.val() as Record<string, { objects?: Record<string, unknown> }>;
   const canvasIds = Object.keys(canvases);
 
   console.log(`✓ Found ${canvasIds.length} canvases:\n`);

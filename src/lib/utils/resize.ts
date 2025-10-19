@@ -148,8 +148,7 @@ export function calculateResizedBounds(
  */
 export function getHandlePosition(
   handle: ResizeHandle,
-  bounds: Bounds,
-  _handleSize?: number
+  bounds: Bounds
 ): { x: number; y: number } {
   const position = RESIZE_HANDLE_POSITIONS[handle];
   const offset = RESIZE_HANDLE_OFFSET;

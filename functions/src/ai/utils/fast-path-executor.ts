@@ -11,7 +11,7 @@ import {getDatabase} from '../../services/firebase-admin';
 
 interface FastPathMatch {
   toolName: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
 }
 
 /**
@@ -224,8 +224,10 @@ export async function executeFastPathTool(
           };
         }
 
-        const newX = targetObject.x + (parameters.deltaX || 0);
-        const newY = targetObject.y + (parameters.deltaY || 0);
+        const deltaX = typeof parameters.deltaX === 'number' ? parameters.deltaX : 0;
+        const deltaY = typeof parameters.deltaY === 'number' ? parameters.deltaY : 0;
+        const newX = targetObject.x + deltaX;
+        const newY = targetObject.y + deltaY;
 
         await canvasRef.child(targetId).update({
           x: newX,
@@ -274,16 +276,16 @@ export async function executeFastPathTool(
           };
         }
 
-        const scale = parameters.scale || 1.5;
+        const scale = typeof parameters.scale === 'number' ? parameters.scale : 1.5;
         const updates: Record<string, number> = {};
 
-        if ('width' in targetObject && targetObject.width) {
+        if ('width' in targetObject && typeof targetObject.width === 'number' && targetObject.width) {
           updates.width = targetObject.width * scale;
         }
-        if ('height' in targetObject && targetObject.height) {
+        if ('height' in targetObject && typeof targetObject.height === 'number' && targetObject.height) {
           updates.height = targetObject.height * scale;
         }
-        if ('radius' in targetObject && targetObject.radius) {
+        if ('radius' in targetObject && typeof targetObject.radius === 'number' && targetObject.radius) {
           updates.radius = targetObject.radius * scale;
         }
 
@@ -328,7 +330,7 @@ function generateObjectId(): string {
 /**
  * Generate layer name with auto-increment
  */
-function generateLayerName(type: string, objects: any[]): string {
+function generateLayerName(type: string, objects: {type: string; name?: string}[]): string {
   const existingNames = objects
     .filter((obj) => obj.type === type)
     .map((obj) => obj.name || '');

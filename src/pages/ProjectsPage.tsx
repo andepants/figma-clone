@@ -86,8 +86,8 @@ export default function ProjectsPage() {
       // Create project in Firestore
       await createProject(newProject);
 
-      // Generate template objects in RTDB
-      await generateTemplateObjects(newProject.id);
+      // Generate template objects in RTDB with user ownership
+      await generateTemplateObjects(newProject.id, currentUser.uid);
 
       setProjects((prev) => [newProject, ...prev]);
       setShowCreateModal(false);

@@ -151,7 +151,7 @@ export class DistributeObjectsTool extends CanvasTool {
             operations.push("aligned left");
             break;
 
-          case "center":
+          case "center": {
             const centers = boxes.map((b) => b.centerX);
             alignX = centers.reduce((sum, c) => sum + c, 0) / centers.length;
             objects.forEach((obj, i) => {
@@ -161,6 +161,7 @@ export class DistributeObjectsTool extends CanvasTool {
             });
             operations.push("aligned centers horizontally");
             break;
+          }
 
           case "right":
             alignX = Math.max(...boxes.map((b) => b.right));
@@ -189,7 +190,7 @@ export class DistributeObjectsTool extends CanvasTool {
             operations.push("aligned top");
             break;
 
-          case "middle":
+          case "middle": {
             const middles = boxes.map((b) => b.centerY);
             alignY = middles.reduce((sum, c) => sum + c, 0) / middles.length;
             objects.forEach((obj, i) => {
@@ -199,6 +200,7 @@ export class DistributeObjectsTool extends CanvasTool {
             });
             operations.push("aligned centers vertically");
             break;
+          }
 
           case "bottom":
             alignY = Math.max(...boxes.map((b) => b.bottom));

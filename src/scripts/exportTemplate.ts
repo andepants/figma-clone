@@ -9,7 +9,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, get, connectDatabaseEmulator } from 'firebase/database';
-import { getStorage, ref as storageRef, getDownloadURL, connectStorageEmulator } from 'firebase/storage';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';

@@ -81,7 +81,10 @@ export async function exportCurrentCanvasAsTemplate(projectId: string): Promise<
 
 // Make available globally for console access
 if (typeof window !== 'undefined') {
-  (window as any).exportTemplate = () => {
+  interface WindowWithExportTemplate extends Window {
+    exportTemplate?: () => void;
+  }
+  (window as WindowWithExportTemplate).exportTemplate = () => {
     const projectId = window.location.pathname.split('/').pop() || '';
     if (!projectId) {
       console.error('❌ Could not determine project ID from URL');

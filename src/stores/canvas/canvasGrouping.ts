@@ -136,18 +136,31 @@ export function createCanvasGrouping(
 
       if (selectedGroups.length === 0) return;
 
-      // Get all children of selected groups
+      // Get all children of selected groups and build child-to-group map
       const childIds: string[] = [];
+      const childToGroupMap = new Map<string, string>(); // childId -> groupId
       selectedGroups.forEach((group) => {
         const children = objects.filter((obj) => obj.parentId === group.id);
-        children.forEach((child) => childIds.push(child.id));
+        children.forEach((child) => {
+          childIds.push(child.id);
+          childToGroupMap.set(child.id, group.id);
+        });
       });
 
-      // Remove parentId from children
+      // Update children to inherit their group's parent (preserves nested hierarchy)
       const updatedObjects = objects
         .map((obj) => {
           if (childIds.includes(obj.id)) {
-            return { ...obj, parentId: undefined, updatedAt: Date.now() };
+            // Find the group this child belongs to
+            const groupId = childToGroupMap.get(obj.id);
+            const group = selectedGroups.find((g) => g.id === groupId);
+
+            // Inherit the group's parent (undefined for root-level groups)
+            return {
+              ...obj,
+              parentId: group?.parentId ?? undefined,
+              updatedAt: Date.now()
+            };
           }
           return obj;
         })
