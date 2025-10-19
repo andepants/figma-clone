@@ -59,6 +59,133 @@ The codebase is AI-first: modular, scalable, highly navigable, and easy to under
 - Virtual rendering for 500+ objects
 - Target: <150ms total sync latency (50ms throttle + 50-100ms network)
 
+## Performance Guidelines
+
+When implementing canvas features, follow these proven optimization patterns:
+
+### Critical Optimizations
+
+1. **Always use viewport culling** for object lists > 50
+   - Filter objects by viewport bounds before rendering
+   - Use `filterVisibleObjects(objects, stageRef)` utility
+   - Account for zoom, pan, stroke width, and shadows
+
+2. **Memoize components** that render many children
+   - Wrap list components in `React.memo` with custom comparison
+   - Use `useMemo` for expensive state calculations
+   - Use `useCallback` for event handlers
+
+3. **Use Map for lookups**, not array.find()
+   - Convert arrays to `Map<string, T>` for O(1) access
+   - Use `Set<string>` for membership checks
+   - Avoid O(n²) nested loops
+
+4. **Throttle Firebase updates** to 50ms
+   - All real-time updates (cursor, drag, resize) at 50ms
+   - Batch multi-object operations into single write
+   - Use optimistic updates for immediate feedback
+
+5. **Test with 500+ objects** before considering complete
+   - Use `window.generateTestLines(500)` for testing
+   - Measure FPS with `window.measureFPS(10)`
+   - Target: 55+ FPS sustained
+
+6. **Profile with Chrome DevTools** to verify improvements
+   - Performance tab for frame analysis
+   - Memory tab for leak detection
+   - Verify optimizations with real metrics
+
+### Code Patterns
+
+```typescript
+// ✅ GOOD: Viewport culling
+const visibleObjects = useMemo(() => {
+  return filterVisibleObjects(objects, stageRef)
+}, [objects, stageRef, zoom, pan])
+
+// ✅ GOOD: Component memoization
+export const StageObjects = memo(
+  function StageObjects({ objects, selectedIds }) { ... },
+  (prev, next) => prev.objects === next.objects
+)
+
+// ✅ GOOD: O(1) Map lookups
+const dragStatesMap = useMemo(
+  () => new Map(dragStates.map(d => [d.objectId, d])),
+  [dragStates]
+)
+const dragState = dragStatesMap.get(obj.id)
+
+// ✅ GOOD: Memoized state calculations
+const shapeState = useMemo(() => {
+  if (obj.locked) return 'locked'
+  if (isSelected) return 'selected'
+  return 'default'
+}, [obj.locked, isSelected])
+
+// ✅ GOOD: Throttled Firebase updates
+const throttledUpdate = useRef(
+  throttle(async (id, updates) => {
+    await updateCanvasObject(projectId, id, updates)
+  }, 50)
+).current
+```
+
+### Anti-Patterns to Avoid
+
+```typescript
+// ❌ BAD: No viewport culling
+{objects.map(obj => <Shape key={obj.id} {...obj} />)}
+
+// ❌ BAD: O(n) lookup in O(n) loop = O(n²)
+objects.map(obj => {
+  const state = states.find(s => s.objectId === obj.id)
+})
+
+// ❌ BAD: Creating functions in render
+<button onClick={() => updateObject(obj.id, { selected: true })}>
+
+// ❌ BAD: No throttle on updates
+function handleDrag(e) {
+  updateCanvasObject(projectId, obj.id, { x: e.x, y: e.y })
+}
+```
+
+### Performance Testing Workflow
+
+Before committing canvas changes:
+
+```bash
+# 1. Generate test objects
+window.generateTestLines(500)
+
+# 2. Measure FPS
+await window.measureFPS(10)
+# Expected: 55+ FPS sustained
+
+# 3. Verify with profiler
+# Open Chrome DevTools > Performance
+# Record 10 seconds of interaction
+# Check for long tasks (>50ms)
+
+# 4. Clean up
+window.clearTestShapes()
+```
+
+### Documentation References
+
+- **Best Practices Guide:** `_docs/guides/performance-best-practices.md`
+- **Optimization Plan:** `_docs/plans/optimize.md`
+- **Performance Audit:** `_docs/performance/AUDIT_SUMMARY.md`
+- **Analysis Summary:** `_docs/performance/SUMMARY.md`
+
+### Performance Targets
+
+- **Frame Rate:** 55+ FPS with 500 objects (minimum 30 FPS)
+- **Render Time:** <18ms per frame (target <5ms)
+- **Memory:** Stable at <200MB (no leaks)
+- **Network:** 50ms throttle (20 updates/sec max)
+
 ## Hierarchy System
 
 Canvas Icons supports parent-child relationships between canvas objects (like Figma's frames/groups).

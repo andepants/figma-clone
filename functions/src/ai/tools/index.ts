@@ -30,6 +30,7 @@ import {DistributeObjectsTool} from "./distributeObjects";
 import {CreateFormTool} from "./createForm";
 import {CreateNavBarTool} from "./createNavBar";
 import {CreateCardTool} from "./createCard";
+import {CreatePirateShipOnHorseTool} from "./createPirateShipOnHorse";
 
 /**
  * Get all available canvas tools
@@ -79,6 +80,9 @@ export function getTools(context: CanvasToolContext): DynamicStructuredTool[] {
     new CreateFormTool(context),
     new CreateNavBarTool(context),
     new CreateCardTool(context),
+
+    // Fun demo tools
+    new CreatePirateShipOnHorseTool(context),
 
     // TODO Phase 4: Add grouping tool
     // - groupObjects (parent-child relationships)

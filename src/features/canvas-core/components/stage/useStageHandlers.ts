@@ -13,7 +13,7 @@ import type Konva from 'konva';
 import { useCanvasStore } from '@/stores';
 import { throttledUpdateCursor } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../../utils';
-import { getUserDisplayName } from '@/lib/utils';
+import { getUserDisplayName, debounce } from '@/lib/utils';
 
 /**
  * Position interface
@@ -78,6 +78,15 @@ export function useStageHandlers({
   // Get canvas store methods
   const { clearSelection } = useCanvasStore();
 
+  // Debounced zoom update to reduce re-renders during scroll zoom
+  // Immediate Konva stage update for smooth feel, debounced store update
+  const debouncedZoomUpdate = useRef(
+    debounce((...args: unknown[]) => {
+      const newZoom = args[0] as number;
+      setZoom(newZoom);
+    }, 16) // ~60fps
+  ).current;
+
   /**
    * Handle mouse wheel for panning and zooming
    * - Cmd/Ctrl + scroll = zoom (Figma style)
@@ -118,7 +127,12 @@ export function useStageHandlers({
         y: pointer.y - mousePointTo.y * clampedScale,
       };
 
-      setZoom(clampedScale);
+      // Apply zoom and pan immediately to Konva stage for smooth feel
+      stage.scale({ x: clampedScale, y: clampedScale });
+      stage.position(newPos);
+
+      // Update store with debounce to avoid excessive re-renders
+      debouncedZoomUpdate(clampedScale);
       setPan(newPos.x, newPos.y);
     } else {
       // PAN behavior (regular scroll or two-finger trackpad drag)

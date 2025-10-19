@@ -8,6 +8,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type Konva from 'konva';
+import { toast } from 'sonner';
 import { CanvasStage } from '@/features/canvas-core/components';
 import { Toolbar } from '@/features/toolbar/components';
 import { RightSidebar } from '@/features/right-sidebar';
@@ -233,6 +234,22 @@ function CanvasPage() {
     window.addEventListener('keydown', handleExportShortcut);
     return () => window.removeEventListener('keydown', handleExportShortcut);
   }, [handleExport, selectedIds]);
+
+  /**
+   * Warn users when canvas has too many objects
+   * Shows warning at 1000 objects and every 100 objects after
+   */
+  useEffect(() => {
+    const objectCount = objects.length;
+
+    // Show warning at 1000, 1100, 1200, etc. objects
+    if (objectCount >= 1000 && objectCount % 100 === 0) {
+      toast.warning(
+        `Large canvas (${objectCount} objects) may affect performance. Consider organizing into groups or separate projects.`,
+        { duration: 5000 }
+      );
+    }
+  }, [objects.length]);
 
   // Calculate background color with opacity
   const backgroundColor = pageSettings.backgroundColor;
