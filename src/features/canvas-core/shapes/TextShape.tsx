@@ -65,7 +65,7 @@ export const TextShape = memo(function TextShape({
   isInMultiSelect = false,
 }: TextShapeProps) {
   const { activeTool } = useToolStore();
-  const { editingTextId } = useCanvasStore();
+  const { editingTextId, zoom } = useCanvasStore();
   const { currentUser } = useAuth();
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
 
@@ -93,6 +93,7 @@ export const TextShape = memo(function TextShape({
   // State management hook
   const {
     isHovered,
+    setIsHovered,
     isRemoteEditing,
     shapeRef,
     stageRef,
@@ -126,6 +127,7 @@ export const TextShape = memo(function TextShape({
     textWidth,
     textHeight,
     onSelect,
+    setIsHovered,
   });
 
   // Resize hook
@@ -262,6 +264,7 @@ export const TextShape = memo(function TextShape({
         isLocked={isLocked}
         activeTool={activeTool}
         isResizing={isResizing ?? false}
+        zoom={zoom}
         displayX={displayX}
         displayY={displayY}
         textWidth={textWidth}

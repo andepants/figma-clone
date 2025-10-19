@@ -9,6 +9,8 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils/cn';
+import { useUsernameValidation } from '@/hooks/useUsernameValidation';
 
 /**
  * Props for SignupForm component
@@ -33,20 +35,23 @@ export function SignupForm({ onSubmit, onSuccess }: SignupFormProps) {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [validationErrors, setValidationErrors] = React.useState<{
-    username?: string;
     password?: string;
   }>({});
+
+  // Real-time username validation with availability check
+  const {
+    isValid: isUsernameValid,
+    isAvailable: isUsernameAvailable,
+    validationMessage: usernameValidationMessage,
+    validationState: usernameValidationState,
+  } = useUsernameValidation(username);
 
   /**
    * Validates form fields
    * @returns {boolean} True if form is valid
    */
   function validateForm(): boolean {
-    const errors: { username?: string; password?: string } = {};
-
-    if (username.trim().length < 3) {
-      errors.username = 'Username must be at least 3 characters';
-    }
+    const errors: { password?: string } = {};
 
     if (password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
@@ -91,7 +96,12 @@ export function SignupForm({ onSubmit, onSuccess }: SignupFormProps) {
     validateForm();
   }
 
-  const isFormValid = username.trim().length >= 3 && email && password.length >= 6;
+  // Form is valid if username is valid AND available (or empty), email exists, and password valid
+  const isFormValid =
+    isUsernameValid &&
+    (isUsernameAvailable === true || username.trim().length === 0) &&
+    email &&
+    password.length >= 6;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -104,14 +114,28 @@ export function SignupForm({ onSubmit, onSuccess }: SignupFormProps) {
           placeholder="johndoe"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          onBlur={handleBlur}
           disabled={loading}
           required
           autoComplete="username"
-          className={validationErrors.username ? 'border-error-500' : ''}
+          className={cn(
+            usernameValidationState === 'available' && 'border-green-500 focus:border-green-500',
+            (usernameValidationState === 'taken' || usernameValidationState === 'invalid') &&
+              'border-red-500 focus:border-red-500'
+          )}
         />
-        {validationErrors.username && (
-          <p className="text-xs text-error-600">{validationErrors.username}</p>
+        {/* Real-time username validation feedback */}
+        {usernameValidationMessage && (
+          <p
+            className={cn(
+              'text-xs',
+              usernameValidationState === 'available' && 'text-green-600',
+              (usernameValidationState === 'taken' || usernameValidationState === 'invalid') &&
+                'text-red-600',
+              usernameValidationState === 'checking' && 'text-gray-500'
+            )}
+          >
+            {usernameValidationMessage}
+          </p>
         )}
       </div>
 

@@ -31,6 +31,7 @@ import {CreateFormTool} from "./createForm";
 import {CreateNavBarTool} from "./createNavBar";
 import {CreateCardTool} from "./createCard";
 import {CreatePirateShipOnHorseTool} from "./createPirateShipOnHorse";
+import {CropAppIconTool} from "./cropAppIcon";
 
 /**
  * Get all available canvas tools
@@ -72,6 +73,9 @@ export function getTools(context: CanvasToolContext): DynamicStructuredTool[] {
     // AI Image Generation tools
     new GenerateAppIconTool(context),
     new GenerateFeatureGraphicTool(context),
+
+    // AI Image Processing tools
+    new CropAppIconTool(context),
 
     // Batch operation tools
     new CreateBatchTool(context),

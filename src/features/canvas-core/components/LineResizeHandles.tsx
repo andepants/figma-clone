@@ -12,6 +12,7 @@ import type { Line } from '@/types';
 import { calculateLineProperties, getLineEndpoints } from '../utils/lineHelpers';
 import { useToolStore, useCanvasStore } from '@/stores';
 import { throttledUpdateCanvasObject } from '@/lib/firebase';
+import { RESIZE_HANDLE_SCREEN_SIZE } from '@/constants';
 
 /**
  * LineResizeHandles component props
@@ -86,7 +87,7 @@ export const LineResizeHandles = memo(function LineResizeHandles({
   onResizeEnd,
 }: LineResizeHandlesProps) {
   const { activeTool } = useToolStore();
-  const { updateObject, projectId } = useCanvasStore();
+  const { updateObject, projectId, zoom } = useCanvasStore();
 
   // Track which handle is being dragged (1 or 2, or null)
   const [draggingHandle, setDraggingHandle] = useState<1 | 2 | null>(null);
@@ -320,9 +321,12 @@ export const LineResizeHandles = memo(function LineResizeHandles({
     stage.container().style.cursor = 'default';
   }
 
-  // Handle size and styling (matching other shape handles)
-  const handleSize = 8;
-  const handleStrokeWidth = 2;
+  // Calculate dynamic handle size based on zoom (inverse scaling)
+  // This ensures handles always appear at RESIZE_HANDLE_SCREEN_SIZE pixels on screen
+  const handleSize = RESIZE_HANDLE_SCREEN_SIZE / zoom;
+
+  // Calculate zoom-scaled stroke width (inversely proportional to zoom)
+  const handleStrokeWidth = 2 / zoom;
 
   return (
     <Group

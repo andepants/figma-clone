@@ -66,12 +66,15 @@ export function createCanvasClipboard(
               ? idMap.get(obj.parentId)!
               : obj.parentId; // Keep external parent if exists
 
+          // CRITICAL: Firebase RTDB doesn't allow undefined values
+          // Convert undefined to null (or omit the field)
           return {
             ...obj,
             id: newId,
+            type: obj.type, // CRITICAL: Explicitly preserve type for Firebase validation
             x: obj.x + 20,
             y: obj.y + 20,
-            parentId: newParentId,
+            parentId: newParentId ?? null, // ← Convert undefined to null
             createdBy: userId, // IMPORTANT: Set creator to current user
             createdAt: Date.now(),
             updatedAt: Date.now(),

@@ -29,6 +29,12 @@ export const AI_COMMANDS = [
     example: '/feature fitness app with running theme',
     category: 'Image Generation',
   },
+  {
+    command: '/crop-appicon',
+    description: 'Crop and clean app icon from DALL-E image',
+    example: '/crop-appicon',
+    category: 'Image Processing',
+  },
 ] as const;
 
 /**
@@ -111,6 +117,8 @@ export function getCommandSuggestions(
  * Extracts the command (e.g., "/icon") and description (e.g., "coffee cup")
  * from user input. Validates that command exists in AI_COMMANDS.
  *
+ * Some commands (like /crop-appicon) don't require descriptions.
+ *
  * @param input - Complete user input
  * @returns Object with command and description, or null if invalid
  *
@@ -118,11 +126,14 @@ export function getCommandSuggestions(
  * parseCommand('/icon coffee cup')
  * // Returns: { command: '/icon', description: 'coffee cup' }
  *
+ * parseCommand('/crop-appicon')
+ * // Returns: { command: '/crop-appicon', description: '' }
+ *
  * parseCommand('/invalid test')
  * // Returns: null (command not recognized)
  *
  * parseCommand('/icon')
- * // Returns: null (no description provided)
+ * // Returns: null (no description provided for command that requires it)
  */
 export function parseCommand(input: string): {
   command: string;
@@ -139,13 +150,17 @@ export function parseCommand(input: string): {
   // Split on first space
   const spaceIndex = trimmed.indexOf(' ');
 
-  if (spaceIndex === -1) {
-    // No space found, no description
-    return null;
-  }
+  let command: string;
+  let description: string;
 
-  const command = trimmed.substring(0, spaceIndex).toLowerCase();
-  const description = trimmed.substring(spaceIndex + 1).trim();
+  if (spaceIndex === -1) {
+    // No space found - command only, no description
+    command = trimmed.toLowerCase();
+    description = '';
+  } else {
+    command = trimmed.substring(0, spaceIndex).toLowerCase();
+    description = trimmed.substring(spaceIndex + 1).trim();
+  }
 
   // Validate command exists
   const commandObj = AI_COMMANDS.find(cmd => cmd.command === command);
@@ -154,8 +169,11 @@ export function parseCommand(input: string): {
     return null;
   }
 
-  // Validate description not empty
-  if (!description || description.length === 0) {
+  // Commands in 'Image Processing' category don't require descriptions
+  // Commands in other categories require descriptions
+  const requiresDescription = commandObj.category !== 'Image Processing';
+
+  if (requiresDescription && (!description || description.length === 0)) {
     return null;
   }
 

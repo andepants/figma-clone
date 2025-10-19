@@ -50,6 +50,8 @@ interface UseTextShapeHandlersProps {
   textHeight: number;
   /** Callback when text is selected */
   onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  /** Callback to update hover state */
+  setIsHovered: (isHovered: boolean) => void;
 }
 
 /**
@@ -70,6 +72,7 @@ export function useTextShapeHandlers({
   textWidth,
   textHeight,
   onSelect,
+  setIsHovered,
 }: UseTextShapeHandlersProps) {
   const { activeTool, setActiveTool } = useToolStore();
   const { projectId, updateObject, removeObject, setEditingText } = useCanvasStore();
@@ -79,19 +82,20 @@ export function useTextShapeHandlers({
   /**
    * Handle text save from editor
    * Updates text content and ends editing mode
-   * If text is empty or unchanged from placeholder, deletes the text object
+   * If text is empty, deletes the text object (Figma-style: keeps placeholder text boxes)
    * Switches tool back to move after editing completes
    */
   const handleTextSave = useCallback(async (newText: string) => {
     // Trim whitespace (removes spaces, tabs, newlines from beginning and end)
     const trimmedText = newText.trim();
 
-    // Check if text is empty or still the placeholder
+    // Check if text is truly empty (user deleted everything)
+    // NOTE: We keep placeholder text ("Start typing...") for Figma-style UX
+    // Users can click empty text boxes later to edit them
     const isEmpty = trimmedText === '';
-    const isPlaceholder = trimmedText === 'Start typing...';
 
-    if (isEmpty || isPlaceholder) {
-      // Delete the text object
+    if (isEmpty) {
+      // Delete the text object only if truly empty
       removeObject(text.id);
 
       // Sync deletion to Firebase
@@ -321,11 +325,12 @@ export function useTextShapeHandlers({
 
     // Set hover state for visual feedback
     if (activeTool === 'move') {
+      setIsHovered(true);
       stage.container().style.cursor = 'move';
       // Sync to UI store for sidebar hover highlighting
       setHoveredObject(text.id);
     }
-  }, [activeTool, setHoveredObject, text.id]);
+  }, [activeTool, setIsHovered, setHoveredObject, text.id]);
 
   /**
    * Handle mouse leave
@@ -336,6 +341,9 @@ export function useTextShapeHandlers({
     const stage = e.target.getStage();
     if (!stage) return;
 
+    // Clear hover state
+    setIsHovered(false);
+
     // Reset cursor based on active tool
     stage.container().style.cursor = activeTool === 'move' ? 'pointer' : 'crosshair';
 
@@ -345,7 +353,7 @@ export function useTextShapeHandlers({
     if (current === text.id) {
       setHoveredObject(null);
     }
-  }, [activeTool, text.id, setHoveredObject]);
+  }, [activeTool, text.id, setIsHovered, setHoveredObject]);
 
   return {
     handleTextSave,

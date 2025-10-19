@@ -300,6 +300,32 @@ Canvas Icons includes an AI assistant for natural language canvas operations (po
 - **Status tracking**: pending, success, error states for each command
 - **Toggle shortcut**: Cmd+K (Mac) / Ctrl+K (Windows/Linux)
 
+### Available Commands
+
+#### Image Generation
+- **/icon [description]** - Generate iOS & Android app icons
+  - Example: `/icon a coffee cup`
+  - Creates two design styles: Glassmorphism & Minimalist
+  - Outputs 1024x1024 PNG images
+
+- **/feature [description]** - Generate Android feature graphic
+  - Example: `/feature fitness app with running theme`
+  - Creates 1024x500 feature graphic
+
+#### Image Processing
+- **/crop-appicon** - Crop and clean app icon from DALL-E image
+  - Requires: One image selected
+  - Process:
+    1. Detects icon bounds using variance analysis
+    2. Crops to icon bounds (removes DALL-E gradient background)
+    3. Removes background via Replicate API
+    4. Creates new clean icon next to original
+  - Use case: Clean up DALL-E generated app icons by removing the gradient background
+  - Example workflow:
+    1. Generate icon: `/icon coffee cup`
+    2. Select one of the generated icons
+    3. Clean it: `/crop-appicon`
+
 ## UI Patterns
 
 ### Section Headers

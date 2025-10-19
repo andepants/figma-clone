@@ -1,262 +1,29 @@
 /**
  * Template Generator Utility
  *
- * Auto-generates starter canvas objects for new projects:
- * 1. App Icons Template (iOS 1024x1024 + Android 512x512 rectangles)
- * 2. Feature Graphic Template (1024x500 graphic with text and iPhone mockup)
+ * Loads default template from JSON and generates canvas objects for new projects.
+ * Template is exported from a source project using the export script.
  *
- * All templates are generated client-side and written directly to Firebase RTDB.
+ * All templates are loaded client-side and written directly to Firebase RTDB.
  */
 
 import { ref, set } from 'firebase/database';
 import { realtimeDb } from '@/lib/firebase/realtimedb';
-import type { CanvasObject, Rectangle, Text, ImageObject } from '@/types/canvas.types';
+import type { CanvasObject, ImageObject } from '@/types/canvas.types';
+import defaultTemplate from '@/lib/templates/default-template.json';
+import { uploadImageToStorage } from '@/lib/firebase/storage';
 
 /**
- * Generate App Icons Template
+ * Load template objects from JSON
  *
- * Creates:
- * - iOS rectangle (1024x1024) at x: 100, y: 100
- * - Android rectangle (512x512) at x: 1324, y: 100 (200px gap)
- * - "iOS 1024x1024" label above iOS rect
- * - "Android 512x512" label above Android rect
+ * Loads the default template exported from a source project.
+ * Template includes all object types with proper hierarchy and z-index.
  *
- * Total: 4 objects (2 labels + 2 rectangles)
+ * @returns Array of template canvas objects
  */
-function generateAppIconsTemplate(): CanvasObject[] {
-  const timestamp = Date.now();
-  const objects: CanvasObject[] = [];
-
-  // iOS Label
-  const iosLabel: Text = {
-    id: crypto.randomUUID(),
-    type: 'text',
-    x: 100,
-    y: 20,
-    width: 1024,
-    height: 120,
-    fill: '#000000',
-    text: 'iOS 1024x1024',
-    fontSize: 60,
-    fontFamily: 'Inter',
-    name: 'iOS Label',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(iosLabel);
-
-  // iOS Rectangle
-  const iosRect: Rectangle = {
-    id: crypto.randomUUID(),
-    type: 'rectangle',
-    x: 100,
-    y: 180,
-    width: 1024,
-    height: 1024,
-    fill: '#E5E7EB',
-    stroke: '#9CA3AF',
-    strokeWidth: 2,
-    name: 'iOS App Icon',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(iosRect);
-
-  // Android Label
-  const androidLabel: Text = {
-    id: crypto.randomUUID(),
-    type: 'text',
-    x: 1324,
-    y: 276,
-    width: 512,
-    height: 120,
-    fill: '#000000',
-    text: 'Android 512x512',
-    fontSize: 60,
-    fontFamily: 'Inter',
-    name: 'Android Label',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(androidLabel);
-
-  // Android Rectangle (vertically centered with iOS rect)
-  const androidRect: Rectangle = {
-    id: crypto.randomUUID(),
-    type: 'rectangle',
-    x: 1324,
-    y: 436,
-    width: 512,
-    height: 512,
-    fill: '#E5E7EB',
-    stroke: '#9CA3AF',
-    strokeWidth: 2,
-    name: 'Android App Icon',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(androidRect);
-
-  return objects;
-}
-
-/**
- * Generate Feature Graphic Template
- *
- * Creates 1024x500 Google Play feature graphic with:
- * - Size label (1024x500)
- * - Gray background rectangle (1024x500)
- * - Screenshot inside iPhone frame
- * - iPhone 15 Pro frame image (right side, with Dynamic Island)
- * - "Your App Name" text (large, centered-left, ABOVE background)
- * - "Your Tagline Here" text (smaller, below app name, ABOVE background)
- *
- * Layout positions all elements below app icons template with 300px gap
- * Total: 6 objects (1 label + 1 bg + 2 images + 2 text)
- *
- * Z-index ordering ensures text appears above background rectangle
- */
-function generateFeatureGraphicTemplate(): CanvasObject[] {
-  const timestamp = Date.now();
-  const objects: CanvasObject[] = [];
-  const startY = 1504; // 180 + 1024 + 300 (label y + iOS height + gap)
-
-  // Z-INDEX ORDER (first = back/bottom of layers panel, last = front/top of layers panel):
-  // 1. Background Rectangle (bottom layer, bottom of layers panel)
-  // 2. Feature Graphic Label (above background)
-  // 3. Screenshot (inside iPhone frame, below frame border)
-  // 4. iPhone Frame (border on top of screenshot)
-  // 5. App Name Text (above background)
-  // 6. Tagline Text (top layer, top of layers panel)
-
-  // Background Rectangle (FIRST - bottom layer, appears at BOTTOM of layers panel)
-  const background: Rectangle = {
-    id: crypto.randomUUID(),
-    type: 'rectangle',
-    x: 100,
-    y: startY,
-    width: 1024,
-    height: 500,
-    fill: '#6B7280',
-    stroke: '#4B5563',
-    strokeWidth: 2,
-    name: 'Feature Graphic Background',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(background);
-
-  // Feature Graphic Label (SECOND - above background)
-  const featureGraphicLabel: Text = {
-    id: crypto.randomUUID(),
-    type: 'text',
-    x: 100,
-    y: startY - 100,
-    width: 1024,
-    height: 80,
-    fill: '#000000',
-    text: 'Feature Graphic 1024x500',
-    fontSize: 60,
-    fontFamily: 'Inter',
-    name: 'Feature Graphic Label',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(featureGraphicLabel);
-
-  // Screenshot (THIRD - inside iPhone frame, below frame border)
-  const screenshot: ImageObject = {
-    id: crypto.randomUUID(),
-    type: 'image',
-    x: 744,
-    y: startY + 70,
-    width: 260,
-    height: 560,
-    src: `${window.location.origin}/templates/screenshot-placeholder.svg`,
-    naturalWidth: 260,
-    naturalHeight: 560,
-    fileName: 'screenshot-placeholder.svg',
-    fileSize: 0,
-    mimeType: 'image/svg+xml',
-    storageType: 'dataURL',
-    name: 'Screenshot',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(screenshot);
-
-  // iPhone Frame (FOURTH - border on top of screenshot)
-  // NOTE: Images loaded from /public folder via relative URL
-  // fileSize: 0 is allowed for template images (validation rule updated)
-  // Using SVG for crisp rendering at any scale
-  const iphoneFrame: ImageObject = {
-    id: crypto.randomUUID(),
-    type: 'image',
-    x: 724,
-    y: startY + 50,
-    width: 300,
-    height: 600,
-    src: `${window.location.origin}/templates/iphone-frame.svg`,
-    naturalWidth: 300,
-    naturalHeight: 600,
-    fileName: 'iphone-frame.svg',
-    fileSize: 0,
-    mimeType: 'image/svg+xml',
-    storageType: 'dataURL',
-    name: 'iPhone Frame',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(iphoneFrame);
-
-  // App Name Text (FIFTH - above background and phone)
-  const appName: Text = {
-    id: crypto.randomUUID(),
-    type: 'text',
-    x: 150,
-    y: startY + 120,
-    width: 500,
-    height: 120,
-    fill: '#FFFFFF',
-    text: 'Your App Name',
-    fontSize: 80,
-    fontFamily: 'Inter',
-    fontWeight: 'bold',
-    name: 'App Name',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(appName);
-
-  // Tagline Text (SIXTH - top layer)
-  const tagline: Text = {
-    id: crypto.randomUUID(),
-    type: 'text',
-    x: 150,
-    y: startY + 270,
-    width: 500,
-    height: 120,
-    fill: '#F3F4F6',
-    text: 'Your Tagline Here',
-    fontSize: 30,
-    fontFamily: 'Inter',
-    name: 'Tagline',
-    createdBy: 'system',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  objects.push(tagline);
-
-  return objects;
+function loadTemplateObjects(): CanvasObject[] {
+  // Type assertion needed because JSON import doesn't preserve exact types
+  return defaultTemplate.objects as CanvasObject[];
 }
 
 /**
@@ -280,39 +47,120 @@ function deepCloneCanvasObject(obj: CanvasObject): CanvasObject {
 }
 
 /**
+ * Upload Template Image to Firebase Storage
+ *
+ * Fetches a template image from the public folder and uploads it to Firebase Storage.
+ * Each project gets its own copy of template images in Storage.
+ *
+ * @param fileName - Image filename (e.g., "adaptive-icon.png")
+ * @param projectId - Firebase project ID
+ * @returns Promise resolving to Storage URL and path
+ * @throws Error if fetch or upload fails
+ */
+async function uploadTemplateImage(
+  fileName: string,
+  projectId: string
+): Promise<{ src: string; storagePath: string }> {
+  try {
+    // Fetch image from public folder
+    const publicUrl = `${window.location.origin}/templates/${fileName}`;
+    const response = await fetch(publicUrl);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch template image: ${response.statusText}`);
+    }
+
+    // Convert to Blob
+    const blob = await response.blob();
+
+    // Create File object (uploadImageToStorage expects File)
+    const file = new File([blob], fileName, { type: blob.type || 'image/png' });
+
+    // Upload to Firebase Storage
+    // Path: projects/{projectId}/template-images/{fileName}
+    const result = await uploadImageToStorage(
+      file,
+      projectId, // roomId
+      'system', // userId (system-generated)
+      undefined, // no progress callback needed
+      undefined // no abort signal
+    );
+
+    console.log(`✅ Uploaded template image: ${fileName} → ${result.storagePath}`);
+
+    return {
+      src: result.url,
+      storagePath: result.storagePath,
+    };
+  } catch (error) {
+    console.error(`❌ Failed to upload template image ${fileName}:`, error);
+    throw error;
+  }
+}
+
+/**
  * Generate Template Objects for New Project
  *
- * Creates starter canvas objects for every new project:
- * 1. App Icons Template (4 objects: 2 labels + 2 rectangles)
- * 2. Feature Graphic Template (6 objects: 1 label + 1 bg + 2 text + 2 images)
- *
- * Total: 10 canvas objects written to Firebase RTDB
+ * Loads template from JSON and creates starter canvas objects for every new project.
+ * Template is exported from a source project using the export script.
  *
  * IMPORTANT: Each project gets completely independent copies of template objects.
  * Editing template objects in one project will NOT affect other projects.
+ *
+ * Template images are uploaded to Firebase Storage when the project is created.
+ * This ensures images work correctly with the ImageShape component.
  *
  * @param projectId - Firebase project ID
  * @throws Error if Firebase write fails
  */
 export async function generateTemplateObjects(projectId: string): Promise<void> {
   try {
-    // Generate fresh template objects for this project
-    // NOTE: Even though we call these functions, we'll deep clone the results
-    // to ensure absolute independence between projects
-    const appIconObjects = generateAppIconsTemplate();
-    const featureGraphicObjects = generateFeatureGraphicTemplate();
+    // Load template objects from JSON
+    const templateObjects = loadTemplateObjects();
 
     // Deep clone all objects to ensure complete independence
     // This guarantees that editing objects in one project won't affect templates
-    const allObjects = [
-      ...appIconObjects.map(deepCloneCanvasObject),
-      ...featureGraphicObjects.map(deepCloneCanvasObject)
-    ];
+    const clonedObjects = templateObjects.map(deepCloneCanvasObject);
+
+    // Upload template images to Firebase Storage
+    // This ensures images load correctly in ImageShape component
+    const imageObjects = clonedObjects.filter((obj): obj is ImageObject => obj.type === 'image');
+
+    console.log(`📸 Found ${imageObjects.length} template images to upload...`);
+
+    // Upload each image to Firebase Storage
+    for (const imageObj of imageObjects) {
+      try {
+        // Extract filename from the template object
+        const fileName = imageObj.fileName;
+
+        if (!fileName) {
+          console.warn(`⚠️ Image object ${imageObj.id} has no fileName, skipping upload`);
+          continue;
+        }
+
+        // Upload image to Firebase Storage
+        const { src, storagePath } = await uploadTemplateImage(fileName, projectId);
+
+        // Update the image object with Firebase Storage URL
+        imageObj.src = src;
+        imageObj.storageType = 'storage';
+        imageObj.storagePath = storagePath;
+
+        console.log(`✅ Updated image object ${imageObj.id}: ${fileName}`);
+      } catch (error) {
+        // Log error but continue with other images
+        console.error(`❌ Failed to upload image ${imageObj.fileName}:`, error);
+        // Keep the original src as fallback (will likely fail to load, but won't crash)
+      }
+    }
+
+    console.log(`✅ Uploaded ${imageObjects.length} template images to Firebase Storage`);
 
     // Convert array to Firebase object structure
     // Firebase RTDB stores objects as { [id]: object } not arrays
     const objectsMap: Record<string, CanvasObject> = {};
-    allObjects.forEach((obj) => {
+    clonedObjects.forEach((obj) => {
       objectsMap[obj.id] = obj;
     });
 

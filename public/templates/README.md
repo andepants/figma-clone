@@ -1,40 +1,41 @@
-# Template Assets
+# Template Images
 
-This directory contains static assets used in auto-generated project templates.
+This directory contains static images used in the default template for new projects.
 
-## Required Assets
+## Current Files
 
-### 1. iphone-frame.png
-- **Purpose:** iPhone 14 Pro frame for feature graphic template
-- **Specifications:**
-  - Dimensions: 300x600px
-  - Format: PNG with transparent background
-  - File size: < 100KB
-  - Should show iPhone frame outline with screen area visible
+These files will be replaced when you export your custom template:
+- `iphone-frame.svg` - iPhone mockup frame (will be replaced if not in your template)
+- `screenshot-placeholder.svg` - Placeholder screenshot (will be replaced if not in your template)
 
-### 2. screenshot-placeholder.png
-- **Purpose:** Default screenshot content for iPhone frame
-- **Specifications:**
-  - Dimensions: 260x560px (fits inside iPhone frame)
-  - Format: PNG
-  - File size: < 100KB
-  - Content: Sample app screenshot or placeholder content
+## After Exporting Your Template
 
-## Usage
+1. Download all images from your template project
+2. Save them to this directory
+3. Update `src/lib/templates/default-template.json` to reference these files
+4. Delete any unused template files
 
-These assets are referenced in the template generator:
-- `/templates/iphone-frame.png` - Loaded as image object in feature graphic template
-- `/templates/screenshot-placeholder.png` - Positioned inside iPhone frame
+## Image Requirements
 
-## Adding Images
+- **Formats:** PNG, JPG, SVG, WebP
+- **Size:** Keep individual files under 1MB
+- **Total:** Keep total template images under 5MB
+- **Naming:** Use descriptive, URL-safe filenames (e.g., `app-icon-ios.png`)
 
-1. Place your iPhone frame PNG at: `public/templates/iphone-frame.png`
-2. Place your screenshot PNG at: `public/templates/screenshot-placeholder.png`
-3. Images will be automatically loaded when new projects are created
+## File Naming Conventions
 
-## Testing
+Good examples:
+- `app-icon-ios-1024.png`
+- `app-icon-android-512.png`
+- `feature-graphic-background.jpg`
+- `iphone-15-frame.svg`
 
-Verify images load correctly:
-- Navigate to: http://localhost:5173/templates/iphone-frame.png
-- Navigate to: http://localhost:5173/templates/screenshot-placeholder.png
-- Both should display without 404 errors
+Bad examples:
+- `image1.png` (not descriptive)
+- `My Image (1).png` (spaces and parentheses)
+- `Screenshot 2024-10-19 at 3.24.56 PM.png` (too long, spaces)
+
+## Deployment
+
+These files are automatically included in production builds by Vite.
+No additional configuration needed.

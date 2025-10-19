@@ -386,8 +386,12 @@ export const LayerItem = memo(function LayerItem({
           onDoubleClick={handleDoubleClick}
           className={`
             text-[11px] truncate max-w-[160px] cursor-grab active:cursor-grabbing
-            ${isSelected ? 'font-medium text-gray-900' : 'font-normal text-gray-700'}
-            ${!isVisible ? 'text-gray-400' : ''}
+            ${!isVisible
+              ? 'font-normal text-gray-400'
+              : isSelected
+                ? 'font-medium text-gray-900'
+                : 'font-normal text-gray-700'
+            }
           `}
         >
           {displayName}

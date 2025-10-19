@@ -33,6 +33,11 @@ import {
   useNavigationPrevention,
 } from './canvas/hooks';
 
+// Load export utility in development mode
+if (import.meta.env.DEV) {
+  import('@/utils/exportCurrentCanvasAsTemplate');
+}
+
 function CanvasPage() {
   // Get projectId from URL params (e.g., /canvas/:projectId)
   // Falls back to 'main' for legacy /canvas route

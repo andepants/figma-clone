@@ -72,7 +72,7 @@ export const Circle = memo(function Circle({
   projectId = 'main',
 }: CircleProps) {
   const { activeTool } = useToolStore();
-  const { projectId: storeProjectId, updateObject } = useCanvasStore();
+  const { projectId: storeProjectId, updateObject, zoom } = useCanvasStore();
   const { currentUser } = useAuth();
 
   // Use projectId from store if not provided via props
@@ -409,6 +409,7 @@ export const Circle = memo(function Circle({
           object={circle}
           isSelected={isSelected && activeTool === 'move'}
           isResizing={isResizing}
+          zoom={zoom}
           onResizeStart={(handleType) => {
             const bounds = {
               // IMPORTANT: Pass bounding box top-left corner, NOT circle center

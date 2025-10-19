@@ -14,6 +14,9 @@ import { useCanvasStore } from '@/stores';
 import { v4 as uuidv4 } from 'uuid';
 import { generateThreadId } from '@/lib/utils/threadId';
 import { PUBLIC_PLAYGROUND_ID } from '@/config/constants';
+import { cropAppIcon } from '@/lib/utils/appIconCrop';
+import { isImageShape } from '@/types/canvas.types';
+import { toast } from 'sonner';
 
 /**
  * Response from processAICommand Firebase Function
@@ -95,7 +98,7 @@ interface UseAIAgentParams {
  */
 export function useAIAgent({ projectId }: UseAIAgentParams = {}): UseAIAgentReturn {
   const { isProcessing, setProcessing, addCommand, updateCommand } = useAIStore();
-  const { objects, selectedIds, zoom, panX, panY } = useCanvasStore();
+  const { objects, selectedIds, zoom, panX, panY, createProcessedImage } = useCanvasStore();
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -126,6 +129,149 @@ export function useAIAgent({ projectId }: UseAIAgentParams = {}): UseAIAgentRetu
           status: 'error',
           error: errorMsg,
         });
+
+        return;
+      }
+
+      // Handle /crop-appicon command client-side
+      const isCropAppIconCommand = command.trim().toLowerCase().startsWith('/crop-appicon');
+
+      if (isCropAppIconCommand) {
+        // Validate selection
+        if (selectedIds.length === 0) {
+          const errorMsg = 'Please select an image to crop';
+          setError(errorMsg);
+
+          const commandId = uuidv4();
+          addCommand({
+            id: commandId,
+            command,
+            timestamp: Date.now(),
+            status: 'error',
+            error: errorMsg,
+          });
+
+          toast.error('No selection', {
+            description: errorMsg,
+            duration: 3000,
+          });
+
+          return;
+        }
+
+        if (selectedIds.length > 1) {
+          const errorMsg = 'Please select only one image to crop';
+          setError(errorMsg);
+
+          const commandId = uuidv4();
+          addCommand({
+            id: commandId,
+            command,
+            timestamp: Date.now(),
+            status: 'error',
+            error: errorMsg,
+          });
+
+          toast.error('Multiple selections', {
+            description: errorMsg,
+            duration: 3000,
+          });
+
+          return;
+        }
+
+        // Get selected object
+        const selectedObject = objects.find(obj => obj.id === selectedIds[0]);
+
+        if (!selectedObject) {
+          const errorMsg = 'Selected object not found';
+          setError(errorMsg);
+
+          const commandId = uuidv4();
+          addCommand({
+            id: commandId,
+            command,
+            timestamp: Date.now(),
+            status: 'error',
+            error: errorMsg,
+          });
+
+          toast.error('Object not found', {
+            description: errorMsg,
+            duration: 3000,
+          });
+
+          return;
+        }
+
+        if (!isImageShape(selectedObject)) {
+          const errorMsg = 'Selected object is not an image. Please select a DALL-E generated app icon image.';
+          setError(errorMsg);
+
+          const commandId = uuidv4();
+          addCommand({
+            id: commandId,
+            command,
+            timestamp: Date.now(),
+            status: 'error',
+            error: errorMsg,
+          });
+
+          toast.error('Invalid selection', {
+            description: errorMsg,
+            duration: 3000,
+          });
+
+          return;
+        }
+
+        // All validation passed - execute crop workflow
+        setProcessing(true);
+        setError(null);
+
+        const commandId = uuidv4();
+        addCommand({
+          id: commandId,
+          command,
+          timestamp: Date.now(),
+          status: 'pending',
+        });
+
+        try {
+          const userId = auth.currentUser?.uid;
+          const canvasId = projectId || 'main';
+
+          if (!userId) {
+            throw new Error('User not authenticated');
+          }
+
+          const result = await cropAppIcon(
+            selectedObject,
+            canvasId,
+            userId,
+            createProcessedImage
+          );
+
+          if (result.success) {
+            updateCommand(commandId, {
+              status: 'success',
+              response: 'App icon cropped and background removed successfully! New image created next to original.',
+            });
+          } else {
+            throw new Error(result.error || 'Failed to crop app icon');
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+          console.error('App icon crop error:', err);
+
+          setError(errorMessage);
+          updateCommand(commandId, {
+            status: 'error',
+            error: errorMessage,
+          });
+        } finally {
+          setProcessing(false);
+        }
 
         return;
       }
@@ -256,7 +402,7 @@ export function useAIAgent({ projectId }: UseAIAgentParams = {}): UseAIAgentRetu
         setProcessing(false);
       }
     },
-    [isProcessing, objects, selectedIds, zoom, panX, panY, setProcessing, addCommand, updateCommand, projectId]
+    [isProcessing, objects, selectedIds, zoom, panX, panY, setProcessing, addCommand, updateCommand, projectId, createProcessedImage]
   );
 
   return {
