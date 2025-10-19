@@ -12,6 +12,12 @@ import { realtimeDb } from '@/lib/firebase/config';
 import type { CanvasObject } from '@/types/canvas.types';
 
 /**
+ * Firebase Realtime Database value type
+ * Supports all primitive types, arrays, and nested objects
+ */
+type FirebaseValue = string | number | boolean | null | FirebaseValue[] | { [key: string]: FirebaseValue };
+
+/**
  * Batch update multiple canvas objects atomically
  *
  * Uses Firebase multi-path update to ensure all changes happen together
@@ -34,12 +40,12 @@ export async function batchUpdateObjects(
   updates: Record<string, Partial<CanvasObject>>
 ): Promise<void> {
   const timestamp = Date.now();
-  const multiPathUpdate: Record<string, string | number | boolean | null> = {};
+  const multiPathUpdate: Record<string, FirebaseValue> = {};
 
   // Build multi-path update object
   Object.entries(updates).forEach(([objectId, objectUpdates]) => {
     Object.entries(objectUpdates).forEach(([key, value]) => {
-      multiPathUpdate[`canvases/${canvasId}/objects/${objectId}/${key}`] = value;
+      multiPathUpdate[`canvases/${canvasId}/objects/${objectId}/${key}`] = value as FirebaseValue;
     });
     // Always update timestamp
     multiPathUpdate[`canvases/${canvasId}/objects/${objectId}/updatedAt`] = timestamp;
@@ -106,7 +112,7 @@ export async function atomicMoveWithZIndexes(
   zIndexUpdates: Record<string, number>
 ): Promise<void> {
   const timestamp = Date.now();
-  const multiPathUpdate: Record<string, string | number | boolean | null> = {};
+  const multiPathUpdate: Record<string, FirebaseValue> = {};
 
   // Update parent
   multiPathUpdate[`canvases/${canvasId}/objects/${objectId}/parentId`] = newParentId;
@@ -169,7 +175,7 @@ export async function atomicReorderObjects(
   objects: CanvasObject[]
 ): Promise<void> {
   const timestamp = Date.now();
-  const multiPathUpdate: Record<string, string | number | boolean | null> = {};
+  const multiPathUpdate: Record<string, FirebaseValue> = {};
 
   // Update z-index for all objects (array index = z-index)
   objects.forEach((obj, index) => {
