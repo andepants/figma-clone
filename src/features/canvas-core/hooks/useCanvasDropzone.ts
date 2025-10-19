@@ -16,6 +16,7 @@ import { useImageUpload } from './useImageUpload';
 import { createImageObject } from '../utils/imageFactory';
 import { useCanvasStore } from '@/stores';
 import { useAuth } from '@/features/auth/hooks';
+import { addCanvasObject } from '@/lib/firebase';
 import type Konva from 'konva';
 
 /**
@@ -164,7 +165,6 @@ export function useCanvasDropzone({
 
       // Sync to Realtime Database (same pattern as rectangles/circles)
       // This ensures the image persists and can be moved/edited
-      const { addCanvasObject } = await import('@/lib/firebase');
       try {
         await addCanvasObject(projectId, imageObject);
       } catch (error) {

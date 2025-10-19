@@ -2,8 +2,8 @@
  * useProjectsData Hook
  *
  * Manages data fetching for projects page:
- * - User's owned projects (for paid users)
- * - Public/collaborative projects (for free users)
+ * - All accessible projects (owned + collaborated)
+ * - Shared projects (where user is collaborator, not owner)
  * - Founders deal configuration
  *
  * Extracted from ProjectsPage.tsx to improve modularity and testability.
@@ -19,16 +19,14 @@ import type { Project } from '@/types/project.types';
 interface UseProjectsDataReturn {
   /** All projects accessible by user (owned + collaborated) */
   projects: Project[];
-  /** Public/collaborative projects (deprecated - kept for backwards compatibility) */
-  publicProjects: Project[];
+  /** Projects shared with user (where user is collaborator, not owner) */
+  sharedProjects: Project[];
   /** Number of users who have paid for founders offer */
   paidUserCount: number;
   /** Loading state for initial data fetch */
   isLoading: boolean;
   /** Update projects state */
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
-  /** Update public projects state (deprecated - kept for backwards compatibility) */
-  setPublicProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
 
 /**
@@ -52,7 +50,7 @@ export function useProjectsData(
   currentUserId: string | null
 ): UseProjectsDataReturn {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [publicProjects, setPublicProjects] = useState<Project[]>([]);
+  const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [paidUserCount, setPaidUserCount] = useState<number>(0);
 
@@ -85,7 +83,13 @@ export function useProjectsData(
         // Fetch all projects accessible by user (owned + collaborated)
         const allProjects = await getAllUserProjects(currentUserId);
         setProjects(allProjects);
-        setPublicProjects([]); // Clear deprecated public projects
+
+        // Filter projects where user is collaborator (not owner)
+        // This includes both public and private projects they've been invited to
+        const collaboratedProjects = allProjects.filter(
+          project => project.ownerId !== currentUserId
+        );
+        setSharedProjects(collaboratedProjects);
       } catch (error) {
         console.error('Failed to fetch projects:', error);
       } finally {
@@ -98,10 +102,9 @@ export function useProjectsData(
 
   return {
     projects,
-    publicProjects,
+    sharedProjects,
     paidUserCount,
     isLoading,
     setProjects,
-    setPublicProjects,
   };
 }

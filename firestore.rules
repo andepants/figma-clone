@@ -37,9 +37,12 @@ service cloud.firestore {
     // ========================================
 
     match /users/{userId} {
-      // Users can read their own profile
-      // Authenticated users can read other profiles (for user search/collaboration)
-      allow read: if isAuthenticated();
+      // Allow unauthenticated username availability queries (for signup form)
+      // Queries (list) are public to enable username checking before signup
+      allow list: if true;
+
+      // Direct document reads require authentication (for user profiles/collaboration)
+      allow get: if isAuthenticated();
 
       // Users can create their own profile on signup
       allow create: if isOwner(userId) &&

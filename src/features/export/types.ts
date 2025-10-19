@@ -15,6 +15,7 @@ export type ExportFormat = 'png'; // Future: 'svg' | 'jpg' | 'pdf'
 
 /**
  * Export scale/resolution multiplier
+ * Default is 1x for exact 1:1 pixel mapping (500 canvas units = 500 pixels)
  */
 export type ExportScale = 1 | 2 | 3;
 
@@ -27,7 +28,7 @@ export type ExportScope = 'selection' | 'all';
  * Export options interface
  * @interface ExportOptions
  * @property {ExportFormat} format - File format (currently PNG only)
- * @property {ExportScale} scale - Resolution multiplier (1x, 2x, 3x)
+ * @property {ExportScale} scale - Resolution multiplier (default: 1x for 1:1 pixel mapping)
  * @property {ExportScope} scope - What to export (selection or all objects)
  * @property {number} padding - Transparent padding around export in pixels (default: 0)
  */
@@ -61,7 +62,7 @@ export interface ExportRecord {
   metadata: {
     /** Export format (currently always 'png') */
     format: ExportFormat
-    /** Resolution multiplier (1x, 2x, 3x) */
+    /** Resolution multiplier (default 1x for exact pixel dimensions) */
     scale: ExportScale
     /** What was exported (selection or all objects) */
     scope: ExportScope
