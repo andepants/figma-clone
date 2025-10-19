@@ -17,7 +17,7 @@ import { ProjectCard } from '@/features/projects/components/ProjectCard';
 import { CreateProjectModal } from '@/features/projects/components/CreateProjectModal';
 import { ConfirmDeleteModal } from '@/features/projects/components/ConfirmDeleteModal';
 import { ProjectsEmptyState } from '@/features/projects/components/ProjectsEmptyState';
-import { PublicProjectsSection } from '@/features/projects/components/PublicProjectsSection';
+import { SharedProjectsSection } from '@/features/projects/components/SharedProjectsSection';
 import { PricingPageContent } from '@/features/pricing/components';
 import {
   createProject,
@@ -46,7 +46,7 @@ export default function ProjectsPage() {
   // Data fetching hook
   const {
     projects,
-    publicProjects,
+    sharedProjects,
     paidUserCount,
     isLoading,
     setProjects,
@@ -381,10 +381,10 @@ export default function ProjectsPage() {
             )}
           </div>
         ) : !canCreateProjects ? (
-          // Free user: Show public projects + pricing content
+          // Free user: Show shared projects + pricing content
           <>
-            {publicProjects.length > 0 && currentUser && (
-              <PublicProjectsSection projects={publicProjects} currentUserId={currentUser.uid} />
+            {sharedProjects.length > 0 && currentUser && (
+              <SharedProjectsSection projects={sharedProjects} currentUserId={currentUser.uid} />
             )}
             <PricingPageContent
               onUpgrade={handleUpgrade}

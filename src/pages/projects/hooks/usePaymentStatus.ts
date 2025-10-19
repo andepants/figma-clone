@@ -11,6 +11,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 
 interface UsePaymentStatusReturn {
   /** Payment status from URL query params ('success' | 'cancelled' | null) */
@@ -82,10 +84,6 @@ export function usePaymentStatus(
     if (paymentStatus === 'success' && !canCreateProjects && sessionId) {
       const timer = setTimeout(async () => {
         try {
-          // Dynamically import Firebase Functions
-          const { getFunctions, httpsCallable } = await import('firebase/functions');
-          const { app } = await import('@/lib/firebase');
-
           const functions = getFunctions(app);
           const verifyCheckoutSession = httpsCallable<
             { sessionId: string },

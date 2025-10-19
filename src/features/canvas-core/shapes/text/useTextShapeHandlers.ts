@@ -25,6 +25,7 @@ import {
   startEditing,
   endEditing,
   checkEditLock,
+  removeCanvasObject,
 } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../../utils';
 
@@ -99,7 +100,6 @@ export function useTextShapeHandlers({
       removeObject(text.id);
 
       // Sync deletion to Firebase
-      const { removeCanvasObject } = await import('@/lib/firebase');
       await removeCanvasObject(projectId, text.id);
     } else {
       // Update text content (trimmed, so no leading/trailing whitespace)

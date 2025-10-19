@@ -7,10 +7,9 @@
  * - 1024x1024 (Minimalist)
  *
  * Also creates:
- * - Informational text box with design guidelines and app store requirements
  * - Text labels above each icon showing style
  *
- * Total canvas objects created: 5 (1 info box + 2 labels + 2 images)
+ * Total canvas objects created: 4 (2 labels + 2 images)
  *
  * Design styles:
  * - Glassmorphism: Modern, vibrant gradients, 3D depth, high contrast
@@ -74,8 +73,7 @@ export class GenerateAppIconTool extends CanvasTool {
       // Tool description for LLM (helps it understand when to use this tool)
       'Generate professional app icons for iOS and Android from a text description. ' +
       'Creates TWO distinct design styles (Glassmorphism & Minimalist) with 1 icon each (2 total): ' +
-      '1024x1024 for each style. Also creates an info box with ' +
-      'design guidelines and requirements, plus text labels for each icon. Total: 5 canvas objects. ' +
+      '1024x1024 for each style. Also creates text labels for each icon. Total: 4 canvas objects. ' +
       'Automatic prompt enhancement following Apple Human Interface Guidelines and ' +
       '2025 design trends. Icons fill entire image edge-to-edge with NO dark backgrounds or rounded corners. ' +
       'Use this when user asks to create app icons, generate app icons, ' +
@@ -95,10 +93,9 @@ export class GenerateAppIconTool extends CanvasTool {
    * 4. Generate minimalist 1024x1024 image with DALL-E 3
    * 5. Upload both images to Firebase Storage
    * 6. Calculate grid layout placement (viewport-aware)
-   * 7. Create info text box with design guidelines
-   * 8. Create 2 text labels (one for each style)
-   * 9. Create 2 icon images (1024x1024 each)
-   * 10. Return success with all 5 object IDs
+   * 7. Create 2 text labels (one for each style)
+   * 8. Create 2 icon images (1024x1024 each)
+   * 9. Return success with all 4 object IDs
    *
    * @param input - Validated input from Zod schema
    * @returns Tool result with success status and all created object IDs
@@ -319,19 +316,16 @@ export class GenerateAppIconTool extends CanvasTool {
       });
 
       // Grid layout dimensions:
-      // Info box: 1024px wide x 250px tall
-      // Row spacing: 50px between info box and row 1, 60px between rows
+      // Row spacing: 60px between rows
       // Label height: 40px, gap between label and image: 10px
       // Icon size: 1024x1024 (one per style)
       // Total width: 1024px
-      // Total height: 250 (info) + 50 (gap) + 40 (label) + 10 (gap) + 1024 (row1) + 60 (gap) + 40 (label) + 10 (gap) + 1024 (row2) = 2508px
+      // Total height: 40 (label) + 10 (gap) + 1024 (row1) + 60 (gap) + 40 (label) + 10 (gap) + 1024 (row2) = 2208px
 
       const GRID_WIDTH = 1024;
-      const GRID_HEIGHT = 2508;
-      const INFO_BOX_HEIGHT = 250;
+      const GRID_HEIGHT = 2208;
       const LABEL_HEIGHT = 40;
       const LABEL_TO_IMAGE_GAP = 10;
-      const INFO_TO_ROW1_GAP = 50;
       const ROW_GAP = 60;
 
       let gridStartX: number;
@@ -407,63 +401,16 @@ export class GenerateAppIconTool extends CanvasTool {
       });
 
       // Calculate all positions for grid layout (single column)
-      const infoBoxY = gridStartY;
-      const row1LabelY = gridStartY + INFO_BOX_HEIGHT + INFO_TO_ROW1_GAP;
+      const row1LabelY = gridStartY;
       const row1ImageY = row1LabelY + LABEL_HEIGHT + LABEL_TO_IMAGE_GAP;
       const row2LabelY = row1ImageY + 1024 + ROW_GAP;
       const row2ImageY = row2LabelY + LABEL_HEIGHT + LABEL_TO_IMAGE_GAP;
 
       const iconX = gridStartX;
 
-      // Step 7: Create info text box with design guidelines
-      currentStep = 'create_info_box';
-      logger.info('Step 7: Creating info box with design guidelines');
-
-      const infoText = `App Icon Design Guidelines & Requirements
-
-Icon Size:
-• 1024x1024px (required for App Store and Google Play)
-• Format: PNG - square format with no rounded corners
-• Icons fill entire canvas edge-to-edge (no padding or backgrounds)
-
-Design Guidelines:
-• Apple HIG: https://developer.apple.com/design/human-interface-guidelines/app-icons
-• Google Play: https://developer.android.com/google-play/resources/icon-design-specifications
-• Keep it simple, memorable, and recognizable at all sizes
-
-Two Styles Generated:
-• Glassmorphism: Modern, vibrant gradients, 3D depth, high contrast
-• Minimalist: Clean, simple geometric shapes, flat design (Apple/Airbnb/Figma style)
-
-Design Tips:
-• Avoid text (illegible at small sizes)
-• Use vibrant, contrasting colors that fill the entire canvas
-• Test visibility in both light and dark modes
-• Ensure icon works at 29px to 1024px
-• Stand out in app store search results`;
-
-      const infoBoxId = await createCanvasObject({
-        canvasId: this.context.canvasId,
-        type: 'text',
-        position: { x: gridStartX, y: infoBoxY },
-        dimensions: { width: GRID_WIDTH, height: INFO_BOX_HEIGHT },
-        appearance: {
-          fill: '#333333',
-          stroke: '#e5e7eb',
-          strokeWidth: 1,
-        },
-        text: infoText,
-        fontSize: 14,
-        fontFamily: 'Inter',
-        name: 'App Icon Guidelines',
-        userId: this.context.userId,
-      });
-
-      logger.info('Info box created successfully', { id: infoBoxId });
-
-      // Step 8: Create text labels for both icons
+      // Step 7: Create text labels for both icons
       currentStep = 'create_labels';
-      logger.info('Step 8: Creating text labels for both icons');
+      logger.info('Step 7: Creating text labels for both icons');
 
       const row1LabelId = await createCanvasObject({
         canvasId: this.context.canvasId,
@@ -493,9 +440,9 @@ Design Tips:
 
       logger.info('Text labels created successfully');
 
-      // Step 9: Create 2 icon images in vertical layout
+      // Step 8: Create 2 icon images in vertical layout
       currentStep = 'create_icon_images';
-      logger.info('Step 9: Creating 2 icon images in vertical layout');
+      logger.info('Step 8: Creating 2 icon images in vertical layout');
 
       // Row 1: Glassmorphism style icon
       const row1IconId = await createCanvasObject({
@@ -541,19 +488,17 @@ Design Tips:
 
       currentStep = 'completed';
       logger.info('App icon generation completed successfully', {
-        infoBoxId,
         row1IconId,
         row2IconId,
         duration: `${duration}ms`,
         finalStep: currentStep,
       });
 
-      // Step 10: Return success result
+      // Step 9: Return success result
       return {
         success: true,
         message: `Created 2 app icon styles (Glassmorphism & Minimalist) at 1024x1024 for "${capitalizedKeyword}"`,
         objectsCreated: [
-          infoBoxId,
           row1LabelId,
           row1IconId,
           row2LabelId,

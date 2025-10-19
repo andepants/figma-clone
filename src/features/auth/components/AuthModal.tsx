@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { LoginForm } from './LoginForm';
 import { SignupForm } from './SignupForm';
+import { UsernameSelectionModal } from './UsernameSelectionModal';
 import { useAuth } from '../hooks/useAuth';
 import type { AuthMode } from '@/types';
 
@@ -42,8 +43,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
   const [mode, setMode] = React.useState<AuthMode>(initialMode);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [googleError, setGoogleError] = React.useState('');
+  const [isUsernameLoading, setIsUsernameLoading] = React.useState(false);
   const waitingForGoogleAuthRef = React.useRef(false);
-  const { login, signup, loginWithGoogle, currentUser } = useAuth();
+  const { login, signup, loginWithGoogle, currentUser, pendingGoogleUser, completeGoogleSignup } = useAuth();
   const navigate = useNavigate();
 
   const isLogin = mode === 'login';
@@ -126,7 +128,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
     try {
       await loginWithGoogle();
       // Don't call handleSuccess() here - let the useEffect handle it
-      // when currentUser updates
+      // when currentUser updates or username modal shows
     } catch (error) {
       // Handle errors - display them to the user
       waitingForGoogleAuthRef.current = false;
@@ -136,22 +138,51 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
     }
   }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-semibold">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </DialogTitle>
-          <DialogDescription>
-            {isLogin
-              ? 'Log in to continue to your canvas'
-              : 'Sign up to start collaborating'}
-          </DialogDescription>
-        </DialogHeader>
+  /**
+   * Handles username selection for Google sign-in
+   * @param {string} username - Selected username
+   */
+  async function handleUsernameSubmit(username: string) {
+    setIsUsernameLoading(true);
 
-        {/* Google Sign-In Button */}
-        <div className="py-4">
+    try {
+      await completeGoogleSignup(username);
+      // Success - handleSuccess will be called by useEffect when currentUser updates
+      handleSuccess();
+    } catch (error) {
+      setIsUsernameLoading(false);
+      throw error; // Re-throw to let UsernameSelectionModal handle the error
+    }
+  }
+
+  return (
+    <>
+      {/* Username Selection Modal for Google Sign-In */}
+      {pendingGoogleUser && (
+        <UsernameSelectionModal
+          isOpen={!!pendingGoogleUser}
+          suggestedUsername={pendingGoogleUser.suggestedUsername}
+          onSubmit={handleUsernameSubmit}
+          loading={isUsernameLoading}
+        />
+      )}
+
+      {/* Main Auth Modal */}
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold">
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </DialogTitle>
+            <DialogDescription>
+              {isLogin
+                ? 'Log in to continue to your canvas'
+                : 'Sign up to start collaborating'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Google Sign-In Button */}
+          <div className="py-4">
           <Button
             type="button"
             variant="outline"
@@ -220,5 +251,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

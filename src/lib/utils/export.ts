@@ -23,7 +23,7 @@ export interface ExportResult {
   metadata: {
     /** Export format (currently always 'png') */
     format: ExportFormat
-    /** Resolution multiplier (1x, 2x, 3x) */
+    /** Resolution multiplier (default 1x for exact 1:1 pixel mapping) */
     scale: ExportScale
     /** What was exported (selection or all objects) */
     scope: ExportScope
@@ -45,9 +45,9 @@ export interface ExportResult {
 /**
  * Export canvas to PNG file
  *
- * Exports canvas objects based on provided options.
- * Uses Konva stage.toDataURL() with configurable quality settings.
- * Automatically calculates tight bounding box around objects (no padding).
+ * Exports canvas objects with exact 1:1 pixel mapping (default scale=1).
+ * Uses Konva stage.toDataURL() with high-quality rendering settings.
+ * Automatically calculates tight bounding box around objects.
  * Accounts for stroke width, shadows, and line thickness in bounds calculation.
  * PNG exports have transparent background; empty space between objects is transparent.
  * Downloads PNG file with timestamped filename.
@@ -64,19 +64,20 @@ export interface ExportResult {
  *
  * @example
  * ```tsx
- * // Export selected objects at 2x resolution
+ * // Export selected objects at 1x resolution (1:1 pixel mapping)
  * const result = await exportCanvasToPNG(stageRef, selectedObjects, allObjects, {
  *   format: 'png',
- *   scale: 2,
+ *   scale: 1,
  *   scope: 'selection'
  * });
  * console.log('Export result:', result);
  *
- * // Export entire canvas at 3x resolution
+ * // Export entire canvas with padding
  * const result = await exportCanvasToPNG(stageRef, [], allObjects, {
  *   format: 'png',
- *   scale: 3,
- *   scope: 'all'
+ *   scale: 1,
+ *   scope: 'all',
+ *   padding: 20
  * });
  * ```
  */
@@ -84,7 +85,7 @@ export async function exportCanvasToPNG(
   stageRef: React.RefObject<Konva.Stage | null>,
   selectedObjects: CanvasObject[],
   allObjects: CanvasObject[],
-  options: ExportOptions = { format: 'png', scale: 2, scope: 'selection', padding: 0 }
+  options: ExportOptions = { format: 'png', scale: 1, scope: 'selection', padding: 0 }
 ): Promise<ExportResult> {
   // Validate stage ref
   if (!stageRef.current) {

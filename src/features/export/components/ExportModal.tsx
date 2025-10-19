@@ -95,7 +95,7 @@ export function ExportModal({
   // Export options state - always export selection only
   const [options, setOptions] = useState<ExportOptions>({
     format: 'png',
-    scale: 2,
+    scale: 1, // Always 1x for exact 1:1 pixel mapping
     scope: 'selection', // Always selection - no full canvas option
     padding: 0,
   });
@@ -253,7 +253,7 @@ export function ExportModal({
       // Reset to defaults when opening
       setOptions({
         format: 'png',
-        scale: 2,
+        scale: 1, // Always 1x for exact 1:1 pixel mapping
         scope: 'selection',
         padding: 0,
       });
@@ -442,8 +442,8 @@ export function ExportModal({
         {activeTab === 'export' ? (
           <div role="tabpanel" id="export-panel" aria-labelledby="export-tab">
             {/* Preview Section */}
-            <div className="p-6" style={{ opacity: exportStatus !== 'idle' ? 0.5 : 1 }} aria-busy={exportStatus !== 'idle'}>
-              <div className="bg-[#f5f5f5] rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center" style={{ minHeight: '300px', maxHeight: '400px' }}>
+            <div className="p-4" style={{ opacity: exportStatus !== 'idle' ? 0.5 : 1 }} aria-busy={exportStatus !== 'idle'}>
+              <div className="bg-[#f5f5f5] rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center" style={{ minHeight: '240px', maxHeight: '320px' }}>
                 {previewUrl ? (
                   <img
                     src={previewUrl}
@@ -461,18 +461,11 @@ export function ExportModal({
 
               {/* Dimension Display */}
               {dimensions && (
-                <div className="mt-3 text-center">
+                <div className="mt-2 text-center">
                   <p className="text-xs text-gray-600">
-                    {padding > 0 ? (
-                      <>
-                        Content: <span className="font-medium text-gray-900">{dimensions.contentWidth} × {dimensions.contentHeight} px</span>
-                        {' '}&rarr;{' '}
-                        Export: <span className="font-medium text-gray-900">{dimensions.finalWidth} × {dimensions.finalHeight} px</span>
-                        {' '}
-                        <span className="text-gray-500">({padding}px padding)</span>
-                      </>
-                    ) : (
-                      <span className="font-medium text-gray-900">{dimensions.contentWidth} × {dimensions.contentHeight} px</span>
+                    <span className="font-medium text-gray-900">{dimensions.finalWidth} × {dimensions.finalHeight} px</span>
+                    {padding > 0 && (
+                      <span className="text-gray-500"> (with {padding}px padding)</span>
                     )}
                   </p>
                 </div>
@@ -480,35 +473,7 @@ export function ExportModal({
             </div>
 
             {/* Settings Section */}
-            <div className="px-6 pb-6 space-y-4" style={{ pointerEvents: exportStatus !== 'idle' ? 'none' : 'auto' }}>
-              {/* Resolution */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-700">Resolution</label>
-                <div className="flex gap-2">
-                  {([1, 2, 3] as const).map(scale => (
-                    <button
-                      key={scale}
-                      onClick={() => setOptions(prev => ({ ...prev, scale }))}
-                      className={`
-                        flex-1 px-4 py-2.5 text-xs font-medium rounded-md border transition-all
-                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0ea5e9] focus-visible:ring-offset-2
-                        ${options.scale === scale
-                          ? 'bg-[#0ea5e9] text-white border-[#0ea5e9] shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                        }
-                      `}
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="font-semibold">{scale}x</span>
-                        <span className="text-[10px] opacity-75">
-                          {scale === 1 ? 'Standard' : scale === 2 ? 'Recommended' : 'Ultra'}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+            <div className="px-4 pb-4 space-y-3" style={{ pointerEvents: exportStatus !== 'idle' ? 'none' : 'auto' }}>
               {/* Padding */}
               <div className="space-y-2">
                 <label htmlFor="padding-input" className="text-xs font-medium text-gray-700">Padding</label>
@@ -549,7 +514,7 @@ export function ExportModal({
             </div>
 
             {/* Footer */}
-            <DialogFooter className="px-6 pb-5 pt-4 border-t border-gray-200">
+            <DialogFooter className="px-4 pb-4 pt-3 border-t border-gray-200">
               <div className="flex items-center justify-between w-full">
                 <p className="text-xs text-gray-500">
                   Press <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white border border-gray-300 rounded shadow-sm">⏎</kbd> to export

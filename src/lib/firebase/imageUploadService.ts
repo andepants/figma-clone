@@ -18,7 +18,7 @@ import {
   determineStorageStrategy,
   calculateDisplayDimensions,
 } from '@/lib/utils/image'
-import { uploadImageToStorage, type UploadProgressCallback } from './storage'
+import { uploadImageToStorage, deleteImageFromStorage, type UploadProgressCallback } from './storage'
 
 /**
  * Uploaded image data for canvas object creation
@@ -164,7 +164,6 @@ export async function uploadImage(
  */
 export async function deleteImageStorage(imageObject: ImageObject): Promise<void> {
   if (imageObject.storageType === 'storage' && imageObject.storagePath) {
-    const { deleteImageFromStorage } = await import('./storage')
     try {
       await deleteImageFromStorage(imageObject.storagePath)
     } catch (error) {

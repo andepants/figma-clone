@@ -8,6 +8,9 @@
 import type { StateCreator } from 'zustand';
 import type { CanvasObject } from '@/types';
 import type { CanvasStore } from './types';
+import { batchUpdateCanvasObjects, addCanvasObject } from '@/lib/firebase';
+import { calculateBoundingBox } from '@/lib/utils/geometry';
+import { generateLayerName } from '@/features/layers-panel/utils/layerNaming';
 
 /**
  * Create canvas grouping actions slice
@@ -31,94 +34,89 @@ export function createCanvasGrouping(
         return;
       }
 
-      // Dynamic imports to avoid circular dependencies
-      import('@/lib/utils/geometry').then(async ({ calculateBoundingBox }) => {
-        import('@/features/layers-panel/utils/layerNaming').then(async ({ generateLayerName }) => {
-          import('@/lib/firebase').then(async ({ addCanvasObject }) => {
-            // Calculate bounding box of selected objects
-            // Pass all objects so groups can recursively include their children
-            const selectedObjects = objects.filter((obj) => selectedIds.includes(obj.id));
+      // Immediately execute grouping logic (no need for dynamic imports)
+      (async () => {
+        // Calculate bounding box of selected objects
+        // Pass all objects so groups can recursively include their children
+        const selectedObjects = objects.filter((obj) => selectedIds.includes(obj.id));
 
-            const bbox = calculateBoundingBox(selectedObjects, objects);
+        const bbox = calculateBoundingBox(selectedObjects, objects);
 
-            // Check if all selected objects share the same parent
-            // If yes, create nested group inside that parent
-            const parentIds = selectedObjects.map((obj) => obj.parentId ?? null);
-            const allSameParent = parentIds.every((pid) => pid === parentIds[0]);
-            const sharedParentId = allSameParent ? parentIds[0] : null;
+        // Check if all selected objects share the same parent
+        // If yes, create nested group inside that parent
+        const parentIds = selectedObjects.map((obj) => obj.parentId ?? null);
+        const allSameParent = parentIds.every((pid) => pid === parentIds[0]);
+        const sharedParentId = allSameParent ? parentIds[0] : null;
 
-            // Create group object
-            const groupId = crypto.randomUUID();
-            const groupName = generateLayerName('group', objects);
+        // Create group object
+        const groupId = crypto.randomUUID();
+        const groupName = generateLayerName('group', objects);
 
-            // Group should appear at TOP of layers panel (highest z-index)
-            // This matches modern Figma behavior where new groups appear above children
+        // Group should appear at TOP of layers panel (highest z-index)
+        // This matches modern Figma behavior where new groups appear above children
 
-            const group: CanvasObject = {
-              id: groupId,
-              type: 'group',
-              x: bbox.x + bbox.width / 2, // Center of bounding box
-              y: bbox.y + bbox.height / 2,
-              rotation: 0,
-              opacity: 1,
-              scaleX: 1,
-              scaleY: 1,
-              skewX: 0,
-              skewY: 0,
-              // Omit stroke/strokeWidth for groups (Firebase doesn't allow undefined)
-              strokeEnabled: false,
-              shadowColor: 'black',
-              shadowBlur: 0,
-              shadowOffsetX: 0,
-              shadowOffsetY: 0,
-              shadowOpacity: 1,
-              shadowEnabled: false,
-              createdBy: userId, // IMPORTANT: Set creator to current user (required by database rules)
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-              name: groupName,
-              isCollapsed: false, // Start expanded
-              // If all selected objects share same parent, inherit that parent
-              // This creates nested groups (group inside a group)
-              parentId: sharedParentId,
-            };
+        const group: CanvasObject = {
+          id: groupId,
+          type: 'group',
+          x: bbox.x + bbox.width / 2, // Center of bounding box
+          y: bbox.y + bbox.height / 2,
+          rotation: 0,
+          opacity: 1,
+          scaleX: 1,
+          scaleY: 1,
+          skewX: 0,
+          skewY: 0,
+          // Omit stroke/strokeWidth for groups (Firebase doesn't allow undefined)
+          strokeEnabled: false,
+          shadowColor: 'black',
+          shadowBlur: 0,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
+          shadowOpacity: 1,
+          shadowEnabled: false,
+          createdBy: userId, // IMPORTANT: Set creator to current user (required by database rules)
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          name: groupName,
+          isCollapsed: false, // Start expanded
+          // If all selected objects share same parent, inherit that parent
+          // This creates nested groups (group inside a group)
+          parentId: sharedParentId,
+        };
 
-            // Update selected objects to be children of new group
-            const updatedObjects = objects.map((obj) => {
-              if (selectedIds.includes(obj.id)) {
-                return { ...obj, parentId: groupId, updatedAt: Date.now() };
-              }
-              return obj;
-            });
-
-            // Insert group at the END of objects array (highest z-index, top of layers panel)
-            // This ensures new groups appear above all existing objects
-            updatedObjects.push(group);
-
-            // Update state and select group
-            set({ objects: updatedObjects });
-            state.selectObjects([groupId]);
-
-            // Sync to Firebase - add group first, then update children
-            try {
-              const projectId = get().projectId;
-
-              await addCanvasObject(projectId, group);
-
-              // Update children with new parentId
-              const { batchUpdateCanvasObjects } = await import('@/lib/firebase');
-              const childUpdates: Record<string, Partial<CanvasObject>> = {};
-              selectedIds.forEach((id) => {
-                childUpdates[id] = { parentId: groupId, updatedAt: Date.now() };
-              });
-
-              await batchUpdateCanvasObjects(projectId, childUpdates);
-            } catch (error) {
-              console.error('[GroupObjects] Failed to sync group to Firebase:', error);
-            }
-          });
+        // Update selected objects to be children of new group
+        const updatedObjects = objects.map((obj) => {
+          if (selectedIds.includes(obj.id)) {
+            return { ...obj, parentId: groupId, updatedAt: Date.now() };
+          }
+          return obj;
         });
-      });
+
+        // Insert group at the END of objects array (highest z-index, top of layers panel)
+        // This ensures new groups appear above all existing objects
+        updatedObjects.push(group);
+
+        // Update state and select group
+        set({ objects: updatedObjects });
+        state.selectObjects([groupId]);
+
+        // Sync to Firebase - add group first, then update children
+        try {
+          const projectId = get().projectId;
+
+          await addCanvasObject(projectId, group);
+
+          // Update children with new parentId
+          const childUpdates: Record<string, Partial<CanvasObject>> = {};
+          selectedIds.forEach((id) => {
+            childUpdates[id] = { parentId: groupId, updatedAt: Date.now() };
+          });
+
+          await batchUpdateCanvasObjects(projectId, childUpdates);
+        } catch (error) {
+          console.error('[GroupObjects] Failed to sync group to Firebase:', error);
+        }
+      })();
     },
 
     ungroupObjects: () => {

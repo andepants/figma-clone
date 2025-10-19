@@ -9,6 +9,7 @@ import type { StateCreator } from 'zustand';
 import type { CanvasObject } from '@/types';
 import type { CanvasStore } from './types';
 import { hasOnlyEmptyGroups } from './utils';
+import { addCanvasObject } from '@/lib/firebase';
 
 /**
  * Create canvas actions slice
@@ -239,7 +240,6 @@ export function createCanvasActions(
       get().selectObjects([newImage.id]);
 
       // Sync to Firebase for persistence
-      const { addCanvasObject } = await import('@/lib/firebase');
       try {
         await addCanvasObject(get().projectId, newImage);
       } catch (error) {

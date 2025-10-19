@@ -7,25 +7,38 @@
 
 import * as React from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, signUpWithEmail, signInWithEmail, signInWithGoogle, signOutUser, getAuthErrorMessage, createUser, getUser, updateLastLogin } from '@/lib/firebase';
+import { auth, signUpWithEmail, signInWithEmail, signInWithGoogle, signOutUser, getAuthErrorMessage, createUser, getUser, updateLastLogin, updateUser } from '@/lib/firebase';
 import type { User } from '@/types';
+
+/**
+ * Google sign-in pending user data (for username selection flow)
+ */
+export interface PendingGoogleUser {
+  uid: string;
+  email: string;
+  suggestedUsername: string;
+}
 
 /**
  * Authentication context value
  * @interface AuthContextValue
  * @property {User | null} currentUser - Currently authenticated user
  * @property {boolean} loading - Whether auth state is being determined
+ * @property {PendingGoogleUser | null} pendingGoogleUser - Google user awaiting username selection
  * @property {(email: string, password: string) => Promise<void>} login - Login function
  * @property {(email: string, password: string, username: string) => Promise<void>} signup - Signup function
  * @property {() => Promise<void>} loginWithGoogle - Google login function
+ * @property {(username: string) => Promise<void>} completeGoogleSignup - Complete Google signup with username
  * @property {() => Promise<void>} logout - Logout function
  */
 interface AuthContextValue {
   currentUser: User | null;
   loading: boolean;
+  pendingGoogleUser: PendingGoogleUser | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, username: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  completeGoogleSignup: (username: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -52,6 +65,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [pendingGoogleUser, setPendingGoogleUser] = React.useState<PendingGoogleUser | null>(null);
 
   /**
    * Login user with email and password
@@ -96,11 +110,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   /**
+   * Complete Google signup by setting username
+   * Called after username selection modal
+   * @param {string} username - Selected username
+   */
+  async function completeGoogleSignup(username: string): Promise<void> {
+    if (!pendingGoogleUser) {
+      throw new Error('No pending Google user');
+    }
+
+    try {
+      // Update username in Firestore
+      await updateUser(pendingGoogleUser.uid, { username });
+
+      // Clear pending state - auth state listener will handle the rest
+      setPendingGoogleUser(null);
+    } catch (error) {
+      const message = getAuthErrorMessage(error);
+      throw new Error(message);
+    }
+  }
+
+  /**
    * Log out current user
    */
   async function logout(): Promise<void> {
     try {
       await signOutUser();
+      setPendingGoogleUser(null);
     } catch (error) {
       const message = getAuthErrorMessage(error);
       throw new Error(message);
@@ -118,12 +155,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const firestoreUser = await getUser(firebaseUser.uid);
 
           if (!firestoreUser) {
-            // User document doesn't exist - create it (for existing Auth users)
-            await createUser(
-              firebaseUser.uid,
-              firebaseUser.email || 'unknown@example.com',
-              firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User'
+            // New user - check if this is a Google sign-in (has providerData)
+            const isGoogleSignIn = firebaseUser.providerData.some(
+              (provider) => provider.providerId === 'google.com'
             );
+
+            if (isGoogleSignIn) {
+              // Google sign-in: Show username selection modal
+              const suggestedUsername =
+                firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User';
+
+              setPendingGoogleUser({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || 'unknown@example.com',
+                suggestedUsername,
+              });
+
+              // Create user document with suggested username (will be updated after selection)
+              await createUser(
+                firebaseUser.uid,
+                firebaseUser.email || 'unknown@example.com',
+                suggestedUsername
+              );
+            } else {
+              // Email/password sign-up: Use displayName from registration
+              await createUser(
+                firebaseUser.uid,
+                firebaseUser.email || 'unknown@example.com',
+                firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User'
+              );
+            }
           } else {
             // User exists - update last login
             await updateLastLogin(firebaseUser.uid);
@@ -133,29 +194,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Continue anyway - user can still authenticate
         }
 
-        // Convert Firebase user to our User type
-        const user: User = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          username: firebaseUser.displayName,
-        };
-        setCurrentUser(user);
+        // Only set current user if not waiting for username selection
+        if (!pendingGoogleUser) {
+          // Convert Firebase user to our User type
+          const user: User = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            username: firebaseUser.displayName,
+          };
+          setCurrentUser(user);
+        }
       } else {
         setCurrentUser(null);
+        setPendingGoogleUser(null);
       }
       setLoading(false);
     });
 
     // Cleanup subscription on unmount
     return unsubscribe;
-  }, []);
+  }, [pendingGoogleUser]);
 
   const value: AuthContextValue = {
     currentUser,
     loading,
+    pendingGoogleUser,
     login,
     signup,
     loginWithGoogle,
+    completeGoogleSignup,
     logout,
   };
 
