@@ -6,6 +6,7 @@
  */
 
 import type { CanvasObject } from '@/types';
+import type Konva from 'konva';
 
 /**
  * Canvas store state interface
@@ -18,6 +19,8 @@ import type { CanvasObject } from '@/types';
  * @property {number} panY - Pan Y position
  * @property {CanvasObject[]} clipboard - Objects copied to clipboard (used for copy/paste)
  * @property {string} projectId - Current project ID (defaults to 'main' for legacy support)
+ * @property {{ x: number; y: number } | null} lastCanvasMousePosition - Last mouse position in canvas coordinates (null if mouse is off-canvas)
+ * @property {Konva.Stage | null} stageRef - Reference to Konva stage (for viewport calculations)
  */
 export interface CanvasState {
   objects: CanvasObject[];
@@ -28,6 +31,8 @@ export interface CanvasState {
   panY: number;
   clipboard: CanvasObject[];
   projectId: string;
+  lastCanvasMousePosition: { x: number; y: number } | null;
+  stageRef: Konva.Stage | null;
 }
 
 /**
@@ -294,6 +299,26 @@ export interface CanvasActions {
    * @returns Current project ID
    */
   getProjectId: () => string;
+
+  /**
+   * Set last canvas mouse position
+   *
+   * Used for smart paste positioning at cursor location.
+   * Set to null when mouse leaves canvas.
+   *
+   * @param position - Mouse position in canvas coordinates (null if off-canvas)
+   */
+  setLastCanvasMousePosition: (position: { x: number; y: number } | null) => void;
+
+  /**
+   * Set stage reference
+   *
+   * Stores reference to Konva stage for viewport calculations.
+   * Used by paste and other actions that need viewport context.
+   *
+   * @param stage - Konva stage instance (null on unmount)
+   */
+  setStageRef: (stage: Konva.Stage | null) => void;
 
   /**
    * Create a processed version of an image (e.g., after background removal)

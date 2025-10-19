@@ -66,6 +66,10 @@ export {
   getAllCanvasObjects,
   batchUpdateCanvasObjects,
   syncZIndexes,
+  initConnectionMonitoring,
+  subscribeToConnectionStatus,
+  getConnectionStatus,
+  type ConnectionStatus,
 } from './realtimeCanvasService'
 
 // Export Cursor Service

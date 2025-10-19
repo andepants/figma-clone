@@ -111,6 +111,9 @@ export const Circle = memo(function Circle({
     const node = shapeRef.current;
     if (!node) return;
 
+    // Check if node is attached to a layer before animating
+    if (!node.getLayer()) return;
+
     // Cancel any previous animation to prevent buildup
     if (animationRef.current) {
       animationRef.current.destroy();

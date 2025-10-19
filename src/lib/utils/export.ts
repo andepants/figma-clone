@@ -230,6 +230,21 @@ export async function exportCanvasToPNG(
   backgroundLayer?.hide();
   cursorsLayer?.hide();
 
+  // Hide non-selected objects (only when scope is 'selection')
+  // This ensures only the selected objects appear in the export,
+  // even if other objects fall within the bounding box area
+  const hiddenNodes: Array<{ node: Konva.Node; wasVisible: boolean }> = [];
+  if (options.scope === 'selection') {
+    objectsLayer.getChildren().forEach((node) => {
+      const nodeId = node.id();
+      // Hide nodes that are not in the export set
+      if (nodeId && !idsToExport.has(nodeId)) {
+        hiddenNodes.push({ node, wasVisible: node.visible() });
+        node.hide();
+      }
+    });
+  }
+
   // Hide all UI overlays that shouldn't appear in exports
   // - Dimension labels (name="dimension-label")
   // - Resize handles (name="resize-handles")
@@ -344,6 +359,13 @@ export async function exportCanvasToPNG(
   // Restore layer visibility
   if (wasBackgroundVisible) backgroundLayer?.show();
   if (wasCursorsVisible) cursorsLayer?.show();
+
+  // Restore visibility of non-selected objects
+  hiddenNodes.forEach(({ node, wasVisible }) => {
+    if (wasVisible) {
+      node.show();
+    }
+  });
 
   // Restore dimension labels visibility
   dimensionLabels.forEach((label, index) => {

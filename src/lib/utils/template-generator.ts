@@ -13,22 +13,15 @@ import type { CanvasObject, ImageObject } from '@/types/canvas.types';
 import defaultTemplate from '@/lib/templates/default-template.json';
 
 /**
- * Template Image URLs
- *
- * Pre-uploaded to Firebase Storage with public read access.
- * These are the primary source for template images.
- */
-const FIREBASE_STORAGE_URLS: Record<string, string> = {
-  'adaptive-icon.png': 'https://firebasestorage.googleapis.com/v0/b/figma-clone-d33e3.firebasestorage.app/o/templates%2Fadaptive-icon.png?alt=media&token=dc615e96-5dcb-4906-b3f1-770cc7942d1a',
-  'ios-dark.png': 'https://firebasestorage.googleapis.com/v0/b/figma-clone-d33e3.firebasestorage.app/o/templates%2Fios-dark.png?alt=media&token=6ee48427-19c5-47fb-bad8-d1c56662e36e',
-  'ios-light.png': 'https://firebasestorage.googleapis.com/v0/b/figma-clone-d33e3.firebasestorage.app/o/templates%2Fios-light.png?alt=media&token=d29a356e-5008-4608-b6de-94303cc1d301',
-};
-
-/**
  * Get Template Image URL
  *
- * Returns local hosting URL in development, Firebase Storage in production.
+ * Returns local hosting URL (works in both dev and production after build).
  * This avoids CORS issues and ensures images load reliably in all environments.
+ *
+ * Note: Firebase Storage URLs for templates are available but not used:
+ * - adaptive-icon.png: https://firebasestorage.googleapis.com/v0/b/figma-clone-d33e3.firebasestorage.app/o/templates%2Fadaptive-icon.png?alt=media&token=dc615e96-5dcb-4906-b3f1-770cc7942d1a
+ * - ios-dark.png: https://firebasestorage.googleapis.com/v0/b/figma-clone-d33e3.firebasestorage.app/o/templates%2Fios-dark.png?alt=media&token=6ee48427-19c5-47fb-bad8-d1c56662e36e
+ * - ios-light.png: https://firebasestorage.googleapis.com/v0/b/figma-clone-d33e3.firebasestorage.app/o/templates%2Fios-light.png?alt=media&token=d29a356e-5008-4608-b6de-94303cc1d301
  *
  * @param fileName - Template image filename
  * @returns Full URL to the template image
@@ -37,12 +30,6 @@ function getTemplateImageUrl(fileName: string): string {
   // Use local hosting URL (works in both dev and production after build)
   // This avoids CORS issues with Firebase Storage in development
   return `${window.location.origin}/templates/${fileName}`;
-
-  // Note: Firebase Storage URLs are kept above for reference but not used
-  // If you need to use Firebase Storage in production, add environment check:
-  // if (import.meta.env.PROD && FIREBASE_STORAGE_URLS[fileName]) {
-  //   return FIREBASE_STORAGE_URLS[fileName];
-  // }
 }
 
 /**

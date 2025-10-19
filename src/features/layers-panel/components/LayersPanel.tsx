@@ -26,15 +26,17 @@
 
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useCanvasStore } from '@/stores/canvas';
 import { useUIStore } from '@/stores/uiStore';
+import { useAuth } from '@/features/auth/hooks';
 import { LayerItem } from './LayerItem';
 import { SectionHeader } from './SectionHeader';
 import { buildHierarchyTree, flattenHierarchyTree, reverseTreeForDisplay, getAllDescendantIds, moveToParent } from '../utils/hierarchy';
 import { MenuButton, SidebarToggleButton } from '@/features/navigation/components';
 import { EnvironmentIndicator } from '@/components/common';
 import { syncZIndexes } from '@/lib/firebase';
+import { acquireLayerDragLock, releaseLayerDragLock } from '@/lib/firebase/layerPanelDragService';
 import type { CanvasObject } from '@/types';
 import {
   DndContext,
@@ -45,6 +47,7 @@ import {
   useSensors,
   type DragEndEvent,
   type DragOverEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -78,6 +81,9 @@ export function LayersPanel() {
   const hoveredObjectId = useUIStore((state) => state.hoveredObjectId);
   const setHoveredObject = useUIStore((state) => state.setHoveredObject);
 
+  // Get current user for drag locking
+  const { currentUser } = useAuth();
+
   // Drop position state for drag-drop with hierarchy
   const [dropPosition, setDropPosition] = useState<{
     id: string;
@@ -86,6 +92,9 @@ export function LayersPanel() {
 
   // Track last selected ID for shift-click range selection
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+
+  // Track active drag state for optimistic locking
+  const dragLockAcquired = useRef(false);
 
   // Persisted section collapse state from UIStore
   const layersSectionCollapsed = useUIStore((state) => state.layersSectionCollapsed);
@@ -137,7 +146,7 @@ export function LayersPanel() {
    * @param {DragOverEvent} event - The drag over event from @dnd-kit
    */
   const handleDragOver = (event: DragOverEvent) => {
-    const { over, active } = event;
+    const { over, active, activatorEvent } = event;
 
     if (!over || !active) {
       setDropPosition(null);
@@ -157,37 +166,34 @@ export function LayersPanel() {
       return;
     }
 
-    // Get mouse position using delta from drag event
-    // We need to use a different approach - get the center of active and over elements
     const rect = overElement.getBoundingClientRect();
 
-    // Use the over.rect if available from dnd-kit
-    const overRect = over.rect;
-    if (!overRect) {
-      setDropPosition(null);
-      return;
+    // Get mouse Y position from the activator event (mouse or touch)
+    let mouseY: number;
+    if (activatorEvent && 'clientY' in activatorEvent) {
+      mouseY = activatorEvent.clientY as number;
+    } else {
+      // Fallback: use active item center if activator event unavailable
+      const activeElement = document.querySelector(`[data-layer-id="${active.id}"]`);
+      if (!activeElement) {
+        setDropPosition(null);
+        return;
+      }
+      const activeRect = activeElement.getBoundingClientRect();
+      mouseY = activeRect.top + activeRect.height / 2;
     }
 
-    // Calculate position based on the active item's position relative to target
-    // This is a simpler approach that works with dnd-kit's coordinate system
-    const activeElement = document.querySelector(`[data-layer-id="${active.id}"]`);
-    if (!activeElement) {
-      setDropPosition(null);
-      return;
-    }
-
-    const activeRect = activeElement.getBoundingClientRect();
-    const activeCenterY = activeRect.top + activeRect.height / 2;
-
-    const relativeY = activeCenterY - rect.top;
+    // Calculate position based on MOUSE position relative to target element
+    const relativeY = mouseY - rect.top;
     const height = rect.height;
     const percentage = relativeY / height;
 
-    // Determine drop position based on position
+    // Determine drop position based on mouse position
+    // Expanded 'child' zone (35%-65%) for easier group dropping
     let position: 'before' | 'child' | 'after';
-    if (percentage < 0.25) {
+    if (percentage < 0.35) {
       position = 'before';
-    } else if (percentage > 0.75) {
+    } else if (percentage > 0.65) {
       position = 'after';
     } else {
       position = 'child';
@@ -199,7 +205,7 @@ export function LayersPanel() {
       const targetObject = objects.find((obj) => obj.id === over.id);
       if (!targetObject || targetObject.type !== 'group') {
         // Convert 'child' to 'before' or 'after' based on which half we're in
-        // Top half (25%-62.5%) → 'before', bottom half (62.5%-75%) → 'after'
+        // Top half (35%-50%) → 'before', bottom half (50%-65%) → 'after'
         position = percentage < 0.5 ? 'before' : 'after';
       }
     }
@@ -208,32 +214,97 @@ export function LayersPanel() {
   };
 
   /**
+   * Handle drag start event to acquire drag lock
+   *
+   * Acquires a drag lock to prevent race conditions with Firebase sync
+   * and multi-user conflicts during layer reordering.
+   *
+   * @param {DragStartEvent} event - The drag start event from @dnd-kit
+   */
+  const handleDragStart = async (event: DragStartEvent) => {
+    const { active } = event;
+
+    if (!currentUser) {
+      console.warn('Cannot drag layers: No user logged in');
+      return;
+    }
+
+    // Acquire drag lock
+    const username = currentUser.email || 'Anonymous';
+    const lockAcquired = await acquireLayerDragLock(
+      projectId,
+      currentUser.uid,
+      username,
+      [active.id as string]
+    );
+
+    dragLockAcquired.current = lockAcquired;
+
+    if (!lockAcquired) {
+      console.log('Layer drag in progress by another user');
+    }
+  };
+
+  /**
    * Handle drag end event to reorder layers or create parent-child relationships
    *
    * When a layer is dropped, this function:
    * 1. Determines drop intent based on dropPosition (before/child/after)
-   * 2. If 'child' position: Makes dragged object a child of target
-   * 3. If 'before' or 'after': Reorders as sibling at same hierarchy level
-   * 4. Prevents circular references (can't make parent a child of its descendant)
-   * 5. Syncs the updated array to canvasStore (which syncs to RTDB)
+   * 2. Re-validates target object (exists, correct type for 'child' position)
+   * 3. If 'child' position: Makes dragged object a child of target
+   * 4. If 'before' or 'after': Reorders as sibling at same hierarchy level
+   * 5. Prevents circular references (can't make parent a child of its descendant)
+   * 6. Syncs the updated array to canvasStore and Firebase with proper locking
    *
    * @param {DragEndEvent} event - The drag end event from @dnd-kit
    */
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     // Clear drop position visual indicator
     setDropPosition(null);
 
-    if (!over || active.id === over.id || !dropPosition) return;
+    // Save lock status before any operations
+    const hadLock = dragLockAcquired.current;
+
+    // Early exit conditions (no lock needed for these)
+    if (!over || active.id === over.id || !dropPosition) {
+      // Release lock if we had it
+      if (currentUser && hadLock) {
+        await releaseLayerDragLock(projectId, currentUser.uid);
+        dragLockAcquired.current = false;
+      }
+      return;
+    }
+
+    // Only proceed if we acquired the lock
+    if (!hadLock) {
+      console.log('Drag operation cancelled: Lock not acquired');
+      return;
+    }
 
     const draggedId = active.id as string;
     const targetId = over.id as string;
 
     if (dropPosition.position === 'child') {
+      // RE-VALIDATE: Ensure target still exists and is a group
+      const targetObject = objects.find((obj) => obj.id === targetId);
+      if (!targetObject) {
+        console.warn('Target object no longer exists');
+        return;
+      }
+      if (targetObject.type !== 'group') {
+        console.warn('Target is not a group, cannot make child');
+        return;
+      }
+
       // Make child of target
       const draggedObj = objects.find((obj) => obj.id === draggedId);
-      const oldParentId = draggedObj?.parentId;
+      if (!draggedObj) {
+        console.warn('Dragged object no longer exists');
+        return;
+      }
+      const oldParentId = draggedObj.parentId;
 
       const updated = moveToParent(draggedId, targetId, objects);
 
@@ -264,10 +335,30 @@ export function LayersPanel() {
           }
         }
 
-        // Sync z-indexes to Firebase (async, fire-and-forget)
-        syncZIndexes(projectId, updated).catch(console.error);
+        // Sync z-indexes to Firebase with proper await and error handling
+        try {
+          await syncZIndexes(projectId, updated);
+        } catch (error) {
+          console.error('Failed to sync z-indexes after parent change:', error);
+          // Rollback on failure
+          setObjects(objects);
+        } finally {
+          // Release lock after operation completes
+          if (currentUser) {
+            await releaseLayerDragLock(projectId, currentUser.uid);
+            dragLockAcquired.current = false;
+          }
+        }
+      } else {
+        // Circular reference detected - silently prevented, rollback
+        console.warn('Circular reference detected, operation prevented');
+        // Release lock on error
+        if (currentUser) {
+          await releaseLayerDragLock(projectId, currentUser.uid);
+          dragLockAcquired.current = false;
+        }
       }
-      // Circular reference detected - silently prevented
+      return;
     } else {
       // Reorder as sibling (before or after target)
       const oldIndex = objects.findIndex((obj) => obj.id === draggedId);
@@ -323,8 +414,20 @@ export function LayersPanel() {
         }
       }
 
-      // Sync z-indexes to Firebase (async, fire-and-forget)
-      syncZIndexes(projectId, reordered).catch(console.error);
+      // Sync z-indexes to Firebase with proper await and error handling
+      try {
+        await syncZIndexes(projectId, reordered);
+      } catch (error) {
+        console.error('Failed to sync z-indexes after reorder:', error);
+        // Rollback on failure
+        setObjects(objects);
+      } finally {
+        // Release lock after operation completes
+        if (currentUser) {
+          await releaseLayerDragLock(projectId, currentUser.uid);
+          dragLockAcquired.current = false;
+        }
+      }
     }
   };
 
@@ -440,6 +543,7 @@ export function LayersPanel() {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
             >

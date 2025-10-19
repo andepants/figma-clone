@@ -27,7 +27,9 @@ import {
   cleanupStaleDragStates,
   cleanupStaleCursors,
   batchUpdateCanvasObjects,
+  getAllCanvasObjects,
 } from '@/lib/firebase';
+import { subscribeToLayerDragLock } from '@/lib/firebase/layerPanelDragService';
 import { getUserDisplayName } from '@/lib/utils';
 import { flattenNonGroupHierarchies, needsMigration } from '@/lib/utils/hierarchyMigration';
 
@@ -87,32 +89,21 @@ export function useCanvasSubscriptions({
   const { setObjects } = useCanvasStore();
   const [isLoading, setIsLoading] = useState(true);
   const migrationRunRef = useRef(false); // Track if migration has been executed for this project
+  const isLayerDragActiveRef = useRef(false); // Track if layer panel drag is in progress
 
   /**
-   * Set user as online with automatic disconnect handling
-   * Also cleans up any stale drag states and cursors from previous sessions
-   *
-   * Firebase onDisconnect() will mark user offline on:
-   * - Browser close/crash
-   * - Network disconnect
-   * - Tab close
+   * Clean up stale states from previous sessions
+   * Note: setOnline() is now called in the subscription useEffect to ensure
+   * connection is established before subscriptions are set up
    */
   useEffect(() => {
     if (!currentUser) return;
-
-    // Use username with smart fallback to email username (not full email)
-    const username = getUserDisplayName(currentUser.username, currentUser.email);
-
-    // Set user online (includes automatic onDisconnect cleanup)
-    setOnline(projectId, currentUser.uid, username).catch(() => {});
 
     // Clean up any stale drag states from previous sessions
     cleanupStaleDragStates(projectId).catch(() => {});
 
     // Clean up any stale cursors from previous sessions
     cleanupStaleCursors(projectId).catch(() => {});
-
-    // Note: No explicit cleanup needed - onDisconnect() handles it
   }, [currentUser, projectId]);
 
   /**
@@ -186,6 +177,20 @@ export function useCanvasSubscriptions({
   }, [currentUser, projectId]);
 
   /**
+   * Subscribe to layer panel drag lock to prevent subscription updates during reordering
+   * This prevents race conditions where Firebase sync overwrites local state during drag
+   */
+  useEffect(() => {
+    const unsubscribe = subscribeToLayerDragLock(projectId, (lock) => {
+      // Track if ANY user (including current user) is dragging in layers panel
+      // We block ALL subscription updates during any layer drag operation
+      isLayerDragActiveRef.current = lock !== null;
+    });
+
+    return unsubscribe;
+  }, [projectId]);
+
+  /**
    * Subscribe to Realtime Database for real-time canvas updates
    * Cleanup subscription on unmount
    *
@@ -195,17 +200,64 @@ export function useCanvasSubscriptions({
    *
    * HIERARCHY MIGRATION: On first load, runs a one-time migration to flatten any
    * non-group hierarchies (enforces rule that only groups can have children).
+   *
+   * STABLE SNAPSHOT DETECTION: Uses 100ms debounce window to ensure all initial
+   * Firebase callbacks complete before marking first load done. This prevents
+   * incomplete initial loads when Firebase delivers data in multiple callbacks.
+   *
+   * CONNECTION FORCE: Awaits setOnline() before subscription setup to ensure
+   * Firebase RTDB connection is fully established. This write operation triggers
+   * the connection handshake, allowing subscriptions to fire immediately.
    */
   useEffect(() => {
+    if (!currentUser) {
+      setIsLoading(false);
+      return;
+    }
+
     let isFirstLoad = true;
+    let stableSnapshotTimer: NodeJS.Timeout | null = null;
+    let callbackCount = 0;
     // Reset migration flag when project changes
     migrationRunRef.current = false;
 
-    try {
-      // Subscribe to project-specific canvas objects in RTDB
-      const unsubscribe = subscribeToCanvasObjects(projectId, async (remoteObjects) => {
-        // On first load, run migration and accept all remote objects
+    const initSubscriptions = async () => {
+      try {
+        // FORCE CONNECTION: Ensure presence write completes FIRST
+        // This write operation forces the Firebase RTDB connection to fully establish,
+        // which ensures subscriptions fire immediately instead of waiting for user interaction.
+        const username = getUserDisplayName(currentUser.username, currentUser.email);
+        await setOnline(projectId, currentUser.uid, username).catch(() => {});
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Canvas Subscriptions] setOnline completed - connection established');
+        }
+
+        // NOW subscribe - connection is guaranteed to be active
+        const unsubscribe = subscribeToCanvasObjects(projectId, async (remoteObjects) => {
+        callbackCount++;
+
+        // Development logging for debugging initial load
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Canvas Subscriptions] Callback #${callbackCount}: Received ${remoteObjects.length} objects`);
+        }
+
+        // LAYER DRAG LOCK: Skip updates during active layer panel drag
+        // This prevents race conditions where Firebase sync overwrites local reordering
+        if (isLayerDragActiveRef.current && !isFirstLoad) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Canvas Subscriptions] Skipping update - layer drag in progress');
+          }
+          return;
+        }
+
+        // On first load, use stable snapshot detection
         if (isFirstLoad) {
+          // Clear any existing timer - we got new data
+          if (stableSnapshotTimer) {
+            clearTimeout(stableSnapshotTimer);
+          }
+
           // Check if migration is needed and hasn't been run yet
           if (!migrationRunRef.current && needsMigration(remoteObjects)) {
             // Run migration to flatten non-group hierarchies
@@ -235,8 +287,17 @@ export function useCanvasSubscriptions({
             setObjects(remoteObjects);
           }
 
-          setIsLoading(false);
-          isFirstLoad = false;
+          // Start 200ms debounce timer to detect stable snapshot
+          // Only mark first load complete after 200ms of no new data
+          // Increased from 100ms to handle network variance and ensure all Firebase callbacks complete
+          stableSnapshotTimer = setTimeout(() => {
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[Canvas Subscriptions] Stable snapshot detected after ${callbackCount} callbacks`);
+            }
+            setIsLoading(false);
+            isFirstLoad = false;
+          }, 200);
+
           return;
         }
 
@@ -280,17 +341,55 @@ export function useCanvasSubscriptions({
         }
       });
 
-      // Cleanup: unsubscribe on unmount
-      return () => {
-        unsubscribe();
-      };
-    } catch {
-      // Mark loading as complete even on error
-      setIsLoading(false);
-    }
-    // Re-subscribe when projectId changes
+      // FORCE INITIAL FETCH: Guarantee objects load immediately
+      // This ensures data appears instantly even if subscription callback is delayed
+      // due to Firebase connection timing. The subscription will take over for
+      // subsequent real-time updates.
+      getAllCanvasObjects(projectId).then((initialObjects) => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Canvas Subscriptions] Initial fetch completed: ${initialObjects.length} objects`);
+        }
+
+        // Only use initial fetch if this is still the first load
+        // and we received objects. The subscription callback will handle
+        // subsequent updates and may arrive before or after this fetch.
+        if (isFirstLoad && initialObjects.length > 0) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Canvas Subscriptions] Using initial fetch data (subscription not yet fired)');
+          }
+          setObjects(initialObjects);
+        }
+      }).catch((error) => {
+        // Log error but don't fail - subscription will still work
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Canvas Subscriptions] Initial fetch failed:', error);
+        }
+      });
+
+        // Cleanup: unsubscribe on unmount and clear any pending timers
+        return () => {
+          unsubscribe();
+          if (stableSnapshotTimer) {
+            clearTimeout(stableSnapshotTimer);
+          }
+        };
+      } catch {
+        // Mark loading as complete even on error
+        setIsLoading(false);
+        return () => {}; // Return no-op cleanup
+      }
+    };
+
+    // Start async initialization
+    const cleanupPromise = initSubscriptions();
+
+    // Cleanup function for useEffect
+    return () => {
+      cleanupPromise.then((cleanup) => cleanup?.()).catch(() => {});
+    };
+    // Re-subscribe when currentUser or projectId changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [currentUser, projectId]);
 
   return {
     isLoading,

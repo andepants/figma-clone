@@ -40,6 +40,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   panY: 0,
   clipboard: [],
   projectId: 'main', // Default to 'main' for legacy support
+  lastCanvasMousePosition: null, // Mouse position in canvas coords (null if off-canvas)
+  stageRef: null, // Konva stage reference for viewport calculations
 
   // setObjects is critical - needs to be in main store for performance optimization
   setObjects: (objects: CanvasObject[]) =>
@@ -74,6 +76,18 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     })),
 
   getProjectId: () => get().projectId,
+
+  // Mouse position tracking
+  setLastCanvasMousePosition: (position: { x: number; y: number } | null) =>
+    set(() => ({
+      lastCanvasMousePosition: position,
+    })),
+
+  // Stage reference management
+  setStageRef: (stage) =>
+    set(() => ({
+      stageRef: stage,
+    })),
 
   // Combine all action slices
   ...createCanvasActions(set, get),

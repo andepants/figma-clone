@@ -76,7 +76,7 @@ export function useStageHandlers({
   const mouseDownPos = useRef<Position | null>(null);
 
   // Get canvas store methods
-  const { clearSelection } = useCanvasStore();
+  const { clearSelection, setLastCanvasMousePosition } = useCanvasStore();
 
   // Debounced zoom update to reduce re-renders during scroll zoom
   // Immediate Konva stage update for smooth feel, debounced store update
@@ -243,7 +243,7 @@ export function useStageHandlers({
    */
   function handleCursorMove() {
     const stage = stageRef.current;
-    if (!stage || !currentUser) return;
+    if (!stage) return;
 
     // Get canvas coordinates (accounting for pan and zoom)
     const pointerPosition = stage.getPointerPosition();
@@ -251,15 +251,28 @@ export function useStageHandlers({
 
     const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
 
+    // Track mouse position for paste functionality
+    setLastCanvasMousePosition(canvasCoords);
+
     // Update cursor position in Realtime DB (throttled to 50ms)
     // Use username with smart fallback to email username (not full email)
-    const username = getUserDisplayName(
-      currentUser.username ?? null,
-      currentUser.email ?? null
-    );
-    const color = '#0ea5e9'; // Default color, will be user-specific in getUserColor
+    if (currentUser) {
+      const username = getUserDisplayName(
+        currentUser.username ?? null,
+        currentUser.email ?? null
+      );
+      const color = '#0ea5e9'; // Default color, will be user-specific in getUserColor
 
-    throttledUpdateCursor(projectId, currentUser.uid, canvasCoords, username, color);
+      throttledUpdateCursor(projectId, currentUser.uid, canvasCoords, username, color);
+    }
+  }
+
+  /**
+   * Handle mouse leaving canvas
+   * Clears mouse position tracking when cursor exits canvas
+   */
+  function handleMouseLeave() {
+    setLastCanvasMousePosition(null);
   }
 
   return {
@@ -269,5 +282,6 @@ export function useStageHandlers({
     handleStageMouseDown,
     handleStageClick,
     handleCursorMove,
+    handleMouseLeave,
   };
 }

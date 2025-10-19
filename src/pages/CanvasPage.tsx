@@ -20,13 +20,14 @@ import { useAuth } from '@/features/auth/hooks';
 import { useProjectAccess } from '@/features/collaboration/hooks';
 import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SyncIndicator, ShortcutsModal } from '@/components/common';
+import { SyncIndicator, ShortcutsModal, ConnectionStatus } from '@/components/common';
 import { hexToRgba, exportCanvasToPNG } from '@/lib/utils';
 import { ExportModal, type ExportOptions } from '@/features/export';
 import { ImageUploadModal } from '@/features/canvas-core/components/ImageUploadModal';
 import { canUserAccessProject } from '@/types/project.types';
 import type { Project } from '@/types/project.types';
 import { PUBLIC_PLAYGROUND_ID } from '@/config/constants';
+import { subscribeToConnectionStatus, type ConnectionStatus as ConnectionStatusType } from '@/lib/firebase';
 import {
   useCanvasSubscriptions,
   useCanvasSyncStatus,
@@ -106,6 +107,18 @@ function CanvasPage() {
 
   // Track sync status for sync indicator
   const { syncStatus, setSyncStatus } = useCanvasSyncStatus();
+
+  // Track connection status
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusType>('connecting');
+
+  // Subscribe to Firebase connection status
+  useEffect(() => {
+    const unsubscribe = subscribeToConnectionStatus((status) => {
+      setConnectionStatus(status);
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Subscribe to Firebase and manage real-time data
   const { isLoading } = useCanvasSubscriptions({
@@ -334,9 +347,12 @@ function CanvasPage() {
         className="relative h-screen w-screen overflow-hidden"
         style={{ backgroundColor: bgColorWithOpacity }}
       >
+        {/* Connection Status Banner - top-center, highest z-index */}
+        <ConnectionStatus status={connectionStatus} />
+
         {/* Public Playground Banner */}
         {isPublicPlayground && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg flex items-center gap-2">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg flex items-center gap-2">
             <span className="text-sm font-medium">
               🎨 Public Playground - Changes visible to all users
             </span>

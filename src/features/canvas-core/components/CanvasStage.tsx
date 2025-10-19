@@ -39,7 +39,7 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
   const { activeTool } = useToolStore();
 
   // Get canvas objects, selection, zoom and pan from store
-  const { objects, selectedIds, selectObjects, toggleSelection, zoom, panX, panY, setZoom, setPan } = useCanvasStore();
+  const { objects, selectedIds, selectObjects, toggleSelection, zoom, panX, panY, setZoom, setPan, setStageRef } = useCanvasStore();
 
   // Get page settings for background color
   const { pageSettings } = usePageStore();
@@ -71,6 +71,12 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
   // Use external ref if provided, otherwise use internal ref
   const stageRef = externalStageRef || internalStageRef;
 
+  // Sync stageRef to canvas store for viewport calculations
+  useEffect(() => {
+    setStageRef(stageRef.current);
+    return () => setStageRef(null); // Cleanup on unmount
+  }, [stageRef, setStageRef]);
+
   // Drag-to-select handlers for marquee selection (needs to be before useStageHandlers)
   const {
     handleStageMouseDown: handleDragSelectMouseDown,
@@ -87,6 +93,7 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
     handleStageMouseDown,
     handleStageClick,
     handleCursorMove,
+    handleMouseLeave,
   } = useStageHandlers({
     stageRef,
     projectId,
@@ -211,6 +218,7 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
         handleMouseUp(e);
         handleDragSelectMouseUp();
       }}
+      onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

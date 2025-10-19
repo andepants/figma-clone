@@ -17,6 +17,18 @@ import { throttle, retryAsync } from '@/lib/utils';
 import type { CanvasObject } from '@/types';
 
 /**
+ * Connection status type
+ */
+export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+
+/**
+ * Global connection state
+ * Tracks Firebase Realtime Database connection status
+ */
+let currentConnectionStatus: ConnectionStatus = 'connecting';
+const connectionCallbacks = new Set<(status: ConnectionStatus) => void>();
+
+/**
  * Subscribe to all canvas objects for real-time updates
  *
  * Listens to changes in the objects collection and invokes the callback
@@ -392,4 +404,106 @@ export async function syncZIndexes(
   } catch {
     // Don't throw - sync shouldn't break the app
   }
+}
+
+/**
+ * Initialize connection monitoring
+ *
+ * Sets up Firebase Realtime Database connection state monitoring.
+ * This should be called once on app initialization.
+ *
+ * Firebase RTDB provides a special path `.info/connected` that indicates
+ * whether the client is connected to the database.
+ *
+ * Connection states:
+ * - 'connected': Active connection to Firebase RTDB
+ * - 'connecting': Attempting to establish connection
+ * - 'disconnected': No connection to Firebase RTDB
+ *
+ * @example
+ * ```typescript
+ * // Initialize connection monitoring on app startup
+ * initConnectionMonitoring();
+ * ```
+ */
+export function initConnectionMonitoring(): void {
+  const connectedRef = ref(realtimeDb, '.info/connected');
+
+  onValue(connectedRef, (snapshot) => {
+    const isConnected = snapshot.val() === true;
+    const newStatus: ConnectionStatus = isConnected ? 'connected' : 'disconnected';
+
+    // Development logging for connection state changes
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Firebase Connection] Status changed: ${currentConnectionStatus} → ${newStatus}`);
+    }
+
+    // Update global state
+    currentConnectionStatus = newStatus;
+
+    // Notify all subscribers
+    connectionCallbacks.forEach(callback => {
+      try {
+        callback(newStatus);
+      } catch (error) {
+        console.error('[Firebase Connection] Error in callback:', error);
+      }
+    });
+  });
+}
+
+/**
+ * Subscribe to connection status changes
+ *
+ * Registers a callback to be invoked whenever the Firebase RTDB connection
+ * status changes. Returns an unsubscribe function.
+ *
+ * @param {function} callback - Function called with new connection status
+ * @returns {function} Unsubscribe function to remove the callback
+ *
+ * @example
+ * ```typescript
+ * const unsubscribe = subscribeToConnectionStatus((status) => {
+ *   if (status === 'disconnected') {
+ *     showOfflineBanner();
+ *   }
+ * });
+ *
+ * // Later, cleanup
+ * unsubscribe();
+ * ```
+ */
+export function subscribeToConnectionStatus(
+  callback: (status: ConnectionStatus) => void
+): () => void {
+  // Call immediately with current status
+  callback(currentConnectionStatus);
+
+  // Add to subscribers
+  connectionCallbacks.add(callback);
+
+  // Return unsubscribe function
+  return () => {
+    connectionCallbacks.delete(callback);
+  };
+}
+
+/**
+ * Get current connection status (synchronous)
+ *
+ * Returns the current Firebase RTDB connection status without subscribing.
+ * Useful for one-time checks.
+ *
+ * @returns {ConnectionStatus} Current connection status
+ *
+ * @example
+ * ```typescript
+ * const status = getConnectionStatus();
+ * if (status === 'connected') {
+ *   // Perform online-only operation
+ * }
+ * ```
+ */
+export function getConnectionStatus(): ConnectionStatus {
+  return currentConnectionStatus;
 }

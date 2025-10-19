@@ -51,12 +51,8 @@ export function createCanvasGrouping(
             const groupId = crypto.randomUUID();
             const groupName = generateLayerName('group', objects);
 
-            // Find the minimum z-index (earliest position) of selected objects
-            // Group should appear BEFORE (lower z-index) than its children in Figma
-            const selectedIndices = selectedIds.map((id) =>
-              objects.findIndex((obj) => obj.id === id)
-            );
-            const minIndex = Math.min(...selectedIndices);
+            // Group should appear at TOP of layers panel (highest z-index)
+            // This matches modern Figma behavior where new groups appear above children
 
             const group: CanvasObject = {
               id: groupId,
@@ -95,9 +91,9 @@ export function createCanvasGrouping(
               return obj;
             });
 
-            // Insert group at the BEGINNING of children's z-index range (appears below in layers panel)
-            // This matches Figma behavior: children appear above parent in layers panel
-            updatedObjects.splice(minIndex, 0, group);
+            // Insert group at the END of objects array (highest z-index, top of layers panel)
+            // This ensures new groups appear above all existing objects
+            updatedObjects.push(group);
 
             // Update state and select group
             set({ objects: updatedObjects });

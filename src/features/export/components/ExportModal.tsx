@@ -139,14 +139,21 @@ export function ExportModal({
   }, [options, onExport, onClose, currentUser, setActiveTab]);
 
   /**
-   * Reset options and tab when modal opens
+   * Reset options and tab when modal opens or closes
+   * This ensures clean state for each export session
    */
   function handleOpenChange(open: boolean) {
     if (!open) {
+      // Reset state when closing (critical for next export)
+      setExportStatus('idle');
+      setActiveTab('export');
       onClose();
     } else {
       // Reset to Export tab when opening
       setActiveTab('export');
+
+      // Reset export status to idle (fixes loading state bug on reopen)
+      setExportStatus('idle');
 
       // Reset to defaults when opening
       setOptions({
