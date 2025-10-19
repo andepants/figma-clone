@@ -119,7 +119,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (!firestoreUser) {
             // User document doesn't exist - create it (for existing Auth users)
-            console.log('Creating Firestore user profile for:', firebaseUser.email);
             await createUser(
               firebaseUser.uid,
               firebaseUser.email || 'unknown@example.com',

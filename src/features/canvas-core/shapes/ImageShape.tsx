@@ -173,7 +173,7 @@ export const ImageShape = memo(function ImageShape({
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [image.src, image.id, image.fileName, image.mimeType, image.storageType, image.width, image.height, image.naturalWidth, image.naturalHeight]);
+  }, [image.src, image.id, image.fileName, image.mimeType, image.storageType, image.storagePath, image.width, image.height, image.naturalWidth, image.naturalHeight]);
 
   /**
    * Animate selection changes

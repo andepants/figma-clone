@@ -319,9 +319,6 @@ export async function generateTemplateObjects(projectId: string): Promise<void> 
     // Write to Firebase RTDB: /canvases/{projectId}/objects
     const objectsRef = ref(realtimeDb, `canvases/${projectId}/objects`);
     await set(objectsRef, objectsMap);
-
-    console.log(`✅ Generated ${allObjects.length} template objects for project ${projectId}`);
-    console.log(`   Each object has a unique ID and is completely independent`);
   } catch (error) {
     console.error('❌ Failed to generate template objects:', error);
     throw new Error(`Template generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -62,16 +62,6 @@ export const storage: FirebaseStorage = getStorage(app)
 // Connect to Firebase Emulators in development
 // This ensures complete isolation from production data during local development
 if (import.meta.env.DEV) {
-  // Only log emulator connection details if explicitly enabled
-  if (import.meta.env.VITE_SHOW_EMULATOR_LOGS === 'true') {
-    console.log('🔧 Using Firebase Emulators (local development)')
-    console.log('   → Auth: localhost:9099')
-    console.log('   → Firestore: localhost:9150')
-    console.log('   → Realtime DB: localhost:9000')
-    console.log('   → Functions: localhost:5001')
-    console.log('   → Storage: localhost:9199')
-  }
-
   // Connect all services to local emulators
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
   connectFirestoreEmulator(firestore, 'localhost', 9150)

@@ -31,6 +31,7 @@ IMPORTANT: Do NOT suggest additional tasks or make recommendations unless explic
 
 Key responsibilities:
 - Create shapes (rectangles, circles, text, lines)
+- Create multiple objects in patterns (use createBatch for bulk operations)
 - Move, resize, rotate objects
 - Update object appearance (colors, strokes, opacity)
 - Arrange multiple objects in layouts
@@ -52,50 +53,30 @@ Coordinate System:
 - Rotation: degrees (0-360)
 - VIEWPORT: User's current view (use viewport center for new objects!)
 
-Action-Oriented Examples:
-✅ "Create a blue square" → Use createRectangle at VIEWPORT CENTER
-✅ "Make a red circle" → Use createCircle at VIEWPORT CENTER
-✅ "Move it to the right" → Move last created object 100px right
-✅ "Make it bigger" → Resize last created object with scale: 1.5
-✅ "Arrange them in a row" → Use arrangeInRow on last created objects
-
-Memory Examples:
-✅ "Create 3 circles" → Create circles, remember their IDs
-✅ "Now move them left" → Move the 3 circles you just created
-✅ "What did I just make?" → Refer to conversation history
+Tool Usage Patterns:
+- Batch operations (2-100 objects): Use createBatch with patterns (circle, spiral, grid, wave, hexagon, scatter, line)
+- Semantic selection: Use findObjects by properties (type, color, size, selection) before modifying
+- Complex layouts: Use composite tools (createForm, createNavBar, createCard) for structured UI
+- Memory references: "it", "that", "them" refer to last created objects
 
 Only Ask for Clarification When Truly Ambiguous:
 ❌ "Create a shape" (no type) → Ask: "What type of shape?"
 ❌ "Move that" (no object created yet, nothing selected) → Ask: "Which object?"
 ❌ "Change the color" (no color mentioned) → Ask: "What color?"
 
-FORMATTING GUIDELINES:
-When asking multiple questions, format them clearly with line breaks:
-- Start each numbered question on a new line
-- Use blank lines to separate different sections
-- Keep questions concise and easy to scan
-- Example:
-  "I need some information to create the feature graphic:
-
-  1. What is the app name?
-  2. What category does the app fall under?
-  3. What is the key feature or value proposition?
-
-  Please provide these details!"
-
-After executing tools, respond with a brief confirmation of what was created/changed. Do NOT suggest next steps, additional tasks, or related features unless the user explicitly asks for recommendations.
+Response Format: Confirm action taken briefly. Use numbered lists for multiple questions. Do NOT suggest next steps unless asked.
 
 Viewport context is provided with each command. Use it to understand what the user is currently viewing.`;
 
 /**
  * Message trimmer to limit conversation history
- * Keeps last 10 messages to balance context vs token cost
+ * Keeps last 5 messages to balance context vs token cost
  */
 const messageModifier = async (messages: BaseMessage[]): Promise<BaseMessage[]> => {
   // Trim messages, keeping system prompt
   const trimmed = await trimMessages(messages, {
     tokenCounter: (msgs) => msgs.length, // Count messages, not tokens
-    maxTokens: 10, // Keep last 10 messages
+    maxTokens: 5, // Keep last 5 messages
     strategy: "last",
     startOn: "human", // Ensure valid conversation structure
     includeSystem: true, // Always keep system prompt

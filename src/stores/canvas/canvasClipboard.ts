@@ -43,7 +43,7 @@ export function createCanvasClipboard(
       set({ clipboard: objectsToCopy });
     },
 
-    pasteObjects: () => {
+    pasteObjects: (userId: string) => {
       const state = get();
       const { clipboard, addObject } = state;
 
@@ -72,6 +72,7 @@ export function createCanvasClipboard(
             x: obj.x + 20,
             y: obj.y + 20,
             parentId: newParentId,
+            createdBy: userId, // IMPORTANT: Set creator to current user
             createdAt: Date.now(),
             updatedAt: Date.now(),
           } as CanvasObject;

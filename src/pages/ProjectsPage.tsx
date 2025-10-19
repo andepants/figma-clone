@@ -48,7 +48,7 @@ export default function ProjectsPage() {
     paidUserCount,
     isLoading,
     setProjects,
-  } = useProjectsData(currentUser?.uid || null, canCreateProjects);
+  } = useProjectsData(currentUser?.uid || null);
 
   // Payment status hook
   const { paymentStatus, webhookTimeout, clearPaymentStatus } = usePaymentStatus(
@@ -378,8 +378,8 @@ export default function ProjectsPage() {
         ) : !canCreateProjects ? (
           // Free user: Show public projects + pricing content
           <>
-            {publicProjects.length > 0 && (
-              <PublicProjectsSection projects={publicProjects} />
+            {publicProjects.length > 0 && currentUser && (
+              <PublicProjectsSection projects={publicProjects} currentUserId={currentUser.uid} />
             )}
             <PricingPageContent
               onUpgrade={handleUpgrade}

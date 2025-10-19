@@ -242,7 +242,7 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
         isOpen={isAddUserModalOpen}
         onClose={() => setIsAddUserModalOpen(false)}
         projectId={projectId}
-        currentCollaborators={currentProject?.collaborators || []}
+        currentCollaborators={currentProject?.collaborators || {}}
         onUserAdded={handleUserAdded}
       />
     </div>

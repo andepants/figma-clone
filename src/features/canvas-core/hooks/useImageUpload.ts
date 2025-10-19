@@ -132,7 +132,6 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
           // Wait before retry (exponential backoff: 1s, 2s, 4s)
           if (attempt < maxRetries) {
             const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-            console.log(`Upload failed, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})...`)
             await new Promise((resolve) => setTimeout(resolve, delay))
           }
         }

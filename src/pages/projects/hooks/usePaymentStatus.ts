@@ -92,12 +92,8 @@ export function usePaymentStatus(
             { success: boolean; status: string; subscriptionUpdated: boolean; message: string }
           >(functions, 'verifyCheckoutSession');
 
-          const result = await verifyCheckoutSession({ sessionId });
-
-          if (result.data.success && result.data.subscriptionUpdated) {
-            // Subscription will update via Firestore listener
-            console.log('✅ Checkout session verified manually');
-          }
+          await verifyCheckoutSession({ sessionId });
+          // Subscription will update via Firestore listener
         } catch (error) {
           console.error('❌ Failed to verify checkout session:', error);
           // Continue waiting for webhook or show timeout error

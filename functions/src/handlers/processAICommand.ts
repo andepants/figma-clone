@@ -31,7 +31,43 @@ export async function processAICommandHandler(
     );
   }
 
-  // Rate limiting check
+  // Try fast path BEFORE rate limiting for ultra-low latency
+  // (Only for simple, unambiguous commands)
+  const {tryFastPath, isTooComplex} = await import("../ai/utils/fast-path.js");
+
+  if (!isTooComplex(data.command)) {
+    const fastPathMatch = tryFastPath(data.command);
+
+    if (fastPathMatch) {
+      logger.info("Fast path matched - bypassing LLM", {
+        toolName: fastPathMatch.toolName,
+        command: data.command,
+      });
+
+      // Execute fast path tool directly
+      const {executeFastPathTool} = await import("../ai/utils/fast-path-executor.js");
+      try {
+        const result = await executeFastPathTool(
+          fastPathMatch,
+          data.canvasId,
+          auth.uid,
+          data.canvasState
+        );
+
+        logger.info("Fast path execution complete", {
+          toolName: fastPathMatch.toolName,
+          success: result.success,
+        });
+
+        return result;
+      } catch (error) {
+        // Fast path failed - fall through to LLM
+        logger.warn("Fast path execution failed, falling back to LLM", {error});
+      }
+    }
+  }
+
+  // Rate limiting check (only for LLM path)
   logger.info("Importing rate limiter service");
   const {checkRateLimit} = await import("../services/rate-limiter.js");
   logger.info("Checking rate limit", {userId: auth.uid});
@@ -147,7 +183,23 @@ export async function processAICommandHandler(
       getCachedContext,
       setCachedContext,
       generateCacheKey,
+      getCachedResponse,
+      setCachedResponse,
+      generateResponseCacheKey,
     } = await import("../ai/utils/context-cache.js");
+
+    // Check for cached LLM response first (exact command match)
+    const responseCacheKey = generateResponseCacheKey(data.command, data.canvasState);
+    const cachedResponse = getCachedResponse(responseCacheKey);
+
+    if (cachedResponse) {
+      const responseTime = Date.now() - startTime;
+      logger.info("Using cached LLM response", {
+        responseCacheKey,
+        responseTime: `${responseTime}ms`,
+      });
+      return cachedResponse;
+    }
 
     // Try cache first
     const cacheKey = generateCacheKey(data.canvasState);
@@ -297,6 +349,9 @@ export async function processAICommandHandler(
       message: output,
       actions,
     };
+
+    // Cache the response for future identical commands
+    setCachedResponse(responseCacheKey, response);
 
     return response;
   } catch (error) {

@@ -108,8 +108,6 @@ export const useUserStore = create<UserState>((set, get) => ({
 
     const userDocRef = doc(firestore, 'users', userId);
 
-    console.log('🔄 USER_STORE: Initializing subscription for user (server fetch first)...');
-
     try {
       // STEP 1: Initial server fetch to ensure we have latest data on login
       // This bypasses all caches and gets fresh subscription status
@@ -119,50 +117,18 @@ export const useUserStore = create<UserState>((set, get) => ({
         const rawData = initialSnapshot.data();
         const data = rawData as UserProfile;
 
-        console.log('🔍 USER_STORE: RAW FIRESTORE DATA (initial fetch)', {
-          rawFirestoreData: JSON.stringify(rawData, null, 2),
-        });
-
-        console.log('✅ USER_STORE: Initial server fetch complete', {
-          userId: data.id,
-          email: data.email,
-          username: data.username,
-          subscriptionStatus: data.subscription?.status,
-          stripeCustomerId: data.subscription?.stripeCustomerId,
-          stripePriceId: data.subscription?.stripePriceId,
-          currentPeriodEnd: data.subscription?.currentPeriodEnd,
-          updatedAt: new Date(data.updatedAt).toISOString(),
-          source: 'SERVER (initial login fetch)',
-        });
-
         // Set initial data from server
         if (!data.subscription) {
           const profileWithDefault = { ...data, subscription: DEFAULT_FREE_SUBSCRIPTION };
-          console.log('⚠️ USER_STORE: No subscription field, adding default', {
-            profileBeingSet: JSON.stringify(profileWithDefault, null, 2),
-          });
           set({
             userProfile: profileWithDefault,
             loading: false,
             error: null,
           });
         } else {
-          console.log('✅ USER_STORE: Setting user profile in store', {
-            profileBeingSet: JSON.stringify(data, null, 2),
-          });
           set({ userProfile: data, loading: false, error: null });
         }
-
-        // Verify what actually got set in the store
-        const storeState = get().userProfile;
-        console.log('🔍 USER_STORE: VERIFICATION - What\'s in store after set:', {
-          storeSubscriptionStatus: storeState?.subscription?.status,
-          storeStripeCustomerId: storeState?.subscription?.stripeCustomerId,
-          storeStripePriceId: storeState?.subscription?.stripePriceId,
-          fullStoreSubscription: JSON.stringify(storeState?.subscription, null, 2),
-        });
       } else {
-        console.log('⚠️ USER_STORE: User document does not exist yet');
         set({ userProfile: null, loading: false, error: null });
       }
     } catch (error) {
@@ -171,7 +137,6 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
 
     // STEP 2: Set up real-time listener for ongoing updates
-    console.log('🔄 USER_STORE: Setting up real-time listener...');
     const unsubscribe = onSnapshot(
       userDocRef,
       (snapshot) => {
@@ -179,49 +144,19 @@ export const useUserStore = create<UserState>((set, get) => ({
           const rawData = snapshot.data();
           const data = rawData as UserProfile;
 
-          console.log('🔍 USER_STORE: RAW FIRESTORE DATA (realtime update)', {
-            rawFirestoreData: JSON.stringify(rawData, null, 2),
-          });
-
-          // Log subscription status for debugging
-          console.log('📥 USER_STORE: Received Firestore update', {
-            userId: data.id,
-            email: data.email,
-            subscriptionStatus: data.subscription?.status,
-            stripeCustomerId: data.subscription?.stripeCustomerId,
-            stripePriceId: data.subscription?.stripePriceId,
-            updatedAt: new Date(data.updatedAt).toISOString(),
-            source: 'REALTIME (onSnapshot)',
-          });
-
           // Ensure subscription field exists (migration safety)
           if (!data.subscription) {
             const profileWithDefault = { ...data, subscription: DEFAULT_FREE_SUBSCRIPTION };
-            console.log('⚠️ USER_STORE: No subscription field, adding default (realtime)', {
-              profileBeingSet: JSON.stringify(profileWithDefault, null, 2),
-            });
             set({
               userProfile: profileWithDefault,
               loading: false,
               error: null,
             });
           } else {
-            console.log('✅ USER_STORE: Setting user profile in store (realtime)', {
-              profileBeingSet: JSON.stringify(data, null, 2),
-            });
             set({ userProfile: data, loading: false, error: null });
           }
-
-          // Verify what actually got set in the store
-          const storeState = get().userProfile;
-          console.log('🔍 USER_STORE: VERIFICATION - What\'s in store after realtime update:', {
-            storeSubscriptionStatus: storeState?.subscription?.status,
-            storeStripeCustomerId: storeState?.subscription?.stripeCustomerId,
-            fullStoreSubscription: JSON.stringify(storeState?.subscription, null, 2),
-          });
         } else {
           // User document doesn't exist yet - treat as free user
-          console.log('⚠️ USER_STORE: User document does not exist yet');
           set({ userProfile: null, loading: false, error: null });
         }
       },
@@ -246,7 +181,6 @@ export const useUserStore = create<UserState>((set, get) => ({
     // Refresh is automatic with onSnapshot, but we can trigger re-subscription if needed
     const userId = get().userProfile?.id;
     if (userId) {
-      console.log('🔄 USER_STORE: Refreshing user profile (onSnapshot should auto-update)...');
       get().subscribeToUser(userId);
     }
   },
@@ -257,8 +191,6 @@ export const useUserStore = create<UserState>((set, get) => ({
       console.warn('⚠️ USER_STORE: Cannot force refresh - no user logged in');
       return;
     }
-
-    console.log('🔄 USER_STORE: Force refreshing user profile from Firestore (bypassing cache)...');
 
     try {
       const userDocRef = doc(firestore, 'users', userId);
@@ -271,46 +203,17 @@ export const useUserStore = create<UserState>((set, get) => ({
         const rawData = snapshot.data();
         const data = rawData as UserProfile;
 
-        console.log('🔍 USER_STORE: RAW FIRESTORE DATA (force refresh)', {
-          rawFirestoreData: JSON.stringify(rawData, null, 2),
-        });
-
-        console.log('✅ USER_STORE: Force refresh successful (from server)', {
-          userId: data.id,
-          email: data.email,
-          subscriptionStatus: data.subscription?.status,
-          stripeCustomerId: data.subscription?.stripeCustomerId,
-          stripePriceId: data.subscription?.stripePriceId,
-          currentPeriodEnd: data.subscription?.currentPeriodEnd,
-          updatedAt: new Date(data.updatedAt).toISOString(),
-          source: 'SERVER (cache bypassed)',
-        });
-
         // Ensure subscription field exists (migration safety)
         if (!data.subscription) {
           const profileWithDefault = { ...data, subscription: DEFAULT_FREE_SUBSCRIPTION };
-          console.log('⚠️ USER_STORE: No subscription field, adding default (force refresh)', {
-            profileBeingSet: JSON.stringify(profileWithDefault, null, 2),
-          });
           set({
             userProfile: profileWithDefault,
             loading: false,
             error: null,
           });
         } else {
-          console.log('✅ USER_STORE: Setting user profile in store (force refresh)', {
-            profileBeingSet: JSON.stringify(data, null, 2),
-          });
           set({ userProfile: data, loading: false, error: null });
         }
-
-        // Verify what actually got set in the store
-        const storeState = get().userProfile;
-        console.log('🔍 USER_STORE: VERIFICATION - What\'s in store after force refresh:', {
-          storeSubscriptionStatus: storeState?.subscription?.status,
-          storeStripeCustomerId: storeState?.subscription?.stripeCustomerId,
-          fullStoreSubscription: JSON.stringify(storeState?.subscription, null, 2),
-        });
       } else {
         console.warn('⚠️ USER_STORE: User document does not exist');
         set({ userProfile: null, loading: false, error: null });
@@ -399,23 +302,13 @@ export const useUserError = () => useUserStore((state) => state.error);
  *   window.forceRefreshUser()
  */
 if (typeof window !== 'undefined') {
-  (window as any).debugUserStore = () => {
+  (window as unknown as { debugUserStore: () => unknown; forceRefreshUser: () => Promise<unknown> }).debugUserStore = () => {
     const state = useUserStore.getState();
-    console.log('🔍 USER_STORE DEBUG:', {
-      userProfile: state.userProfile,
-      loading: state.loading,
-      error: state.error,
-      hasUnsubscribe: !!state.unsubscribe,
-      subscriptionStatus: state.userProfile?.subscription?.status,
-      fullSubscription: JSON.stringify(state.userProfile?.subscription, null, 2),
-    });
     return state.userProfile;
   };
 
-  (window as any).forceRefreshUser = async () => {
-    console.log('🔄 Manual force refresh from console...');
+  (window as unknown as { debugUserStore: () => unknown; forceRefreshUser: () => Promise<unknown> }).forceRefreshUser = async () => {
     await useUserStore.getState().forceRefreshUserProfile();
-    console.log('✅ Force refresh complete');
-    return (window as any).debugUserStore();
+    return (window as unknown as { debugUserStore: () => unknown }).debugUserStore();
   };
 }

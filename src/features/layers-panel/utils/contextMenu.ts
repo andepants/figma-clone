@@ -39,11 +39,12 @@ import { useCanvasStore } from '@/stores/canvas';
  * @param object - Canvas object to build menu for
  * @param objects - All canvas objects (for context)
  * @param selectedIds - Currently selected object IDs
+ * @param userId - Current user ID (for paste/group actions that create objects)
  * @returns Array of context menu items
  *
  * @example
  * ```tsx
- * const items = getContextMenuItems(rectangle, allObjects, ['rect-1']);
+ * const items = getContextMenuItems(rectangle, allObjects, ['rect-1'], currentUser.uid);
  * // Returns: [
  * //   { label: 'Bring to Front', shortcut: ']', onClick: ... },
  * //   { label: 'Send to Back', shortcut: '[', onClick: ... },
@@ -55,7 +56,8 @@ import { useCanvasStore } from '@/stores/canvas';
 export function getContextMenuItems(
   object: CanvasObject,
   _objects: CanvasObject[],
-  selectedIds: string[]
+  selectedIds: string[],
+  userId?: string
 ): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
 
@@ -117,8 +119,11 @@ export function getContextMenuItems(
       label: 'Paste',
       shortcut: `${cmdKey}V`,
       onClick: () => {
-        useCanvasStore.getState().pasteObjects();
+        if (userId) {
+          useCanvasStore.getState().pasteObjects(userId);
+        }
       },
+      disabled: !userId, // Disable if no user ID
     },
     { type: 'separator' },
   );
@@ -137,8 +142,11 @@ export function getContextMenuItems(
       label: 'Group Selection',
       shortcut: `${cmdKey}G`,
       onClick: () => {
-        useCanvasStore.getState().groupObjects();
+        if (userId) {
+          useCanvasStore.getState().groupObjects(userId);
+        }
       },
+      disabled: !userId, // Disable if no user ID
     });
   }
   items.push({ type: 'separator' });
