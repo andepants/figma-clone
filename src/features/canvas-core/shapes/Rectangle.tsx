@@ -69,7 +69,7 @@ export const Rectangle = memo(function Rectangle({
   projectId = 'main',
 }: RectangleProps) {
   const { activeTool } = useToolStore();
-  const { projectId: storeProjectId, updateObject } = useCanvasStore();
+  const { projectId: storeProjectId, updateObject, zoom } = useCanvasStore();
   const { currentUser } = useAuth();
 
   // Use projectId from store if not provided via props
@@ -111,6 +111,9 @@ export const Rectangle = memo(function Rectangle({
   useEffect(() => {
     const node = shapeRef.current;
     if (!node) return;
+
+    // Check if node is attached to a layer before animating
+    if (!node.getLayer()) return;
 
     // Cancel any previous animation to prevent buildup
     if (animationRef.current) {
@@ -428,6 +431,7 @@ export const Rectangle = memo(function Rectangle({
           object={rectangle}
           isSelected={isSelected && activeTool === 'move'}
           isResizing={isResizing}
+          zoom={zoom}
           onResizeStart={(handleType) =>
             handleResizeStart(rectangle.id, handleType, {
               x: rectangle.x,

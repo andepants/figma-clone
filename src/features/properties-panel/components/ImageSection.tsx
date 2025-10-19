@@ -19,6 +19,8 @@ import { updateCanvasObject } from '@/lib/firebase';
 import { removeImageBackground } from '@/lib/firebase/backgroundRemovalService';
 import { toast } from 'sonner';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { isCropped, renderCroppedImage } from '@/lib/utils/cropRenderer';
+import { uploadImageToStorage, deleteImageFromStorage } from '@/lib/firebase/storage';
 
 /**
  * Format file size for display
@@ -88,7 +90,7 @@ export function ImageSection() {
 
   /**
    * Handle crop apply
-   * Updates image with new crop values
+   * Updates image with new crop values AND adjusts width/height to match crop dimensions
    * Syncs to Firebase so other users see the cropped image
    */
   async function handleCropApply(cropData: {
@@ -99,11 +101,19 @@ export function ImageSection() {
   }) {
     if (!shape || !isImageShape(shape)) return;
 
+    // CRITICAL: Update both crop properties AND width/height
+    // Without updating width/height, the cropped portion gets stretched to original dimensions
+    const updates = {
+      ...cropData,
+      width: cropData.cropWidth,
+      height: cropData.cropHeight,
+    };
+
     // Optimistic local update (immediate)
-    updateObject(shape.id, cropData);
+    updateObject(shape.id, updates);
 
     // Sync to Firebase Realtime Database (persists and shares with collaborators)
-    await updateCanvasObject(projectId, shape.id, cropData);
+    await updateCanvasObject(projectId, shape.id, updates);
 
     setIsCropModalOpen(false);
   }
@@ -134,8 +144,70 @@ export function ImageSection() {
         duration: 3000,
       });
 
-      // Call Firebase Function to process image
-      const result = await removeImageBackground(shape.src, projectId, shape.id);
+      // **NEW: Preprocessing for cropped images**
+      let imageUrlToProcess = shape.src;
+      let tempStoragePath: string | undefined;
+
+      // Check if image is cropped
+      if (isCropped(shape)) {
+        // Image has crop properties - render and upload cropped version
+        toast.info('Preparing cropped image...', {
+          description: 'Rendering cropped portion',
+          duration: 2000,
+        });
+
+        // Get crop values (with fallbacks to full image)
+        const cropX = shape.cropX ?? 0;
+        const cropY = shape.cropY ?? 0;
+        const cropWidth = shape.cropWidth ?? shape.naturalWidth;
+        const cropHeight = shape.cropHeight ?? shape.naturalHeight;
+
+        // Render cropped portion to blob
+        const croppedBlob = await renderCroppedImage(
+          shape.src,
+          cropX,
+          cropY,
+          cropWidth,
+          cropHeight
+        );
+
+        // Convert blob to File for upload
+        const croppedFile = new File(
+          [croppedBlob],
+          `cropped-temp-${Date.now()}-${shape.fileName}`,
+          { type: 'image/png' }
+        );
+
+        // Upload to Firebase Storage
+        const uploadResult = await uploadImageToStorage(
+          croppedFile,
+          projectId,
+          currentUser.uid
+        );
+
+        imageUrlToProcess = uploadResult.url;
+        tempStoragePath = uploadResult.storagePath;
+
+        console.log('Cropped image uploaded:', {
+          tempUrl: imageUrlToProcess,
+          tempPath: tempStoragePath,
+          cropDimensions: { cropX, cropY, cropWidth, cropHeight },
+        });
+      }
+
+      // Call Firebase Function to process image (original or cropped)
+      const result = await removeImageBackground(imageUrlToProcess, projectId, shape.id);
+
+      // **NEW: Cleanup temp cropped image if we created one**
+      if (tempStoragePath) {
+        try {
+          await deleteImageFromStorage(tempStoragePath);
+          console.log('Temp cropped image deleted:', tempStoragePath);
+        } catch (error) {
+          console.warn('Failed to cleanup temp cropped image:', error);
+          // Don't fail the whole operation if cleanup fails
+        }
+      }
 
       if (!result.success || !result.processedImageUrl || !result.storagePath) {
         throw new Error(result.error || 'Background removal failed');

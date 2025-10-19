@@ -9,7 +9,7 @@ import { useState, memo, useRef, useEffect } from 'react';
 import { Rect, Group, Label, Tag, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { ResizeHandle as ResizeHandleType } from '@/types';
-import { RESIZE_HANDLE_SIZE, RESIZE_CURSORS } from '@/constants';
+import { RESIZE_CURSORS } from '@/constants';
 
 /**
  * ResizeHandle component props
@@ -21,6 +21,10 @@ interface ResizeHandleProps {
   x: number;
   /** Handle center y position in canvas coordinates */
   y: number;
+  /** Dynamic handle size (zoom-aware) */
+  size: number;
+  /** Current zoom level for stroke width scaling */
+  zoom: number;
   /** Whether the parent object is selected */
   isSelected: boolean;
   /** Callback when resize starts */
@@ -65,13 +69,15 @@ const HANDLE_ARROWS: Record<ResizeHandleType, string> = {
 
 /**
  * Custom comparison function for React.memo optimization
- * Only re-render if position or selection state changes
+ * Only re-render if position, size, zoom, or selection state changes
  */
 function arePropsEqual(prevProps: ResizeHandleProps, nextProps: ResizeHandleProps): boolean {
   return (
     prevProps.handle === nextProps.handle &&
     prevProps.x === nextProps.x &&
     prevProps.y === nextProps.y &&
+    prevProps.size === nextProps.size &&
+    prevProps.zoom === nextProps.zoom &&
     prevProps.isSelected === nextProps.isSelected
     // Deliberately ignore callback functions - they shouldn't trigger re-renders
   );
@@ -81,6 +87,8 @@ export const ResizeHandle = memo(function ResizeHandle({
   handle,
   x,
   y,
+  size,
+  zoom,
   isSelected,
   onResizeStart,
   onResizeMove,
@@ -182,8 +190,14 @@ export const ResizeHandle = memo(function ResizeHandle({
   // Only render when parent object is selected
   if (!isSelected) return null;
 
+  // Calculate zoom-scaled stroke width (inversely proportional to zoom)
+  const strokeWidth = (isHovered ? 2 : 1.5) / zoom;
+
   // Tooltip text with directional arrow and keyboard shortcuts
   const tooltipText = `${HANDLE_ARROWS[handle]} Resize\n⇧ Lock aspect  ⌥ From center`;
+
+  // Calculate tooltip offset based on dynamic handle size
+  const tooltipOffset = size / 2 + 35 / zoom;
 
   return (
     <Group>
@@ -191,11 +205,11 @@ export const ResizeHandle = memo(function ResizeHandle({
         ref={handleRef}
         x={x}
         y={y}
-        width={RESIZE_HANDLE_SIZE}
-        height={RESIZE_HANDLE_SIZE}
+        width={size}
+        height={size}
         fill="#ffffff"
         stroke="#0ea5e9"
-        strokeWidth={isHovered ? 2 : 1.5}
+        strokeWidth={strokeWidth}
         opacity={isHovered ? 1 : 0.9}
         draggable={isSelected}
         onMouseEnter={handleMouseEnter}
@@ -206,15 +220,15 @@ export const ResizeHandle = memo(function ResizeHandle({
         // Allow handle to move freely with mouse during drag
         // After drag ends, it snaps back to calculated position
         // Set offset to center for scale animation around center point
-        offsetX={RESIZE_HANDLE_SIZE / 2}
-        offsetY={RESIZE_HANDLE_SIZE / 2}
+        offsetX={size / 2}
+        offsetY={size / 2}
       />
 
       {/* Tooltip - only visible on hover */}
       {isHovered && (
         <Label
           x={x}
-          y={y - 35}
+          y={y - tooltipOffset}
           opacity={0.9}
         >
           <Tag

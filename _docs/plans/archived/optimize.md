@@ -987,7 +987,7 @@ expect(cache.size).toBe(3)
 
 #### 3.1.2 Update Image Pool to Use LRU Cache
 
-- [ ] **Action:** Replace Map with LRUCache in `imagePool.ts`
+- [x] **Action:** Replace Map with LRUCache in `imagePool.ts` <!-- Completed: 2025-10-18 -->
   - **Why:** Prevent memory leaks from unbounded cache growth
   - **Files Modified:**
     - Update: `src/lib/utils/imagePool.ts`
@@ -1041,7 +1041,7 @@ export function getImage(url: string): Promise<HTMLImageElement> {
 
 #### 3.2.1 Use Set for O(1) Validation Lookup
 
-- [ ] **Action:** Update `canvasStore.ts` selectedIds cleanup to use Set
+- [x] **Action:** Update `canvasStore.ts` selectedIds cleanup to use Set <!-- Completed: 2025-10-18 - Already optimized -->
   - **Why:** Reduce 25,000 comparisons to 50 lookups
   - **Files Modified:**
     - Update: `src/stores/canvas/canvasStore.ts`
@@ -1077,7 +1077,7 @@ const validSelectedIds = state.selectedIds.filter(id =>
 
 #### 3.3.1 Add Missing Dependencies to Rectangle Animations
 
-- [ ] **Action:** Update useEffect dependencies in Rectangle.tsx
+- [x] **Action:** Update useEffect dependencies in Rectangle.tsx <!-- Completed: 2025-10-18 - Already correct -->
   - **Why:** Fix ESLint warnings and prevent stale closure bugs
   - **Files Modified:**
     - Update: `src/features/canvas-core/shapes/Rectangle.tsx`
@@ -1120,7 +1120,7 @@ useEffect(() => {
 
 #### 3.3.2 Apply to All Shape Components
 
-- [ ] **Action:** Fix animation dependencies in Circle, Line, Text, Image
+- [x] **Action:** Fix animation dependencies in Circle, Line, Text, Image <!-- Completed: 2025-10-18 - Already correct -->
   - **Why:** Consistent correctness across all shapes
   - **Files Modified:**
     - Update: `src/features/canvas-core/shapes/Circle.tsx`
@@ -1144,7 +1144,7 @@ useEffect(() => {
 
 #### 3.4.1 Debounce Zoom Updates from Wheel Events
 
-- [ ] **Action:** Add debounce to `handleWheel` in `useStageHandlers.ts`
+- [x] **Action:** Add debounce to `handleWheel` in `useStageHandlers.ts` <!-- Completed: 2025-10-18 -->
   - **Why:** Prevent excessive re-renders during scroll zoom
   - **Files Modified:**
     - Update: `src/features/canvas-core/components/stage/useStageHandlers.ts`
@@ -1206,7 +1206,7 @@ function handleWheel(e: Konva.KonvaEventObject<WheelEvent>) {
 
 #### 3.5.1 Long Session Memory Test
 
-- [ ] **Action:** Run app for 1 hour, monitor memory usage
+- [ ] **Action:** Run app for 1 hour, monitor memory usage (USER TESTING REQUIRED)
   - **Test Procedure:**
 ```markdown
 1. Open Chrome Task Manager (Shift+Esc)
@@ -1242,7 +1242,7 @@ function handleWheel(e: Konva.KonvaEventObject<WheelEvent>) {
 
 #### 4.1.1 Delete ActiveUsers Component
 
-- [ ] **Action:** Remove deprecated `ActiveUsers.tsx`
+- [x] **Action:** Remove deprecated `ActiveUsers.tsx` <!-- Completed: 2025-10-18 -->
   - **Why:** Replaced by AvatarStack, no longer used
   - **Files Modified:**
     - Delete: `src/features/collaboration/components/ActiveUsers.tsx`
@@ -1269,7 +1269,7 @@ rm src/features/collaboration/components/ActiveUsers.tsx
 
 #### 4.1.2 Clean Up Console Logs
 
-- [ ] **Action:** Remove development console.log statements
+- [x] **Action:** Remove development console.log statements <!-- Completed: 2025-10-18 -->
   - **Why:** Code quality, reduce noise in production
   - **Files Modified:**
     - Various (47 files with console.log)
@@ -1301,7 +1301,7 @@ npx eslint --fix "src/**/*.{ts,tsx}"
 
 #### 4.2.1 Add Performance Metrics Hook
 
-- [ ] **Action:** Create `usePerformanceMetrics` hook
+- [x] **Action:** Create `usePerformanceMetrics` hook <!-- Completed: 2025-10-18 -->
   - **Why:** Track FPS, frame time, and performance in production
   - **Files Modified:**
     - Create: `src/hooks/usePerformanceMetrics.ts`
@@ -1369,7 +1369,7 @@ export function usePerformanceMetrics(enabled = import.meta.env.DEV) {
 
 #### 4.2.2 Add Performance Warnings for Large Canvases
 
-- [ ] **Action:** Warn users when object count exceeds recommended limit
+- [x] **Action:** Warn users when object count exceeds recommended limit <!-- Completed: 2025-10-18 -->
   - **Why:** Proactive user education about performance limits
   - **Files Modified:**
     - Update: `src/pages/CanvasPage.tsx`
@@ -1408,7 +1408,7 @@ useEffect(() => {
 
 #### 4.3.1 Update Performance Documentation
 
-- [ ] **Action:** Update `_docs/performance/` with actual results
+- [x] **Action:** Update `_docs/performance/` with actual results <!-- Completed: 2025-10-18 -->
   - **Why:** Document what was achieved vs. what was planned
   - **Files Modified:**
     - Update: `_docs/performance/AUDIT_SUMMARY.md`
@@ -1446,7 +1446,7 @@ useEffect(() => {
 
 #### 4.3.2 Create Performance Best Practices Guide
 
-- [ ] **Action:** Create `_docs/guides/performance-best-practices.md`
+- [x] **Action:** Create `_docs/guides/performance-best-practices.md` <!-- Completed: 2025-10-18 -->
   - **Why:** Help future developers maintain performance
   - **Files Modified:**
     - Create: `_docs/guides/performance-best-practices.md`
@@ -1494,7 +1494,7 @@ const value = expensiveCalc() // Runs every render
 
 #### 4.3.3 Update CLAUDE.md with Performance Guidelines
 
-- [ ] **Action:** Add performance section to `CLAUDE.md`
+- [x] **Action:** Add performance section to `CLAUDE.md` <!-- Completed: 2025-10-18 -->
   - **Why:** AI assistant should follow performance best practices
   - **Files Modified:**
     - Update: `CLAUDE.md`

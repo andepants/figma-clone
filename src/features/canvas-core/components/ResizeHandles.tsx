@@ -10,6 +10,7 @@ import { Group, Label, Tag, Text as KonvaText } from 'react-konva';
 import { ResizeHandle } from './ResizeHandle';
 import type { CanvasObject, ResizeHandle as ResizeHandleType, Rectangle, Circle, Text, Line, ImageObject } from '@/types';
 import { getHandlePosition } from '@/lib/utils';
+import { RESIZE_HANDLE_SCREEN_SIZE } from '@/constants';
 
 /**
  * ResizeHandles component props
@@ -21,6 +22,8 @@ interface ResizeHandlesProps {
   isSelected: boolean;
   /** Whether currently resizing (for showing preview lines) */
   isResizing?: boolean;
+  /** Current zoom level for scaling handles */
+  zoom: number;
   /** Callback when resize starts on a specific handle */
   onResizeStart: (handle: ResizeHandleType) => void;
   /** Callback during resize with handle and pointer position */
@@ -190,6 +193,7 @@ export const ResizeHandles = memo(function ResizeHandles({
   object,
   isSelected,
   isResizing = false,
+  zoom,
   onResizeStart,
   onResizeMove,
   onResizeEnd,
@@ -199,6 +203,10 @@ export const ResizeHandles = memo(function ResizeHandles({
 
   // Extract bounds from object (local coordinates before transforms)
   const bounds = getBounds(object);
+
+  // Calculate dynamic handle size based on zoom (inverse scaling)
+  // This ensures handles always appear at RESIZE_HANDLE_SCREEN_SIZE pixels on screen
+  const handleSize = RESIZE_HANDLE_SCREEN_SIZE / zoom;
 
   // Extract transform properties from object
   // Type guard: Groups don't have transform properties
@@ -298,6 +306,8 @@ export const ResizeHandles = memo(function ResizeHandles({
           handle={handle}
           x={position.x}
           y={position.y}
+          size={handleSize}
+          zoom={zoom}
           isSelected={isSelected}
           onResizeStart={onResizeStart}
           onResizeMove={handleResizeMove(handle)}

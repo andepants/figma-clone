@@ -5,7 +5,7 @@
  * This is the core of the collaborative canvas application.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import type Konva from 'konva';
 import { useShapeCreation, useWindowResize, useSpacebarPan, useTouchGestures, useGroupDrag, useDragToSelect, useArrowKeyPan, useCanvasDropzone } from '../hooks';
@@ -39,7 +39,7 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
   const { activeTool } = useToolStore();
 
   // Get canvas objects, selection, zoom and pan from store
-  const { objects, selectedIds, selectObjects, toggleSelection, zoom, panX, panY, setZoom, setPan } = useCanvasStore();
+  const { objects, selectedIds, selectObjects, toggleSelection, zoom, panX, panY, setZoom, setPan, setStageRef } = useCanvasStore();
 
   // Get page settings for background color
   const { pageSettings } = usePageStore();
@@ -71,6 +71,12 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
   // Use external ref if provided, otherwise use internal ref
   const stageRef = externalStageRef || internalStageRef;
 
+  // Sync stageRef to canvas store for viewport calculations
+  useEffect(() => {
+    setStageRef(stageRef.current);
+    return () => setStageRef(null); // Cleanup on unmount
+  }, [stageRef, setStageRef]);
+
   // Drag-to-select handlers for marquee selection (needs to be before useStageHandlers)
   const {
     handleStageMouseDown: handleDragSelectMouseDown,
@@ -87,6 +93,7 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
     handleStageMouseDown,
     handleStageClick,
     handleCursorMove,
+    handleMouseLeave,
   } = useStageHandlers({
     stageRef,
     projectId,
@@ -151,13 +158,19 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
   const bgColorWithOpacity = hexToRgba(backgroundColor, opacity);
 
   // Handler for object selection
-  function handleSelectObject(objectId: string, shiftKey?: boolean) {
+  // IMPORTANT: Wrapped in useCallback to prevent infinite re-renders in StageObjects memo
+  const handleSelectObject = useCallback((objectId: string, shiftKey?: boolean) => {
     if (shiftKey) {
       toggleSelection(objectId);
     } else {
       selectObjects([objectId]);
     }
-  }
+  }, [toggleSelection, selectObjects]);
+
+  // Cache buster - verify new code is loaded
+  useEffect(() => {
+    console.log('[CanvasStage] Component loaded - useCallback fix applied at', new Date().toISOString());
+  }, []);
 
   return (
     <div {...getRootProps()} className="relative w-full h-full">
@@ -211,6 +224,7 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
         handleMouseUp(e);
         handleDragSelectMouseUp();
       }}
+      onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

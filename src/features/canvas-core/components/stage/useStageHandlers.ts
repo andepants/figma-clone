@@ -13,7 +13,7 @@ import type Konva from 'konva';
 import { useCanvasStore } from '@/stores';
 import { throttledUpdateCursor } from '@/lib/firebase';
 import { screenToCanvasCoords } from '../../utils';
-import { getUserDisplayName } from '@/lib/utils';
+import { getUserDisplayName, debounce } from '@/lib/utils';
 
 /**
  * Position interface
@@ -76,7 +76,16 @@ export function useStageHandlers({
   const mouseDownPos = useRef<Position | null>(null);
 
   // Get canvas store methods
-  const { clearSelection } = useCanvasStore();
+  const { clearSelection, setLastCanvasMousePosition } = useCanvasStore();
+
+  // Debounced zoom update to reduce re-renders during scroll zoom
+  // Immediate Konva stage update for smooth feel, debounced store update
+  const debouncedZoomUpdate = useRef(
+    debounce((...args: unknown[]) => {
+      const newZoom = args[0] as number;
+      setZoom(newZoom);
+    }, 16) // ~60fps
+  ).current;
 
   /**
    * Handle mouse wheel for panning and zooming
@@ -118,7 +127,12 @@ export function useStageHandlers({
         y: pointer.y - mousePointTo.y * clampedScale,
       };
 
-      setZoom(clampedScale);
+      // Apply zoom and pan immediately to Konva stage for smooth feel
+      stage.scale({ x: clampedScale, y: clampedScale });
+      stage.position(newPos);
+
+      // Update store with debounce to avoid excessive re-renders
+      debouncedZoomUpdate(clampedScale);
       setPan(newPos.x, newPos.y);
     } else {
       // PAN behavior (regular scroll or two-finger trackpad drag)
@@ -229,7 +243,7 @@ export function useStageHandlers({
    */
   function handleCursorMove() {
     const stage = stageRef.current;
-    if (!stage || !currentUser) return;
+    if (!stage) return;
 
     // Get canvas coordinates (accounting for pan and zoom)
     const pointerPosition = stage.getPointerPosition();
@@ -237,15 +251,28 @@ export function useStageHandlers({
 
     const canvasCoords = screenToCanvasCoords(stage, pointerPosition);
 
+    // Track mouse position for paste functionality
+    setLastCanvasMousePosition(canvasCoords);
+
     // Update cursor position in Realtime DB (throttled to 50ms)
     // Use username with smart fallback to email username (not full email)
-    const username = getUserDisplayName(
-      currentUser.username ?? null,
-      currentUser.email ?? null
-    );
-    const color = '#0ea5e9'; // Default color, will be user-specific in getUserColor
+    if (currentUser) {
+      const username = getUserDisplayName(
+        currentUser.username ?? null,
+        currentUser.email ?? null
+      );
+      const color = '#0ea5e9'; // Default color, will be user-specific in getUserColor
 
-    throttledUpdateCursor(projectId, currentUser.uid, canvasCoords, username, color);
+      throttledUpdateCursor(projectId, currentUser.uid, canvasCoords, username, color);
+    }
+  }
+
+  /**
+   * Handle mouse leaving canvas
+   * Clears mouse position tracking when cursor exits canvas
+   */
+  function handleMouseLeave() {
+    setLastCanvasMousePosition(null);
   }
 
   return {
@@ -255,5 +282,6 @@ export function useStageHandlers({
     handleStageMouseDown,
     handleStageClick,
     handleCursorMove,
+    handleMouseLeave,
   };
 }

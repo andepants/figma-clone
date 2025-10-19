@@ -42,6 +42,8 @@ interface TextShapeOverlaysProps {
   activeTool: string;
   /** Whether currently resizing */
   isResizing: boolean;
+  /** Current zoom level */
+  zoom: number;
   /** Display position X */
   displayX: number;
   /** Display Y position */
@@ -82,6 +84,7 @@ export function TextShapeOverlays({
   isLocked,
   activeTool,
   isResizing,
+  zoom,
   displayX,
   displayY,
   textNodeRef,
@@ -145,6 +148,7 @@ export function TextShapeOverlays({
           object={text}
           isSelected={isSelected && activeTool === 'move' && !isEditing}
           isResizing={isResizing}
+          zoom={zoom}
           onResizeStart={(handleType) =>
             onResizeStart(handleType)
           }

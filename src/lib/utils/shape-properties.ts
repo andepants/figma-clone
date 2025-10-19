@@ -9,9 +9,7 @@ import type { CanvasObject } from '@/types/canvas.types';
 import {
   hasDimensions,
   hasRadius,
-  hasCornerRadius,
   supportsAspectRatioLock,
-  isTextShape,
   isLineShape,
 } from '@/types/canvas.types';
 
@@ -66,79 +64,6 @@ export function getDimensionLabels(shape: CanvasObject): {
 }
 
 /**
- * Get shape-specific properties for display in properties panel
- * Returns an object with all relevant properties for the shape type
- */
-export function getShapeSpecificProperties(shape: CanvasObject): Record<string, string | number | boolean | number[] | undefined> {
-  switch (shape.type) {
-    case 'rectangle':
-      return {
-        width: shape.width,
-        height: shape.height,
-        cornerRadius: shape.cornerRadius ?? 0,
-        lockAspectRatio: shape.lockAspectRatio ?? false,
-      };
-
-    case 'circle':
-      return {
-        radius: shape.radius,
-        diameter: shape.radius * 2,
-        // Circles always maintain aspect ratio
-        lockAspectRatio: true,
-      };
-
-    case 'text':
-      return {
-        content: shape.text,
-        fontSize: shape.fontSize,
-        fontFamily: shape.fontFamily,
-        width: shape.width,
-        height: shape.height,
-        fontWeight: shape.fontWeight ?? 400,
-        fontStyle: shape.fontStyle ?? 'normal',
-        textAlign: shape.textAlign ?? 'left',
-      };
-
-    case 'line':
-      return {
-        width: shape.width,
-        rotation: shape.rotation,
-        stroke: shape.stroke,
-        strokeWidth: shape.strokeWidth,
-      };
-
-    default:
-      return {};
-  }
-}
-
-/**
- * Check if a property is applicable to a given shape type
- * Used to conditionally render property controls
- */
-export function isPropertyApplicable(shape: CanvasObject, property: string): boolean {
-  const propertyMap: Record<string, (shape: CanvasObject) => boolean> = {
-    width: hasDimensions,
-    height: hasDimensions,
-    radius: hasRadius,
-    cornerRadius: hasCornerRadius,
-    lockAspectRatio: supportsAspectRatioLock,
-    content: isTextShape,
-    fontSize: isTextShape,
-    fontFamily: isTextShape,
-    fontWeight: isTextShape,
-    fontStyle: isTextShape,
-    textAlign: isTextShape,
-    textDecoration: isTextShape,
-    letterSpacing: isTextShape,
-    lineHeight: isTextShape,
-  };
-
-  const checker = propertyMap[property];
-  return checker ? checker(shape) : true; // Default to true for common properties
-}
-
-/**
  * Get minimum dimension constraints for a shape type
  */
 export function getMinimumDimensions(shapeType: CanvasObject['type']): {
@@ -174,7 +99,10 @@ export function validateDimensionUpdate(
   }
 
   // Validate property is applicable to this shape
-  if (!isPropertyApplicable(shape, property)) {
+  if (property === 'radius' && !hasRadius(shape)) {
+    return null;
+  }
+  if ((property === 'width' || property === 'height') && !hasDimensions(shape) && !isLineShape(shape)) {
     return null;
   }
 

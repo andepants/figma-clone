@@ -20,11 +20,12 @@ import { getAllDescendantIds } from '@/features/layers-panel/utils/hierarchy';
  * @param objectsToExport - Objects to include in preview
  * @param allObjects - All canvas objects (for group expansion)
  * @param scale - Optional scale factor (1x, 2x, 3x). Defaults to 1x for performance
+ * @param padding - Optional padding around export in pixels. Defaults to 0
  * @returns Data URL of preview image, or null if generation fails
  *
  * @example
  * ```tsx
- * const previewUrl = generateExportPreview(stageRef, selectedObjects, allObjects, 2);
+ * const previewUrl = generateExportPreview(stageRef, selectedObjects, allObjects, 2, 10);
  * if (previewUrl) {
  *   setPreviewUrl(previewUrl);
  * }
@@ -34,7 +35,8 @@ export function generateExportPreview(
   stageRef: React.RefObject<Konva.Stage | null>,
   objectsToExport: CanvasObject[],
   allObjects: CanvasObject[],
-  scale: number = 1
+  scale: number = 1,
+  padding: number = 0
 ): string | null {
   // Validate stage ref
   if (!stageRef.current) {
@@ -131,6 +133,14 @@ export function generateExportPreview(
     if (!isFinite(bbox.x) || !isFinite(bbox.y) || bbox.width <= 0 || bbox.height <= 0) {
       return null;
     }
+
+    // Apply padding to bounding box (same logic as export)
+    const paddedBbox = {
+      x: bbox.x - padding,
+      y: bbox.y - padding,
+      width: bbox.width + (padding * 2),
+      height: bbox.height + (padding * 2),
+    };
 
     // Store original visibility states
     const wasBackgroundVisible = backgroundLayer?.visible() ?? false;
@@ -233,11 +243,12 @@ export function generateExportPreview(
 
     // Generate preview with configurable quality
     // Use scale parameter to match export quality (1x = fast, 2x/3x = accurate)
+    // Use padded bounding box to match export with padding
     const dataURL = stage.toDataURL({
-      x: bbox.x,
-      y: bbox.y,
-      width: bbox.width,
-      height: bbox.height,
+      x: paddedBbox.x,
+      y: paddedBbox.y,
+      width: paddedBbox.width,
+      height: paddedBbox.height,
       pixelRatio: scale, // Match export scale for accurate preview
       mimeType: 'image/png',
     });

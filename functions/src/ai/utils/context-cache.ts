@@ -15,7 +15,7 @@ interface CacheEntry {
 }
 
 interface ResponseCacheEntry {
-  response: any; // LLM response
+  response: unknown; // LLM response
   timestamp: number;
 }
 
@@ -113,7 +113,7 @@ export function generateResponseCacheKey(
  * @param cacheKey - Response cache key
  * @returns Cached response or null if expired/missing
  */
-export function getCachedResponse(cacheKey: string): any | null {
+export function getCachedResponse(cacheKey: string): unknown | null {
   const entry = responseCache.get(cacheKey);
 
   if (!entry) return null;
@@ -133,7 +133,7 @@ export function getCachedResponse(cacheKey: string): any | null {
  * @param cacheKey - Response cache key
  * @param response - LLM response to cache
  */
-export function setCachedResponse(cacheKey: string, response: any): void {
+export function setCachedResponse(cacheKey: string, response: unknown): void {
   responseCache.set(cacheKey, {
     response,
     timestamp: Date.now(),

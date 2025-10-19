@@ -189,7 +189,11 @@ export function PresenceDropdown({
         {currentUserId === ownerId && onAddUser && (
           <div className="border-t border-gray-200 p-2">
             <button
-              onClick={onAddUser}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false); // Close dropdown first
+                onAddUser(); // Then open modal
+              }}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 rounded-md hover:bg-primary-100 transition-colors"
             >
               <UserPlus className="w-4 h-4" />

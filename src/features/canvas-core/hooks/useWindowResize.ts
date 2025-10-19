@@ -31,7 +31,7 @@ export function useWindowResize(debounceMs: number = 100): Dimensions {
   });
 
   useEffect(() => {
-    let timeoutId: number;
+    let timeoutId: ReturnType<typeof setTimeout>;
 
     function handleResize() {
       // Debounce resize for performance

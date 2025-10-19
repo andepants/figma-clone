@@ -9,8 +9,21 @@ import type { ResizeHandle } from '@/types';
 
 /**
  * Size of each resize handle in pixels (8x8px squares, matching Figma)
+ * Note: This is the base size in canvas coordinates. For zoom-aware rendering,
+ * use RESIZE_HANDLE_SCREEN_SIZE with inverse scaling.
  */
 export const RESIZE_HANDLE_SIZE = 8;
+
+/**
+ * Target screen size for resize handles in pixels (zoom-independent)
+ * Handles scale inversely with zoom to maintain constant 8px on-screen appearance.
+ * Formula: canvasSize = RESIZE_HANDLE_SCREEN_SIZE / zoom
+ * Examples:
+ * - At 100% zoom (0.25 scale): 8 / 0.25 = 32px canvas → 8px screen
+ * - At 200% zoom (0.5 scale):  8 / 0.5  = 16px canvas → 8px screen
+ * - At 50% zoom (0.125 scale): 8 / 0.125 = 64px canvas → 8px screen
+ */
+export const RESIZE_HANDLE_SCREEN_SIZE = 8;
 
 /**
  * Offset distance for handle positioning outside object bounds in pixels

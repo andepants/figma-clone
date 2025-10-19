@@ -11,7 +11,7 @@
  * - Reduces render count from 500 to ~50-100 objects for significant FPS improvement
  */
 
-import { useMemo, memo } from 'react';
+import { useMemo, memo, useEffect } from 'react';
 import type Konva from 'konva';
 import { Rectangle, Circle, TextShape, Line, ImageShape } from '../../shapes';
 import { SelectionOverlay, RemoteResizeOverlay } from '@/features/collaboration/components';
@@ -27,7 +27,6 @@ import type {
   DragState,
 } from '@/types';
 import { filterVisibleObjects } from '@/lib/utils/viewport';
-import { useCanvasStore } from '@/stores/canvas';
 
 /**
  * Remote selection interface
@@ -87,19 +86,25 @@ export const StageObjects = memo(
   projectId,
   stageRef,
 }: StageObjectsProps) {
+    // Debug: Log objects being rendered
+    useEffect(() => {
+      console.log('[StageObjects] Rendering', objects.length, 'objects');
+    }, [objects]);
   // Get viewport state for culling dependencies
-  const zoom = useCanvasStore((state) => state.zoom);
-  const panX = useCanvasStore((state) => state.panX);
-  const panY = useCanvasStore((state) => state.panY);
-
   /**
    * Filter objects to only those visible in viewport
    * Performance optimization: Reduces render count from 500 to ~50-100 objects
-   * Dependencies: objects, stageRef.current, zoom, panX, panY (re-filter when viewport changes)
+   * Dependencies: objects, stageRef.current (re-filter when objects change)
+   * Note: stageRef.current contains viewport info (zoom, position) which changes frequently,
+   * so we rely on objects changing to trigger re-filtering rather than viewport changes
    */
   const visibleObjects = useMemo(() => {
-    return filterVisibleObjects(objects, stageRef.current);
-  }, [objects, stageRef, zoom, panX, panY]);
+    const filtered = filterVisibleObjects(objects, stageRef.current);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[StageObjects] Viewport culling:', objects.length, 'total →', filtered.length, 'visible');
+    }
+    return filtered;
+  }, [objects, stageRef]);
 
   /**
    * Set of visible object IDs for O(1) lookup

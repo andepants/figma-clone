@@ -77,7 +77,7 @@
           ".write": "auth != null",
           "$objectId": {
             ".write": "auth != null",
-            ".validate": "newData.hasChild('id') && newData.hasChild('type') && newData.hasChild('createdBy')",
+            ".validate": "newData.hasChild('id') && newData.hasChild('type') && (newData.hasChild('createdBy') || data.exists())",
             "id": {
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
             },
@@ -330,7 +330,7 @@
           ".write": "auth != null && (root.child('projects').child($canvasId).child('ownerId').val() == auth.uid || root.child('projects').child($canvasId).child('collaborators').child(auth.uid).exists())",
           "$objectId": {
             ".write": "auth != null",
-            ".validate": "newData.hasChild('id') && newData.hasChild('type') && newData.hasChild('createdBy')",
+            ".validate": "newData.hasChild('id') && newData.hasChild('type') && (newData.hasChild('createdBy') || data.exists())",
             "id": {
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
             },

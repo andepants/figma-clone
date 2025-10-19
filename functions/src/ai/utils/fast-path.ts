@@ -12,7 +12,7 @@ import * as logger from 'firebase-functions/logger';
 
 interface FastPathMatch {
   toolName: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
 }
 
 /**

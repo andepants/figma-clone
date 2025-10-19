@@ -133,16 +133,17 @@ export function calculateResizedBounds(
  *
  * @param handle - Which corner handle to position
  * @param bounds - Current object bounds in LOCAL coordinates (untransformed)
+ * @param handleSize - Optional dynamic handle size for zoom-aware positioning (defaults to RESIZE_HANDLE_SIZE)
  * @returns Center coordinates for the handle in LOCAL coordinates (x, y)
  *
  * @example
- * // Get position for NW (top-left) handle
+ * // Get position for NW (top-left) handle with default size
  * getHandlePosition('nw', { x: 100, y: 100, width: 200, height: 150 })
  * // Returns: { x: 96, y: 96 } (offset outside top-left corner)
  *
  * @example
- * // Get position for SE (bottom-right) handle
- * getHandlePosition('se', { x: 100, y: 100, width: 200, height: 150 })
+ * // Get position for SE (bottom-right) handle with dynamic size
+ * getHandlePosition('se', { x: 100, y: 100, width: 200, height: 150 }, 16)
  * // Returns: { x: 304, y: 254 } (offset outside bottom-right corner)
  */
 export function getHandlePosition(

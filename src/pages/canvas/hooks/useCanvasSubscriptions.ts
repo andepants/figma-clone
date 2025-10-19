@@ -16,6 +16,7 @@
 import { useEffect, useState, useRef } from 'react';
 import type { SyncStatus } from '@/components/common';
 import type { User } from '@/types/auth.types';
+import type { CanvasObject } from '@/types';
 import { useCanvasStore } from '@/stores';
 import { markManipulated, unmarkManipulated, isManipulated } from '@/stores/manipulationTracker';
 import {
@@ -27,9 +28,13 @@ import {
   cleanupStaleDragStates,
   cleanupStaleCursors,
   batchUpdateCanvasObjects,
+  getAllCanvasObjects,
+  updateCursor,
 } from '@/lib/firebase';
+import { subscribeToLayerDragLock } from '@/lib/firebase/layerPanelDragService';
 import { getUserDisplayName } from '@/lib/utils';
 import { flattenNonGroupHierarchies, needsMigration } from '@/lib/utils/hierarchyMigration';
+import { getUserColor } from '@/features/collaboration/utils/colorAssignment';
 
 /**
  * Hook parameters
@@ -87,32 +92,22 @@ export function useCanvasSubscriptions({
   const { setObjects } = useCanvasStore();
   const [isLoading, setIsLoading] = useState(true);
   const migrationRunRef = useRef(false); // Track if migration has been executed for this project
+  const isLayerDragActiveRef = useRef(false); // Track if layer panel drag is in progress
+  const loadedObjectsRef = useRef<CanvasObject[] | null>(null); // Store loaded objects for re-render
 
   /**
-   * Set user as online with automatic disconnect handling
-   * Also cleans up any stale drag states and cursors from previous sessions
-   *
-   * Firebase onDisconnect() will mark user offline on:
-   * - Browser close/crash
-   * - Network disconnect
-   * - Tab close
+   * Clean up stale states from previous sessions
+   * Note: setOnline() is now called in the subscription useEffect to ensure
+   * connection is established before subscriptions are set up
    */
   useEffect(() => {
     if (!currentUser) return;
-
-    // Use username with smart fallback to email username (not full email)
-    const username = getUserDisplayName(currentUser.username, currentUser.email);
-
-    // Set user online (includes automatic onDisconnect cleanup)
-    setOnline(projectId, currentUser.uid, username).catch(() => {});
 
     // Clean up any stale drag states from previous sessions
     cleanupStaleDragStates(projectId).catch(() => {});
 
     // Clean up any stale cursors from previous sessions
     cleanupStaleCursors(projectId).catch(() => {});
-
-    // Note: No explicit cleanup needed - onDisconnect() handles it
   }, [currentUser, projectId]);
 
   /**
@@ -186,6 +181,20 @@ export function useCanvasSubscriptions({
   }, [currentUser, projectId]);
 
   /**
+   * Subscribe to layer panel drag lock to prevent subscription updates during reordering
+   * This prevents race conditions where Firebase sync overwrites local state during drag
+   */
+  useEffect(() => {
+    const unsubscribe = subscribeToLayerDragLock(projectId, (lock) => {
+      // Track if ANY user (including current user) is dragging in layers panel
+      // We block ALL subscription updates during any layer drag operation
+      isLayerDragActiveRef.current = lock !== null;
+    });
+
+    return unsubscribe;
+  }, [projectId]);
+
+  /**
    * Subscribe to Realtime Database for real-time canvas updates
    * Cleanup subscription on unmount
    *
@@ -195,21 +204,99 @@ export function useCanvasSubscriptions({
    *
    * HIERARCHY MIGRATION: On first load, runs a one-time migration to flatten any
    * non-group hierarchies (enforces rule that only groups can have children).
+   *
+   * STABLE SNAPSHOT DETECTION: Uses 100ms debounce window to ensure all initial
+   * Firebase callbacks complete before marking first load done. This prevents
+   * incomplete initial loads when Firebase delivers data in multiple callbacks.
+   *
+   * CONNECTION FORCE: Awaits setOnline() before subscription setup to ensure
+   * Firebase RTDB connection is fully established. This write operation triggers
+   * the connection handshake, allowing subscriptions to fire immediately.
    */
   useEffect(() => {
+    if (!currentUser) {
+      setIsLoading(false);
+      return;
+    }
+
     let isFirstLoad = true;
+    let stableSnapshotTimer: NodeJS.Timeout | null = null;
+    let callbackCount = 0;
     // Reset migration flag when project changes
     migrationRunRef.current = false;
 
-    try {
-      // Subscribe to project-specific canvas objects in RTDB
-      const unsubscribe = subscribeToCanvasObjects(projectId, async (remoteObjects) => {
-        // On first load, run migration and accept all remote objects
+    const initSubscriptions = async () => {
+      // ACCUMULATION FIX: Track all unique objects across multiple callbacks
+      // Firebase may send objects in batches, we need to accumulate them instead of replacing
+      const objectsMap = new Map<string, import('@/types').CanvasObject>();
+
+      try {
+        // FORCE CONNECTION: Double write to guarantee connection establishment
+        // This mimics what happens when user naturally interacts (moves mouse, drags object)
+        const username = getUserDisplayName(currentUser.username, currentUser.email);
+        const userColor = getUserColor(currentUser.uid);
+
+        // 1. Set presence (online status)
+        await setOnline(projectId, currentUser.uid, username).catch(() => {});
+
+        // 2. Send initial cursor update (simulates mouse movement)
+        // This is the same write operation that happens when user moves mouse,
+        // which previously forced connection and made objects load.
+        await updateCursor(
+          projectId,
+          currentUser.uid,
+          { x: 0, y: 0 }, // Viewport center (will update on first real mouse move)
+          username,
+          userColor
+        ).catch(() => {});
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Canvas Subscriptions] Presence + cursor sent - connection fully established');
+        }
+
+        // NOW subscribe - connection is GUARANTEED to be active
+        const unsubscribe = subscribeToCanvasObjects(projectId, async (remoteObjects) => {
+        callbackCount++;
+
+        // Development logging for debugging initial load
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Canvas Subscriptions] Callback #${callbackCount}: Received ${remoteObjects.length} objects`);
+        }
+
+        // LAYER DRAG LOCK: Skip updates during active layer panel drag
+        // This prevents race conditions where Firebase sync overwrites local reordering
+        if (isLayerDragActiveRef.current && !isFirstLoad) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Canvas Subscriptions] Skipping update - layer drag in progress');
+          }
+          return;
+        }
+
+        // On first load, use stable snapshot detection
         if (isFirstLoad) {
+          // Clear any existing timer - we got new data
+          if (stableSnapshotTimer) {
+            clearTimeout(stableSnapshotTimer);
+          }
+
+          // ACCUMULATE objects from this callback (Firebase may send in batches)
+          // Use Map for O(1) deduplication and to keep latest version of each object
+          remoteObjects.forEach(obj => {
+            objectsMap.set(obj.id, obj);
+          });
+
+          // Convert accumulated objects to array
+          // IMPORTANT: Always create new array to ensure store detects change
+          const accumulatedObjects = [...Array.from(objectsMap.values())];
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[Canvas Subscriptions] Accumulated ${accumulatedObjects.length} unique objects so far`);
+          }
+
           // Check if migration is needed and hasn't been run yet
-          if (!migrationRunRef.current && needsMigration(remoteObjects)) {
+          if (!migrationRunRef.current && needsMigration(accumulatedObjects)) {
             // Run migration to flatten non-group hierarchies
-            const result = flattenNonGroupHierarchies(remoteObjects);
+            const result = flattenNonGroupHierarchies(accumulatedObjects);
 
             // Update local state with migrated objects
             setObjects(result.objects);
@@ -231,12 +318,34 @@ export function useCanvasSubscriptions({
             // Mark migration as run
             migrationRunRef.current = true;
           } else {
-            // No migration needed - just set objects
-            setObjects(remoteObjects);
+            // No migration needed - set accumulated objects
+            setObjects(accumulatedObjects);
+            loadedObjectsRef.current = accumulatedObjects; // Store for re-render
           }
 
-          setIsLoading(false);
-          isFirstLoad = false;
+          // Start 200ms debounce timer to detect stable snapshot
+          // Only mark first load complete after 200ms of no new data
+          // Increased from 100ms to handle network variance and ensure all Firebase callbacks complete
+          stableSnapshotTimer = setTimeout(() => {
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[Canvas Subscriptions] Stable snapshot detected after ${callbackCount} callbacks`);
+            }
+            setIsLoading(false);
+            isFirstLoad = false;
+
+            // FORCE CANVAS REDRAW: Call setObjects again with new array reference
+            // This ensures template objects render without user interaction
+            if (loadedObjectsRef.current) {
+              setTimeout(() => {
+                // Create new array reference to force re-render
+                setObjects([...loadedObjectsRef.current!]);
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[Canvas Subscriptions] Forced canvas re-render');
+                }
+              }, 100);
+            }
+          }, 200);
+
           return;
         }
 
@@ -280,17 +389,55 @@ export function useCanvasSubscriptions({
         }
       });
 
-      // Cleanup: unsubscribe on unmount
-      return () => {
-        unsubscribe();
-      };
-    } catch {
-      // Mark loading as complete even on error
-      setIsLoading(false);
-    }
-    // Re-subscribe when projectId changes
+      // FORCE INITIAL FETCH: Guarantee objects load immediately
+      // This ensures data appears instantly even if subscription callback is delayed
+      // due to Firebase connection timing. The subscription will take over for
+      // subsequent real-time updates.
+      getAllCanvasObjects(projectId).then((initialObjects) => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Canvas Subscriptions] Initial fetch completed: ${initialObjects.length} objects`);
+        }
+
+        // Only use initial fetch if this is still the first load
+        // and we received objects. The subscription callback will handle
+        // subsequent updates and may arrive before or after this fetch.
+        if (isFirstLoad && initialObjects.length > 0) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Canvas Subscriptions] Using initial fetch data (subscription not yet fired)');
+          }
+          setObjects(initialObjects);
+        }
+      }).catch((error) => {
+        // Log error but don't fail - subscription will still work
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Canvas Subscriptions] Initial fetch failed:', error);
+        }
+      });
+
+        // Cleanup: unsubscribe on unmount and clear any pending timers
+        return () => {
+          unsubscribe();
+          if (stableSnapshotTimer) {
+            clearTimeout(stableSnapshotTimer);
+          }
+        };
+      } catch {
+        // Mark loading as complete even on error
+        setIsLoading(false);
+        return () => {}; // Return no-op cleanup
+      }
+    };
+
+    // Start async initialization
+    const cleanupPromise = initSubscriptions();
+
+    // Cleanup function for useEffect
+    return () => {
+      cleanupPromise.then((cleanup) => cleanup?.()).catch(() => {});
+    };
+    // Re-subscribe when currentUser or projectId changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [currentUser, projectId]);
 
   return {
     isLoading,

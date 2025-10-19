@@ -51,12 +51,8 @@ export function createCanvasGrouping(
             const groupId = crypto.randomUUID();
             const groupName = generateLayerName('group', objects);
 
-            // Find the minimum z-index (earliest position) of selected objects
-            // Group should appear BEFORE (lower z-index) than its children in Figma
-            const selectedIndices = selectedIds.map((id) =>
-              objects.findIndex((obj) => obj.id === id)
-            );
-            const minIndex = Math.min(...selectedIndices);
+            // Group should appear at TOP of layers panel (highest z-index)
+            // This matches modern Figma behavior where new groups appear above children
 
             const group: CanvasObject = {
               id: groupId,
@@ -95,9 +91,9 @@ export function createCanvasGrouping(
               return obj;
             });
 
-            // Insert group at the BEGINNING of children's z-index range (appears below in layers panel)
-            // This matches Figma behavior: children appear above parent in layers panel
-            updatedObjects.splice(minIndex, 0, group);
+            // Insert group at the END of objects array (highest z-index, top of layers panel)
+            // This ensures new groups appear above all existing objects
+            updatedObjects.push(group);
 
             // Update state and select group
             set({ objects: updatedObjects });
@@ -136,18 +132,31 @@ export function createCanvasGrouping(
 
       if (selectedGroups.length === 0) return;
 
-      // Get all children of selected groups
+      // Get all children of selected groups and build child-to-group map
       const childIds: string[] = [];
+      const childToGroupMap = new Map<string, string>(); // childId -> groupId
       selectedGroups.forEach((group) => {
         const children = objects.filter((obj) => obj.parentId === group.id);
-        children.forEach((child) => childIds.push(child.id));
+        children.forEach((child) => {
+          childIds.push(child.id);
+          childToGroupMap.set(child.id, group.id);
+        });
       });
 
-      // Remove parentId from children
+      // Update children to inherit their group's parent (preserves nested hierarchy)
       const updatedObjects = objects
         .map((obj) => {
           if (childIds.includes(obj.id)) {
-            return { ...obj, parentId: undefined, updatedAt: Date.now() };
+            // Find the group this child belongs to
+            const groupId = childToGroupMap.get(obj.id);
+            const group = selectedGroups.find((g) => g.id === groupId);
+
+            // Inherit the group's parent (undefined for root-level groups)
+            return {
+              ...obj,
+              parentId: group?.parentId ?? undefined,
+              updatedAt: Date.now()
+            };
           }
           return obj;
         })

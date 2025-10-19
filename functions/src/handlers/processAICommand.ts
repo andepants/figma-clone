@@ -214,7 +214,7 @@ export async function processAICommandHandler(
         responseCacheKey,
         responseTime: `${responseTime}ms`,
       });
-      return cachedResponse;
+      return cachedResponse as ProcessAICommandResponse;
     }
 
     // Try cache first

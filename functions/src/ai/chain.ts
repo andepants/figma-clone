@@ -92,8 +92,10 @@ const messageModifier = async (messages: BaseMessage[]): Promise<BaseMessage[]> 
 
     // Enable Anthropic prompt caching for system message
     // This marks the system prompt as cacheable, reducing latency by 200-400ms
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (systemMsg as any).additional_kwargs = {
+    interface MessageWithKwargs {
+      additional_kwargs?: Record<string, unknown>;
+    }
+    (systemMsg as MessageWithKwargs).additional_kwargs = {
       cache_control: {type: "ephemeral"},
     };
 
@@ -103,9 +105,11 @@ const messageModifier = async (messages: BaseMessage[]): Promise<BaseMessage[]> 
   // If system prompt exists, ensure it has cache control for Anthropic
   const firstMessage = trimmed[0];
   if (firstMessage._getType() === "system") {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (firstMessage as any).additional_kwargs = {
-      ...(firstMessage as any).additional_kwargs,
+    interface MessageWithKwargs {
+      additional_kwargs?: Record<string, unknown>;
+    }
+    (firstMessage as MessageWithKwargs).additional_kwargs = {
+      ...(firstMessage as MessageWithKwargs).additional_kwargs,
       cache_control: {type: "ephemeral"},
     };
   }
@@ -137,7 +141,7 @@ export async function createAIChain(
 
     // For Anthropic, enable prompt caching by wrapping LLM
     // This caches the system prompt for 200-400ms latency reduction
-    let finalLLM = llmInstance;
+    const finalLLM = llmInstance;
     if (provider === "anthropic") {
       // LangChain Anthropic automatically handles prompt caching
       // when the clientOptions header is set (done in config.ts)
