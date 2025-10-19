@@ -242,6 +242,7 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
           remoteResizes={remoteResizes}
           editStates={editStates}
           projectId={projectId}
+          stageRef={stageRef}
         />
 
         {/* Render preview shapes for creation and selection */}

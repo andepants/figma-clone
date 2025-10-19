@@ -7,8 +7,12 @@
  * - Line preview (during line creation)
  * - Drag-to-select rectangle (marquee selection)
  * - Multi-select drag target (invisible bounding box)
+ *
+ * Performance optimizations:
+ * - Memoized with React.memo to prevent re-renders during canvas interactions
  */
 
+import { memo } from 'react';
 import type Konva from 'konva';
 import { Rect, Circle as KonvaCircle, Line as KonvaLine } from 'react-konva';
 import type { CanvasObject } from '@/types';
@@ -57,10 +61,14 @@ interface StagePreviewShapesProps {
 /**
  * StagePreviewShapes component
  * Renders all preview shapes for shape creation and selection
+ *
+ * Memoized to prevent unnecessary re-renders during canvas interactions
+ *
  * @param {StagePreviewShapesProps} props - Component props
  * @returns {JSX.Element} Preview shapes
  */
-export function StagePreviewShapes({
+export const StagePreviewShapes = memo(
+  function StagePreviewShapes({
   previewShape,
   selectionRect,
   selectedIds,
@@ -158,4 +166,5 @@ export function StagePreviewShapes({
       <GroupBoundingBox isGroupDragging={isGroupDragging} />
     </>
   );
-}
+  }
+);

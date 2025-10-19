@@ -5,7 +5,7 @@
  * Note: Circle positioning uses (x, y) as CENTER point, unlike Rectangle which uses top-left.
  */
 
-import { useState, useEffect, useRef, memo, Fragment } from 'react';
+import { useState, useEffect, useRef, memo, Fragment, useMemo } from 'react';
 import { Circle as KonvaCircle } from 'react-konva';
 import type Konva from 'konva';
 import type { Circle as CircleType } from '@/types';
@@ -296,25 +296,30 @@ export const Circle = memo(function Circle({
     }
   }
 
-  // Determine stroke styling based on state
-  const getStroke = () => {
+  // Determine stroke styling based on state (memoized to prevent unnecessary re-renders)
+  const stroke = useMemo(() => {
     if (isLocked && isSelected) return '#0ea5e9'; // Locked + Selected: blue (same as normal selection)
-    if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
+    if (isRemoteDragging) return remoteDragState?.color; // Remote drag: user's color
     if (isInMultiSelect) return '#38bdf8'; // Multi-select: lighter blue
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
     if (isHovered && activeTool === 'move') return '#94a3b8'; // Hovered: subtle gray
     return undefined; // Default: no stroke
-  };
+  }, [isLocked, isSelected, isRemoteDragging, remoteDragState?.color, isInMultiSelect, isHovered, activeTool]);
 
-  const getStrokeWidth = () => {
+  const strokeWidth = useMemo(() => {
     if (isLocked && isSelected) return 3; // Locked + Selected: same as normal selection
     if (isRemoteDragging) return 2; // Remote drag: medium border
     if (isSelected) return 3; // Selected: thick border
     if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
     return undefined; // Default: no border
-  };
+  }, [isLocked, isSelected, isRemoteDragging, isHovered, activeTool]);
 
-  const getShadow = () => {
+  const opacity = useMemo(() => {
+    if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
+    return 1; // Default: fully opaque
+  }, [isRemoteDragging]);
+
+  const shadow = useMemo(() => {
     // Add subtle glow when selected for better visual feedback
     if (isSelected) {
       return {
@@ -335,7 +340,7 @@ export const Circle = memo(function Circle({
       shadowOpacity: circle.shadowOpacity ?? 1,
       shadowEnabled: circle.shadowEnabled ?? false,
     };
-  };
+  }, [isSelected, circle.shadowColor, circle.shadowBlur, circle.shadowOffsetX, circle.shadowOffsetY, circle.shadowOpacity, circle.shadowEnabled]);
 
   // Don't render if hidden
   if (circle.visible === false) {
@@ -358,14 +363,14 @@ export const Circle = memo(function Circle({
         scaleY={circle.scaleY ?? 1}
         skewX={circle.skewX ?? 0}
         skewY={circle.skewY ?? 0}
-        opacity={(circle.opacity ?? 1) * (isRemoteDragging ? 0.85 : 1)} // Combine shape opacity with state opacity
+        opacity={(circle.opacity ?? 1) * opacity} // Combine shape opacity with state opacity
         // Stroke properties (with state-based overrides for selection/hover)
-        stroke={getStroke() ?? circle.stroke}
-        strokeWidth={getStrokeWidth() ?? circle.strokeWidth ?? 0}
+        stroke={stroke ?? circle.stroke}
+        strokeWidth={strokeWidth ?? circle.strokeWidth ?? 0}
         strokeEnabled={circle.strokeEnabled ?? true}
         dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
         // Shadow properties (with selection glow override)
-        {...getShadow()}
+        {...shadow}
         // Interaction
         listening={!isLocked} // Locked objects don't respond to events
         onClick={handleClick}

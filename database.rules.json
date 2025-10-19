@@ -4,7 +4,7 @@
       ".read": "auth != null",
       "PUBLIC_PLAYGROUND": {
         ".write": "auth != null",
-        ".validate": "newData.hasChild('id') && newData.hasChild('name') && newData.hasChild('ownerId') && newData.hasChild('isPublic') && newData.hasChild('collaborators')",
+        ".validate": "newData.hasChild('id') && newData.hasChild('name') && newData.hasChild('ownerId') && newData.hasChild('isPublic')",
         "id": {
           ".validate": "newData.isString() && newData.val() == 'PUBLIC_PLAYGROUND'"
         },

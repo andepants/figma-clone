@@ -4,7 +4,7 @@
  * Renders a line shape on the canvas with selection and drag capabilities.
  */
 
-import { useState, useEffect, useRef, memo, Fragment } from 'react';
+import { useState, useEffect, useRef, memo, Fragment, useMemo } from 'react';
 import { Line as KonvaLine } from 'react-konva';
 import type Konva from 'konva';
 import type { Line as LineType } from '@/types';
@@ -309,30 +309,30 @@ export const Line = memo(function Line({
     await updateCanvasObject(effectiveProjectId, line.id, newLineProps);
   }
 
-  // Determine stroke styling based on state
-  const getStroke = () => {
+  // Determine stroke styling based on state (memoized to prevent unnecessary re-renders)
+  const stroke = useMemo(() => {
     if (isLocked && isSelected) return '#0ea5e9'; // Locked + Selected: blue (same as normal selection)
-    if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
+    if (isRemoteDragging) return remoteDragState?.color; // Remote drag: user's color
     if (isInMultiSelect) return '#38bdf8'; // Multi-select: lighter blue
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
     if (isHovered && activeTool === 'move') return '#94a3b8'; // Hovered: subtle gray
     return line.stroke; // Default: line's own stroke color
-  };
+  }, [isLocked, isSelected, isRemoteDragging, remoteDragState?.color, isInMultiSelect, isHovered, activeTool, line.stroke]);
 
-  const getStrokeWidth = () => {
+  const strokeWidth = useMemo(() => {
     if (isLocked && isSelected) return (line.strokeWidth ?? 2) + 3; // Locked + Selected: same as normal selection
     if (isRemoteDragging) return (line.strokeWidth ?? 2) + 2; // Remote drag: thicker
     if (isSelected) return (line.strokeWidth ?? 2) + 3; // Selected: thicker
     if (isHovered && activeTool === 'move') return (line.strokeWidth ?? 2) + 1; // Hovered: slightly thicker
     return line.strokeWidth ?? 2; // Default: line's own stroke width
-  };
+  }, [isLocked, isSelected, isRemoteDragging, isHovered, activeTool, line.strokeWidth]);
 
-  const getOpacity = () => {
+  const opacity = useMemo(() => {
     if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
     return line.opacity ?? 1; // Default: use line's opacity or fully opaque
-  };
+  }, [isRemoteDragging, line.opacity]);
 
-  const getShadow = () => {
+  const shadow = useMemo(() => {
     // Add subtle glow when selected for better visual feedback
     if (isSelected) {
       return {
@@ -353,7 +353,7 @@ export const Line = memo(function Line({
       shadowOpacity: line.shadowOpacity ?? 1,
       shadowEnabled: line.shadowEnabled ?? false,
     };
-  };
+  }, [isSelected, line.shadowColor, line.shadowBlur, line.shadowOffsetX, line.shadowOffsetY, line.shadowOpacity, line.shadowEnabled]);
 
   // Don't render if hidden
   if (line.visible === false) {
@@ -371,8 +371,8 @@ export const Line = memo(function Line({
         // Line points (relative to x, y)
         points={line.points}
         // Stroke properties
-        stroke={getStroke()}
-        strokeWidth={getStrokeWidth()}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
         // Line cap and join for smooth endpoints
         lineCap="round"
         lineJoin="round"
@@ -381,7 +381,7 @@ export const Line = memo(function Line({
         // because the line's direction is already encoded in the points array.
         // Applying rotation would rotate the points again, causing visual shifting.
         rotation={0} // Always 0 - line direction comes from points array
-        opacity={getOpacity()}
+        opacity={opacity}
         scaleX={line.scaleX ?? 1}
         scaleY={line.scaleY ?? 1}
         skewX={line.skewX ?? 0}
@@ -389,7 +389,7 @@ export const Line = memo(function Line({
         // Dashed when being remotely dragged
         dash={isRemoteDragging ? [5, 5] : undefined}
         // Shadow properties (with selection glow override)
-        {...getShadow()}
+        {...shadow}
         // Interaction
         listening={!isLocked} // Locked objects don't respond to events
         onClick={handleClick}

@@ -4,7 +4,7 @@
  * Renders a rectangle shape on the canvas with selection and drag capabilities.
  */
 
-import { useState, useEffect, useRef, memo, Fragment } from 'react';
+import { useState, useEffect, useRef, memo, Fragment, useMemo } from 'react';
 import { Rect } from 'react-konva';
 import type Konva from 'konva';
 import type { Rectangle as RectangleType } from '@/types';
@@ -305,30 +305,30 @@ export const Rectangle = memo(function Rectangle({
     }
   }
 
-  // Determine stroke styling based on state
-  const getStroke = () => {
+  // Determine stroke styling based on state (memoized to prevent unnecessary re-renders)
+  const stroke = useMemo(() => {
     if (isLocked && isSelected) return '#0ea5e9'; // Locked + Selected: blue (same as normal selection)
-    if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
+    if (isRemoteDragging) return remoteDragState?.color; // Remote drag: user's color
     if (isInMultiSelect) return '#38bdf8'; // Multi-select: lighter blue
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
     if (isHovered && activeTool === 'move') return '#94a3b8'; // Hovered: subtle gray
     return undefined; // Default: no stroke
-  };
+  }, [isLocked, isSelected, isRemoteDragging, remoteDragState?.color, isInMultiSelect, isHovered, activeTool]);
 
-  const getStrokeWidth = () => {
+  const strokeWidth = useMemo(() => {
     if (isLocked && isSelected) return 3; // Locked + Selected: same as normal selection
     if (isRemoteDragging) return 2; // Remote drag: medium border
     if (isSelected) return 3; // Selected: thick border
     if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
     return undefined; // Default: no border
-  };
+  }, [isLocked, isSelected, isRemoteDragging, isHovered, activeTool]);
 
-  const getOpacity = () => {
+  const opacity = useMemo(() => {
     if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
     return 1; // Default: fully opaque
-  };
+  }, [isRemoteDragging]);
 
-  const getShadow = () => {
+  const shadow = useMemo(() => {
     // Add subtle glow when selected for better visual feedback
     if (isSelected) {
       return {
@@ -349,7 +349,7 @@ export const Rectangle = memo(function Rectangle({
       shadowOpacity: rectangle.shadowOpacity ?? 1,
       shadowEnabled: rectangle.shadowEnabled ?? false,
     };
-  };
+  }, [isSelected, rectangle.shadowColor, rectangle.shadowBlur, rectangle.shadowOffsetX, rectangle.shadowOffsetY, rectangle.shadowOpacity, rectangle.shadowEnabled]);
 
   // Don't render if hidden
   if (rectangle.visible === false) {
@@ -370,7 +370,7 @@ export const Rectangle = memo(function Rectangle({
         fill={rectangle.fill}
         // Transform properties
         rotation={rectangle.rotation ?? 0}
-        opacity={(rectangle.opacity ?? 1) * getOpacity()} // Combine shape opacity with state opacity
+        opacity={(rectangle.opacity ?? 1) * opacity} // Combine shape opacity with state opacity
         scaleX={rectangle.scaleX ?? 1}
         scaleY={rectangle.scaleY ?? 1}
         skewX={rectangle.skewX ?? 0}
@@ -381,12 +381,12 @@ export const Rectangle = memo(function Rectangle({
         // Shape-specific properties
         cornerRadius={rectangle.cornerRadius ?? 0}
         // Stroke properties (with state-based overrides for selection/hover)
-        stroke={getStroke() ?? rectangle.stroke}
-        strokeWidth={getStrokeWidth() ?? rectangle.strokeWidth ?? 0}
+        stroke={stroke ?? rectangle.stroke}
+        strokeWidth={strokeWidth ?? rectangle.strokeWidth ?? 0}
         strokeEnabled={rectangle.strokeEnabled ?? true}
         dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
         // Shadow properties (with selection glow override)
-        {...getShadow()}
+        {...shadow}
         // Interaction
         listening={!isLocked} // Locked objects don't respond to events
         onClick={handleClick}
