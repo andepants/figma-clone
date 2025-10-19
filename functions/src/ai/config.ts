@@ -174,18 +174,29 @@ export function analyzeCommandComplexity(command: string): CommandComplexity {
 export function getModelForCommand(command: string, provider: AIProvider = "openai"): string {
   const complexity = analyzeCommandComplexity(command);
 
-  logger.info("Command complexity analysis", {
-    isComplex: complexity.isComplex,
-    signals: complexity.signals,
-    provider,
-  });
-
+  let selectedModel: string;
   if (provider === "openai") {
     // Simple commands: gpt-3.5-turbo (fast, cheap)
     // Complex commands: gpt-4o-mini (more capable)
-    return complexity.isComplex ? "gpt-4o-mini" : "gpt-3.5-turbo";
+    selectedModel = complexity.isComplex ? "gpt-4o-mini" : "gpt-3.5-turbo";
   } else {
     // Anthropic: Use Haiku for all (already fast)
-    return "claude-3-5-haiku-20241022";
+    selectedModel = "claude-3-5-haiku-20241022";
   }
+
+  logger.info("🤖 Model routing decision", {
+    command: command.substring(0, 100),
+    isComplex: complexity.isComplex,
+    wordCount: complexity.signals.wordCount,
+    hasBatchOperation: complexity.signals.hasBatchOperation,
+    hasMultipleActions: complexity.signals.hasMultipleActions,
+    hasConditionalLogic: complexity.signals.hasConditionalLogic,
+    provider,
+    selectedModel,
+    reasoning: complexity.isComplex
+      ? "Complex command - using more capable model"
+      : "Simple command - using faster model",
+  });
+
+  return selectedModel;
 }

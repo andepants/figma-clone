@@ -26,13 +26,15 @@
 
 'use client';
 
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useCanvasStore } from '@/stores/canvas';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuth } from '@/features/auth/hooks';
 import { LayerItem } from './LayerItem';
 import { SectionHeader } from './SectionHeader';
 import { buildHierarchyTree, flattenHierarchyTree, reverseTreeForDisplay, getAllDescendantIds, moveToParent } from '../utils/hierarchy';
+import { validateAndFixHierarchy, validateDragDrop, isValidParent } from '../utils/validation';
+import { useDragLockState } from '../hooks';
 import { MenuButton, SidebarToggleButton } from '@/features/navigation/components';
 import { EnvironmentIndicator } from '@/components/common';
 import { syncZIndexes } from '@/lib/firebase';
@@ -84,6 +86,9 @@ export function LayersPanel() {
   // Get current user for drag locking
   const { currentUser } = useAuth();
 
+  // Monitor drag lock state for UI feedback
+  const dragLockState = useDragLockState(projectId);
+
   // Drop position state for drag-drop with hierarchy
   const [dropPosition, setDropPosition] = useState<{
     id: string;
@@ -129,6 +134,44 @@ export function LayersPanel() {
   }, [hierarchyTree]);
 
   const displayIds = displayObjects.map((obj) => obj.id);
+
+  /**
+   * Auto-fix orphaned objects and invalid parent types
+   *
+   * Runs validation whenever objects change to ensure hierarchy integrity:
+   * - Promotes objects with non-existent parents to root level
+   * - Promotes objects with non-group parents to root level
+   *
+   * This prevents display issues and ensures drag-drop operations are always valid.
+   */
+  useEffect(() => {
+    const result = validateAndFixHierarchy(objects);
+
+    if (result.fixed) {
+      console.warn('Auto-fixed hierarchy issues:', result.errors);
+      setObjects(result.fixed);
+
+      // Sync fixes to Firebase
+      import('@/lib/firebase').then(async ({ syncZIndexes: syncZ }) => {
+        try {
+          await syncZ(projectId, result.fixed!);
+        } catch (error) {
+          console.error('Failed to sync hierarchy fixes to Firebase:', error);
+        }
+      });
+    }
+  }, [objects, setObjects, projectId]);
+
+  /**
+   * Clear lastSelectedId if the referenced object is deleted
+   *
+   * Prevents range selection from breaking when the anchor object is removed.
+   */
+  useEffect(() => {
+    if (lastSelectedId && !objects.some((obj) => obj.id === lastSelectedId)) {
+      setLastSelectedId(null);
+    }
+  }, [objects, lastSelectedId]);
 
   /**
    * Handle drag over event to determine drop position
@@ -267,53 +310,147 @@ export function LayersPanel() {
     // Save lock status before any operations
     const hadLock = dragLockAcquired.current;
 
-    // Early exit conditions (no lock needed for these)
-    if (!over || active.id === over.id || !dropPosition) {
-      // Release lock if we had it
-      if (currentUser && hadLock) {
-        await releaseLayerDragLock(projectId, currentUser.uid);
-        dragLockAcquired.current = false;
-      }
-      return;
-    }
-
-    // Only proceed if we acquired the lock
-    if (!hadLock) {
-      console.log('Drag operation cancelled: Lock not acquired');
-      return;
-    }
-
-    const draggedId = active.id as string;
-    const targetId = over.id as string;
-
-    if (dropPosition.position === 'child') {
-      // RE-VALIDATE: Ensure target still exists and is a group
-      const targetObject = objects.find((obj) => obj.id === targetId);
-      if (!targetObject) {
-        console.warn('Target object no longer exists');
-        return;
-      }
-      if (targetObject.type !== 'group') {
-        console.warn('Target is not a group, cannot make child');
+    // Wrap entire function in try-finally to GUARANTEE lock release
+    try {
+      // Early exit conditions (no lock needed for these)
+      if (!over || active.id === over.id || !dropPosition) {
         return;
       }
 
-      // Make child of target
-      const draggedObj = objects.find((obj) => obj.id === draggedId);
-      if (!draggedObj) {
-        console.warn('Dragged object no longer exists');
+      // Only proceed if we acquired the lock
+      if (!hadLock) {
+        console.log('Drag operation cancelled: Lock not acquired');
         return;
       }
-      const oldParentId = draggedObj.parentId;
 
-      const updated = moveToParent(draggedId, targetId, objects);
+      const draggedId = active.id as string;
+      const targetId = over.id as string;
 
-      if (updated) {
-        setObjects(updated);
+      if (dropPosition.position === 'child') {
+        // COMPREHENSIVE VALIDATION: Validate entire drop operation with fresh state
+        const validationResult = validateDragDrop(
+          draggedId,
+          targetId,
+          null, // No target parent for child position
+          objects
+        );
+
+        if (!validationResult.isValid) {
+          console.warn('Drag-drop validation failed:', validationResult.errors);
+          return;
+        }
+
+        // Make child of target
+        const draggedObj = objects.find((obj) => obj.id === draggedId);
+        if (!draggedObj) {
+          console.warn('Dragged object no longer exists');
+          return;
+        }
+        const oldParentId = draggedObj.parentId;
+
+        const updated = moveToParent(draggedId, targetId, objects);
+
+        if (updated) {
+          setObjects(updated);
+
+          // Check if old parent is now empty and should be deleted
+          if (oldParentId && oldParentId !== targetId) {
+            const oldParent = updated.find((obj) => obj.id === oldParentId);
+            if (oldParent && oldParent.type === 'group') {
+              // Helper: Check if group has only empty groups
+              const hasOnlyEmptyGroups = (groupId: string, objs: CanvasObject[]): boolean => {
+                const children = objs.filter((obj) => obj.parentId === groupId);
+                if (children.length === 0) return true;
+                const hasNonGroupChild = children.some((child) => child.type !== 'group');
+                if (hasNonGroupChild) return false;
+                return children.every((child) => hasOnlyEmptyGroups(child.id, objs));
+              };
+
+              const remainingChildren = updated.filter((obj) => obj.parentId === oldParentId);
+
+              if (remainingChildren.length === 0 || hasOnlyEmptyGroups(oldParentId, updated)) {
+                // Old parent is empty - use store's removeObject to trigger cascade deletion
+                const removeObject = useCanvasStore.getState().removeObject;
+                removeObject(oldParentId);
+                // Lock will be released in finally block - don't return early
+                return;
+              }
+            }
+          }
+
+          // Sync z-indexes to Firebase with proper await and error handling
+          try {
+            await syncZIndexes(projectId, updated);
+          } catch (error) {
+            console.error('Failed to sync z-indexes after parent change:', error);
+            // Rollback on failure
+            setObjects(objects);
+          }
+        } else {
+          // Circular reference detected - silently prevented
+          console.warn('Circular reference detected, operation prevented');
+        }
+        return;
+      } else {
+        // Reorder as sibling (before or after target)
+        const oldIndex = objects.findIndex((obj) => obj.id === draggedId);
+        const targetIndex = objects.findIndex((obj) => obj.id === targetId);
+
+        if (oldIndex === -1 || targetIndex === -1) {
+          console.warn('Dragged or target object not found in array');
+          return;
+        }
+
+        // Get target parent for validation
+        const targetObj = objects[targetIndex];
+        const targetParentId = targetObj.parentId;
+
+        // COMPREHENSIVE VALIDATION: Validate sibling reorder with fresh state
+        const validationResult = validateDragDrop(
+          draggedId,
+          null, // Not dropping as child
+          targetParentId, // Validate target's parent is valid
+          objects
+        );
+
+        if (!validationResult.isValid) {
+          console.warn('Sibling reorder validation failed:', validationResult.errors);
+          return;
+        }
+
+        // Additional validation: Ensure target parent is still valid
+        if (targetParentId && !isValidParent(targetParentId, objects)) {
+          console.warn('Target parent is no longer valid, cannot inherit');
+          return;
+        }
+
+        let newIndex = targetIndex;
+        if (dropPosition.position === 'after') {
+          newIndex = targetIndex + 1;
+        }
+
+        // Reorder in array
+        const reordered = arrayMove(objects, oldIndex, newIndex);
+
+        // Get old parent before change
+        const draggedObj = objects[oldIndex];
+        const oldParentId = draggedObj.parentId;
+
+        // Inherit parent from target (to maintain hierarchy level)
+        // This is now safe because we validated targetParentId above
+        const adjustedIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
+        reordered[adjustedIndex] = {
+          ...reordered[adjustedIndex],
+          parentId: targetParentId,
+        };
+
+        setObjects(reordered);
 
         // Check if old parent is now empty and should be deleted
-        if (oldParentId && oldParentId !== targetId) {
-          const oldParent = updated.find((obj) => obj.id === oldParentId);
+        // This handles the case where dragging an object out of a group makes it empty
+        if (oldParentId && oldParentId !== targetObj.parentId) {
+          // Parent changed - check if old parent should be deleted
+          const oldParent = reordered.find((obj) => obj.id === oldParentId);
           if (oldParent && oldParent.type === 'group') {
             // Helper: Check if group has only empty groups
             const hasOnlyEmptyGroups = (groupId: string, objs: CanvasObject[]): boolean => {
@@ -324,109 +461,32 @@ export function LayersPanel() {
               return children.every((child) => hasOnlyEmptyGroups(child.id, objs));
             };
 
-            const remainingChildren = updated.filter((obj) => obj.parentId === oldParentId);
+            const remainingChildren = reordered.filter((obj) => obj.parentId === oldParentId);
 
-            if (remainingChildren.length === 0 || hasOnlyEmptyGroups(oldParentId, updated)) {
+            if (remainingChildren.length === 0 || hasOnlyEmptyGroups(oldParentId, reordered)) {
               // Old parent is empty - use store's removeObject to trigger cascade deletion
               const removeObject = useCanvasStore.getState().removeObject;
               removeObject(oldParentId);
-              return; // Don't sync z-indexes if we're deleting groups
+              // Lock will be released in finally block - don't return early
+              return;
             }
           }
         }
 
         // Sync z-indexes to Firebase with proper await and error handling
         try {
-          await syncZIndexes(projectId, updated);
+          await syncZIndexes(projectId, reordered);
         } catch (error) {
-          console.error('Failed to sync z-indexes after parent change:', error);
+          console.error('Failed to sync z-indexes after reorder:', error);
           // Rollback on failure
           setObjects(objects);
-        } finally {
-          // Release lock after operation completes
-          if (currentUser) {
-            await releaseLayerDragLock(projectId, currentUser.uid);
-            dragLockAcquired.current = false;
-          }
-        }
-      } else {
-        // Circular reference detected - silently prevented, rollback
-        console.warn('Circular reference detected, operation prevented');
-        // Release lock on error
-        if (currentUser) {
-          await releaseLayerDragLock(projectId, currentUser.uid);
-          dragLockAcquired.current = false;
         }
       }
-      return;
-    } else {
-      // Reorder as sibling (before or after target)
-      const oldIndex = objects.findIndex((obj) => obj.id === draggedId);
-      const targetIndex = objects.findIndex((obj) => obj.id === targetId);
-
-      if (oldIndex === -1 || targetIndex === -1) return;
-
-      let newIndex = targetIndex;
-      if (dropPosition.position === 'after') {
-        newIndex = targetIndex + 1;
-      }
-
-      // Reorder in array
-      const reordered = arrayMove(objects, oldIndex, newIndex);
-
-      // Get old parent before change
-      const draggedObj = objects[oldIndex];
-      const oldParentId = draggedObj.parentId;
-
-      // Inherit parent from target (to maintain hierarchy level)
-      const targetObj = objects[targetIndex];
-      const adjustedIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
-      reordered[adjustedIndex] = {
-        ...reordered[adjustedIndex],
-        parentId: targetObj.parentId,
-      };
-
-      setObjects(reordered);
-
-      // Check if old parent is now empty and should be deleted
-      // This handles the case where dragging an object out of a group makes it empty
-      if (oldParentId && oldParentId !== targetObj.parentId) {
-        // Parent changed - check if old parent should be deleted
-        const oldParent = reordered.find((obj) => obj.id === oldParentId);
-        if (oldParent && oldParent.type === 'group') {
-          // Helper: Check if group has only empty groups
-          const hasOnlyEmptyGroups = (groupId: string, objs: CanvasObject[]): boolean => {
-            const children = objs.filter((obj) => obj.parentId === groupId);
-            if (children.length === 0) return true;
-            const hasNonGroupChild = children.some((child) => child.type !== 'group');
-            if (hasNonGroupChild) return false;
-            return children.every((child) => hasOnlyEmptyGroups(child.id, objs));
-          };
-
-          const remainingChildren = reordered.filter((obj) => obj.parentId === oldParentId);
-
-          if (remainingChildren.length === 0 || hasOnlyEmptyGroups(oldParentId, reordered)) {
-            // Old parent is empty - use store's removeObject to trigger cascade deletion
-            const removeObject = useCanvasStore.getState().removeObject;
-            removeObject(oldParentId);
-            return; // Don't sync z-indexes if we're deleting groups
-          }
-        }
-      }
-
-      // Sync z-indexes to Firebase with proper await and error handling
-      try {
-        await syncZIndexes(projectId, reordered);
-      } catch (error) {
-        console.error('Failed to sync z-indexes after reorder:', error);
-        // Rollback on failure
-        setObjects(objects);
-      } finally {
-        // Release lock after operation completes
-        if (currentUser) {
-          await releaseLayerDragLock(projectId, currentUser.uid);
-          dragLockAcquired.current = false;
-        }
+    } finally {
+      // ALWAYS release lock, no matter what happened
+      if (currentUser && hadLock) {
+        await releaseLayerDragLock(projectId, currentUser.uid);
+        dragLockAcquired.current = false;
       }
     }
   };
@@ -531,6 +591,28 @@ export function LayersPanel() {
           onToggle={toggleLayersSection}
           count={objects.length}
         />
+
+        {/* Lock State Indicator */}
+        {dragLockState.isLocked && (
+          <div className="mx-3 mt-2 mb-1 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-center gap-1.5">
+            <svg
+              className="w-3.5 h-3.5 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            <span className="flex-1 truncate">
+              {dragLockState.lockedByUsername || 'Another user'} is reordering layers...
+            </span>
+          </div>
+        )}
 
         {/* Layers List Container - hidden if section collapsed */}
         {!layersSectionCollapsed && (
