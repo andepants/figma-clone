@@ -21,17 +21,29 @@ export default defineConfig({
         manualChunks: (id) => {
           // Vendor chunks
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+            // Group all React-related packages together (including packages that depend on React)
+            if (id.includes('react') ||
+                id.includes('react-dom') ||
+                id.includes('react-router') ||
+                id.includes('framer-motion') ||
+                id.includes('react-konva') ||
+                id.includes('react-reconciler') ||
+                id.includes('scheduler') ||
+                id.includes('@radix-ui') ||
+                id.includes('@dnd-kit') ||
+                id.includes('react-dropzone') ||
+                id.includes('react-intersection-observer') ||
+                id.includes('react-countup') ||
+                id.includes('react-type-animation') ||
+                id.includes('sonner') ||
+                id.includes('zustand')) {
               return 'vendor-react';
             }
             if (id.includes('firebase')) {
               return 'vendor-firebase';
             }
-            if (id.includes('konva')) {
+            if (id.includes('konva') && !id.includes('react-konva')) {
               return 'vendor-konva';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'vendor-ui';
             }
             // All other node_modules
             return 'vendor';
