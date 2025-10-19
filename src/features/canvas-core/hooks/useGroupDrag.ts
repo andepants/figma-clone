@@ -63,7 +63,7 @@ export function useGroupDrag() {
   });
 
   /**
-   * Throttled Firebase sync (100ms throttle)
+   * Throttled Firebase sync (50ms throttle - matches individual object drag)
    */
   const syncToFirebase = useRef(
     throttle(async (updates: Record<string, { x: number; y: number }>) => {
@@ -72,7 +72,7 @@ export function useGroupDrag() {
       } catch {
         // Silently fail - drag updates shouldn't break the app
       }
-    }, 100)
+    }, 50)
   ).current;
 
   /**

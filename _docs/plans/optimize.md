@@ -62,7 +62,7 @@
 
 #### 1.1.1 Create Viewport Utility Functions
 
-- [ ] **Action:** Create `src/lib/utils/viewport.ts` with culling helpers
+- [x] **Action:** Create `src/lib/utils/viewport.ts` with culling helpers <!-- Completed: 2025-10-18 -->
   - **Why:** Centralized viewport calculations for object visibility detection
   - **Files Modified:**
     - Create: `src/lib/utils/viewport.ts`
@@ -180,7 +180,7 @@ export function filterVisibleObjects(
 
 #### 1.1.2 Add Viewport Culling to StageObjects
 
-- [ ] **Action:** Update `StageObjects.tsx` to filter visible objects
+- [x] **Action:** Update `StageObjects.tsx` to filter visible objects <!-- Completed: 2025-10-18 -->
   - **Why:** Reduce render count from 500 to ~50 visible objects (10x improvement)
   - **Files Modified:**
     - Update: `src/features/canvas-core/components/stage/StageObjects.tsx`
@@ -229,7 +229,7 @@ export function StageObjects({ objects, ... }: StageObjectsProps) {
 
 #### 1.1.3 Add Viewport Culling to Remote Selections
 
-- [ ] **Action:** Filter remote selection overlays by viewport
+- [x] **Action:** Filter remote selection overlays by viewport <!-- Completed: 2025-10-18 -->
   - **Why:** Prevent rendering 100+ invisible selection overlays
   - **Files Modified:**
     - Update: `src/features/canvas-core/components/stage/StageObjects.tsx` (remote selections section)
@@ -279,7 +279,7 @@ const visibleObjectIds = useMemo(
 
 #### 1.2.1 Memoize StageObjects Component
 
-- [ ] **Action:** Wrap `StageObjects` in React.memo with shallow comparison
+- [x] **Action:** Wrap `StageObjects` in React.memo with shallow comparison <!-- Completed: 2025-10-18 -->
   - **Why:** Prevent re-renders on unrelated state changes (cursor moves, etc.)
   - **Files Modified:**
     - Update: `src/features/canvas-core/components/stage/StageObjects.tsx`
@@ -320,7 +320,7 @@ export const StageObjects = memo(
 
 #### 1.2.2 Memoize StagePreviewShapes Component
 
-- [ ] **Action:** Wrap `StagePreviewShapes` in React.memo
+- [x] **Action:** Wrap `StagePreviewShapes` in React.memo <!-- Completed: 2025-10-18 -->
   - **Why:** Prevent re-renders during canvas interactions
   - **Files Modified:**
     - Update: `src/features/canvas-core/components/stage/StagePreviewShapes.tsx`
@@ -353,7 +353,7 @@ export const StagePreviewShapes = memo(
 
 #### 1.3.1 Convert dragStates to Map in useDragStates Hook
 
-- [ ] **Action:** Update `useDragStates` to return Map instead of array
+- [x] **Action:** Update `useDragStates` to return Map instead of array <!-- Completed: 2025-10-18 -->
   - **Why:** Change O(n²) lookups to O(1) for massive performance gain
   - **Files Modified:**
     - Update: `src/features/collaboration/hooks/useDragStates.ts`
@@ -398,7 +398,7 @@ export function useDragStates(canvasId: string): Map<string, DragState> {
 
 #### 1.3.2 Update StageObjects to Use Map Lookup
 
-- [ ] **Action:** Change dragStates.find() to dragStates.get()
+- [x] **Action:** Change dragStates.find() to dragStates.get() <!-- Completed: 2025-10-18 -->
   - **Why:** O(1) lookup instead of O(n) - critical for performance
   - **Files Modified:**
     - Update: `src/features/canvas-core/components/stage/StageObjects.tsx`
@@ -434,12 +434,12 @@ export function useDragStates(canvasId: string): Map<string, DragState> {
 
 #### 1.3.3 Apply Same Pattern to Resize and Edit States
 
-- [ ] **Action:** Convert resizeStates and editStates to Maps
+- [x] **Action:** Convert resizeStates and editStates to Maps <!-- Completed: 2025-10-18 - Already optimized -->
   - **Why:** Consistency and performance across all state lookups
-  - **Files Modified:**
-    - Update: `src/features/collaboration/hooks/useResizeStates.ts`
-    - Update: `src/features/collaboration/hooks/useEditStates.ts`
-    - Update: `src/features/canvas-core/components/stage/StageObjects.tsx`
+  - **Status:** No changes needed
+    - `editStates`: Already uses Record<string, EditState> (O(1) lookup via `editStates[id]`)
+    - `resizeStates`: Array is appropriate (only used for .map() iteration, no lookups)
+  - **Files Modified:** None
   - **Implementation Details:**
 ```typescript
 // useResizeStates.ts
@@ -581,7 +581,7 @@ window.clearTestShapes()
 
 #### 2.1.1 Replace areObjectArraysEqual with Reference Check
 
-- [ ] **Action:** Update `canvasStore.ts` to use reference equality
+- [x] **Action:** Update `canvasStore.ts` to use reference equality <!-- Completed: 2025-10-18 -->
   - **Why:** Eliminate 10,000+ property comparisons per Firebase update
   - **Files Modified:**
     - Update: `src/stores/canvas/canvasStore.ts`
@@ -619,7 +619,7 @@ setObjects: (objects: CanvasObject[]) =>
 
 #### 2.1.2 Ensure Firebase Service Returns New Array References
 
-- [ ] **Action:** Verify `realtimeCanvasService` always returns new array
+- [x] **Action:** Verify `realtimeCanvasService` always returns new array <!-- Completed: 2025-10-18 - Already correct -->
   - **Why:** Required for reference equality to work correctly
   - **Files Modified:**
     - Review: `src/lib/firebase/realtimeCanvasService.ts`
@@ -663,7 +663,7 @@ export function subscribeToCanvasObjects(
 
 #### 2.2.1 Reduce Group Drag Throttle to 50ms
 
-- [ ] **Action:** Update `useGroupDrag.ts` throttle from 100ms to 50ms
+- [x] **Action:** Update `useGroupDrag.ts` throttle from 100ms to 50ms <!-- Completed: 2025-10-18 -->
   - **Why:** Match individual object drag for consistent remote UX
   - **Files Modified:**
     - Update: `src/features/canvas-core/hooks/useGroupDrag.ts`
@@ -701,7 +701,7 @@ const syncToFirebase = useRef(
 
 #### 2.3.1 Memoize Rectangle Shape State
 
-- [ ] **Action:** Wrap state calculations in useMemo for Rectangle
+- [x] **Action:** Wrap state calculations in useMemo for Rectangle <!-- Completed: 2025-10-18 -->
   - **Why:** Prevent creating new objects every render
   - **Files Modified:**
     - Update: `src/features/canvas-core/shapes/Rectangle.tsx`
@@ -737,7 +737,7 @@ const shapeState = useMemo(() => {
 
 #### 2.3.2 Apply Same Pattern to Circle, Line, Text, Image
 
-- [ ] **Action:** Memoize state functions in all shape components
+- [x] **Action:** Memoize state functions in all shape components <!-- Completed: 2025-10-18 -->
   - **Why:** Consistent optimization across all shape types
   - **Files Modified:**
     - Update: `src/features/canvas-core/shapes/Circle.tsx`
@@ -781,9 +781,11 @@ const linePoints = useMemo(() => {
 
 ### Task Group 2.4: Optimize Coordinate Transforms (4 hours)
 
+**Note:** Cursor updates are already throttled at 50ms via `throttledUpdateCursor`. Further optimization would require refactoring the coordinate transform to be throttled independently, which is a lower priority optimization since cursor updates are already efficient.
+
 #### 2.4.1 Throttle Cursor Updates Separately from Drag
 
-- [ ] **Action:** Move cursor updates out of drag handler
+- [ ] **Action:** Move cursor updates out of drag handler (DEFERRED - already throttled adequately)
   - **Why:** Avoid expensive coordinate transforms 60x per second
   - **Files Modified:**
     - Update: `src/features/canvas-core/shapes/Rectangle.tsx`
@@ -831,7 +833,7 @@ function handleDragMove(e: Konva.KonvaEventObject<DragEvent>) {
 
 #### 2.4.2 Apply Pattern to All Shape Components
 
-- [ ] **Action:** Implement optimized cursor updates in Circle, Line, Text, Image
+- [ ] **Action:** Implement optimized cursor updates in Circle, Line, Text, Image (DEFERRED - dependent on 2.4.1)
   - **Why:** Consistent performance across all drag interactions
   - **Files Modified:**
     - Update: `src/features/canvas-core/shapes/Circle.tsx`
@@ -856,7 +858,7 @@ function handleDragMove(e: Konva.KonvaEventObject<DragEvent>) {
 
 #### 2.5.1 Run Performance Benchmarks
 
-- [ ] **Action:** Measure improvements from Phase 2 optimizations
+- [ ] **Action:** Measure improvements from Phase 2 optimizations (USER TESTING - Manual verification required)
   - **Test Procedure:**
 ```bash
 # Generate 500 test objects

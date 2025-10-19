@@ -4,9 +4,12 @@
  * Manages real-time drag states from other users.
  * Subscribes to Firebase Realtime Database and provides drag state information
  * for rendering visual indicators.
+ *
+ * Performance optimizations:
+ * - Returns Map<string, DragState> for O(1) lookup instead of array with O(n) find()
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { subscribeToDragStates } from '@/lib/firebase';
 import { useAuth } from '@/features/auth/hooks';
 import type { DragState, DragStateMap } from '@/types';
@@ -23,37 +26,28 @@ export interface DragStateWithObject extends DragState {
  * Hook to subscribe to and manage drag states for all objects on a canvas
  *
  * Filters out the current user's own drag states (we don't show our own drag indicator).
- * Returns an array of drag states with their associated object IDs.
+ * Returns a Map of drag states with object IDs as keys for O(1) lookup performance.
  *
  * @param canvasId - Canvas identifier to subscribe to
- * @returns Array of drag states for objects being dragged by other users
+ * @returns Map of drag states for objects being dragged by other users (objectId -> DragState)
  *
  * @example
  * ```tsx
  * function CanvasComponent() {
  *   const dragStates = useDragStates('main');
  *
- *   return (
- *     <Layer>
- *       {dragStates.map(state => (
- *         <DragIndicator
- *           key={state.objectId}
- *           objectId={state.objectId}
- *           dragState={state}
- *         />
- *       ))}
- *     </Layer>
- *   );
+ *   // O(1) lookup instead of O(n) find()
+ *   const dragState = dragStates.get(objectId);
  * }
  * ```
  */
-export function useDragStates(canvasId: string): DragStateWithObject[] {
-  const [dragStates, setDragStates] = useState<DragStateWithObject[]>([]);
+export function useDragStates(canvasId: string): Map<string, DragState> {
+  const [dragStatesArray, setDragStatesArray] = useState<DragStateWithObject[]>([]);
   const { currentUser } = useAuth();
 
   useEffect(() => {
     if (!canvasId) {
-      setDragStates([]);
+      setDragStatesArray([]);
       return;
     }
 
@@ -78,7 +72,7 @@ export function useDragStates(canvasId: string): DragStateWithObject[] {
           objectId,
         }));
 
-      setDragStates(dragStateArray);
+      setDragStatesArray(dragStateArray);
     });
 
     // Cleanup subscription on unmount
@@ -87,7 +81,13 @@ export function useDragStates(canvasId: string): DragStateWithObject[] {
     };
   }, [canvasId, currentUser?.uid]);
 
-  return dragStates;
+  // Convert array to Map for O(1) lookup
+  const dragStatesMap = useMemo(
+    () => new Map(dragStatesArray.map(d => [d.objectId, d])),
+    [dragStatesArray]
+  );
+
+  return dragStatesMap;
 }
 
 /**

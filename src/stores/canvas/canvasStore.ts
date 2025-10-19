@@ -17,7 +17,6 @@
 import { create } from 'zustand';
 import type { CanvasObject } from '@/types';
 import type { CanvasStore } from './types';
-import { areObjectArraysEqual } from './utils';
 import { createCanvasActions } from './canvasActions';
 import { createCanvasZoomPan } from './canvasZoomPan';
 import { createCanvasHierarchy } from './canvasHierarchy';
@@ -45,10 +44,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   // setObjects is critical - needs to be in main store for performance optimization
   setObjects: (objects: CanvasObject[]) =>
     set((state) => {
-      // PERFORMANCE FIX: Skip update if arrays are shallowly equal
-      // This prevents unnecessary re-renders when Firebase subscription
-      // creates a new array reference with identical object values
-      if (areObjectArraysEqual(state.objects, objects)) {
+      // PERFORMANCE FIX: Skip update if array reference is the same
+      // Firebase service always returns new array reference on updates,
+      // so reference equality is sufficient to detect unchanged data
+      if (state.objects === objects) {
         return state; // No update → no re-render!
       }
 

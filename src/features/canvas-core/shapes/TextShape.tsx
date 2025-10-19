@@ -6,7 +6,7 @@
  * Note: Text positioning uses (x, y) as TOP-LEFT point (same as Rectangle).
  */
 
-import { useEffect, memo, Fragment } from 'react';
+import { useEffect, memo, Fragment, useMemo } from 'react';
 import { Text as KonvaText } from 'react-konva';
 import type Konva from 'konva';
 import type { Text as TextType } from '@/types';
@@ -165,21 +165,26 @@ export const TextShape = memo(function TextShape({
   }, [activeTool, isEditing, handleTextSave, handleTextCancel]);
 
 
-  // Determine stroke styling based on state
+  // Determine stroke styling based on state (memoized to prevent unnecessary re-renders)
   // NOTE: Selection and hover are now handled by TextSelectionBox, not stroke
-  const getStroke = () => {
+  const stroke = useMemo(() => {
     // Remote editing: Show editor's color with dashed stroke (highest priority)
     if (isRemoteEditing && editState) return editState.color;
-    if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
+    if (isRemoteDragging) return remoteDragState?.color; // Remote drag: user's color
     // Hover is now handled by TextSelectionBox underline
     return undefined; // Default: no stroke (selection/hover handled by TextSelectionBox)
-  };
+  }, [isRemoteEditing, editState, isRemoteDragging, remoteDragState?.color]);
 
-  const getStrokeWidth = () => {
+  const strokeWidth = useMemo(() => {
     if (isRemoteDragging) return 2; // Remote drag: medium border
     // Hover is now handled by TextSelectionBox underline
     return undefined; // Default: no border (selection/hover handled by TextSelectionBox)
-  };
+  }, [isRemoteDragging]);
+
+  const opacity = useMemo(() => {
+    if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
+    return 1; // Default: fully opaque
+  }, [isRemoteDragging]);
 
   // Calculate final draggable state
   const isDraggable = !isLocked && (isSelected || isHovered) && activeTool === 'move' && !isRemoteDragging && !isEditing && !isInMultiSelect;
@@ -205,7 +210,7 @@ export const TextShape = memo(function TextShape({
         fill={text.fill}
         // Transform properties
         rotation={text.rotation ?? 0}
-        opacity={(text.opacity ?? 1) * (isRemoteDragging ? 0.85 : 1)} // Combine shape opacity with state opacity
+        opacity={(text.opacity ?? 1) * opacity} // Combine shape opacity with state opacity
         // Typography properties
         textDecoration={text.textDecoration || ''}
         lineHeight={text.lineHeight || 1.2}
@@ -221,8 +226,8 @@ export const TextShape = memo(function TextShape({
         offsetX={textWidth / 2}
         offsetY={textHeight / 2}
         // Stroke properties (with state-based overrides for selection/hover)
-        stroke={getStroke() ?? text.stroke}
-        strokeWidth={getStrokeWidth() ?? text.strokeWidth ?? 0}
+        stroke={stroke ?? text.stroke}
+        strokeWidth={strokeWidth ?? text.strokeWidth ?? 0}
         strokeEnabled={text.strokeEnabled ?? true}
         // Dashed stroke when being edited remotely
         dash={isRemoteEditing ? [5, 5] : undefined}

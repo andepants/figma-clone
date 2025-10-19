@@ -4,7 +4,7 @@
  * Renders an image shape on the canvas with selection and drag capabilities.
  */
 
-import { useState, useEffect, useRef, memo, Fragment } from 'react';
+import { useState, useEffect, useRef, memo, Fragment, useMemo } from 'react';
 import { Image } from 'react-konva';
 import type Konva from 'konva';
 import type { ImageObject } from '@/types';
@@ -376,30 +376,30 @@ export const ImageShape = memo(function ImageShape({
     }
   }
 
-  // Determine stroke styling based on state
-  const getStroke = () => {
+  // Determine stroke styling based on state (memoized to prevent unnecessary re-renders)
+  const stroke = useMemo(() => {
     if (isLocked && isSelected) return '#0ea5e9'; // Locked + Selected: blue (same as normal selection)
-    if (isRemoteDragging) return remoteDragState.color; // Remote drag: user's color
+    if (isRemoteDragging) return remoteDragState?.color; // Remote drag: user's color
     if (isInMultiSelect) return '#38bdf8'; // Multi-select: lighter blue
     if (isSelected) return '#0ea5e9'; // Selected: bright blue
     if (isHovered && activeTool === 'move') return '#94a3b8'; // Hovered: subtle gray
     return undefined; // Default: no stroke
-  };
+  }, [isLocked, isSelected, isRemoteDragging, remoteDragState?.color, isInMultiSelect, isHovered, activeTool]);
 
-  const getStrokeWidth = () => {
+  const strokeWidth = useMemo(() => {
     if (isLocked && isSelected) return 3; // Locked + Selected: same as normal selection
     if (isRemoteDragging) return 2; // Remote drag: medium border
     if (isSelected) return 3; // Selected: thick border
     if (isHovered && activeTool === 'move') return 2; // Hovered: thin border
     return undefined; // Default: no border
-  };
+  }, [isLocked, isSelected, isRemoteDragging, isHovered, activeTool]);
 
-  const getOpacity = () => {
+  const opacity = useMemo(() => {
     if (isRemoteDragging) return 0.85; // Remote drag: slightly transparent
     return 1; // Default: fully opaque
-  };
+  }, [isRemoteDragging]);
 
-  const getShadow = () => {
+  const shadow = useMemo(() => {
     // Add subtle glow when selected for better visual feedback
     if (isSelected) {
       return {
@@ -420,7 +420,7 @@ export const ImageShape = memo(function ImageShape({
       shadowOpacity: image.shadowOpacity ?? 1,
       shadowEnabled: image.shadowEnabled ?? false,
     };
-  };
+  }, [isSelected, image.shadowColor, image.shadowBlur, image.shadowOffsetX, image.shadowOffsetY, image.shadowOpacity, image.shadowEnabled]);
 
   // Don't render if hidden
   if (image.visible === false) {
@@ -456,7 +456,7 @@ export const ImageShape = memo(function ImageShape({
         cropHeight={image.cropHeight ?? image.naturalHeight}
         // Transform properties
         rotation={image.rotation ?? 0}
-        opacity={(image.opacity ?? 1) * getOpacity()} // Combine shape opacity with state opacity
+        opacity={(image.opacity ?? 1) * opacity} // Combine shape opacity with state opacity
         scaleX={image.scaleX ?? 1}
         scaleY={image.scaleY ?? 1}
         skewX={image.skewX ?? 0}
@@ -465,12 +465,12 @@ export const ImageShape = memo(function ImageShape({
         offsetX={width / 2}
         offsetY={height / 2}
         // Stroke properties (with state-based overrides for selection/hover)
-        stroke={getStroke() ?? image.stroke}
-        strokeWidth={getStrokeWidth() ?? image.strokeWidth ?? 0}
+        stroke={stroke ?? image.stroke}
+        strokeWidth={strokeWidth ?? image.strokeWidth ?? 0}
         strokeEnabled={image.strokeEnabled ?? true}
         dash={isRemoteDragging ? [5, 5] : undefined} // Dashed border when being remotely dragged
         // Shadow properties (with selection glow override)
-        {...getShadow()}
+        {...shadow}
         // Interaction
         listening={!isLocked} // Locked objects don't respond to events
         onClick={handleClick}

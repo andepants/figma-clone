@@ -2,21 +2,21 @@
  * Public Playground Page
  *
  * Shared collaborative canvas accessible to all authenticated users.
- * Uses a special PUBLIC_PLAYGROUND project ID for universal access.
+ * Uses a special PUBLIC_PLAYGROUND project ID with ownerId: 'system'.
  * Auto-creates the playground project if it doesn't exist.
- * Automatically adds all users as collaborators when they access it.
+ * No collaborator management needed - fully public for any authenticated user.
  */
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks';
-import { getProject, createProject, addCollaborator } from '@/lib/firebase/projectsService';
+import { getProject, createProject } from '@/lib/firebase/projectsService';
 import { PUBLIC_PLAYGROUND_ID, PUBLIC_PLAYGROUND_NAME } from '@/config/constants';
 
 /**
  * Public playground route wrapper
- * Auto-creates playground project if needed, auto-adds user as collaborator,
- * then redirects to canvas. Works like a regular project with automatic access.
+ * Auto-creates playground project with ownerId: 'system' if needed,
+ * then redirects to canvas. Fully public - no collaborator checks.
  * Requires authentication.
  */
 function PublicPlaygroundPage() {
@@ -40,33 +40,27 @@ function PublicPlaygroundPage() {
         const existingProject = await getProject(PUBLIC_PLAYGROUND_ID);
 
         if (!existingProject) {
-          // First user: Create playground as their own project
+          // Create playground with system ownership (no individual owner)
           await createProject({
             id: PUBLIC_PLAYGROUND_ID,
             name: PUBLIC_PLAYGROUND_NAME,
-            ownerId: currentUser.uid, // First user owns the playground
+            ownerId: 'system', // System-owned, not user-owned
             isPublic: true, // Publicly accessible
-            collaborators: { [currentUser.uid]: true }, // Add creator as collaborator
+            collaborators: {}, // Empty - not needed for public playground
             objectCount: 0, // Start with empty canvas
             createdAt: Date.now(),
             updatedAt: Date.now(),
           });
-        } else {
-          // Subsequent users: Auto-add as collaborator if not already
-          const isCollaborator = existingProject.collaborators[currentUser.uid] === true;
-          const isOwner = existingProject.ownerId === currentUser.uid;
-
-          if (!isCollaborator && !isOwner) {
-            // Auto-add user as collaborator
-            await addCollaborator(PUBLIC_PLAYGROUND_ID, currentUser.uid);
-          }
         }
 
         // Navigate to public playground canvas
         navigate(`/canvas/${PUBLIC_PLAYGROUND_ID}`, { replace: true });
       } catch (err) {
         console.error('Failed to initialize playground:', err);
-        setError('Failed to load playground. Please try again.');
+        // Include error details for debugging
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error('Error details:', errorMessage);
+        setError(`Failed to load playground: ${errorMessage}`);
       }
     }
 
