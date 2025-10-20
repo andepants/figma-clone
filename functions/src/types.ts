@@ -82,6 +82,8 @@ export interface CanvasObject {
   aiGenerated?: boolean;
   /** Timestamp when object was created (for AI context prioritization) */
   createdAt?: number;
+  /** Z-index for layer ordering (higher = on top) */
+  zIndex?: number;
 }
 
 /**

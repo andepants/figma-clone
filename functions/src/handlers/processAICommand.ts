@@ -184,16 +184,13 @@ export async function processAICommandHandler(
     const [
       {createAIChain},
       {getTools},
-      {getLLM, getModelForCommand},
+      {getLLM},
       {logAIUsage},
       {optimizeContext},
       {
         getCachedContext,
         setCachedContext,
         generateCacheKey,
-        getCachedResponse,
-        setCachedResponse,
-        generateResponseCacheKey,
       },
     ] = await Promise.all([
       import("../ai/chain.js"),
@@ -203,19 +200,6 @@ export async function processAICommandHandler(
       import("../ai/utils/context-optimizer.js"),
       import("../ai/utils/context-cache.js"),
     ]);
-
-    // Check for cached LLM response first (exact command match)
-    const responseCacheKey = generateResponseCacheKey(data.command, data.canvasState);
-    const cachedResponse = getCachedResponse(responseCacheKey);
-
-    if (cachedResponse) {
-      const responseTime = Date.now() - startTime;
-      logger.info("Using cached LLM response", {
-        responseCacheKey,
-        responseTime: `${responseTime}ms`,
-      });
-      return cachedResponse as ProcessAICommandResponse;
-    }
 
     // Try cache first
     const cacheKey = generateCacheKey(data.canvasState);
@@ -236,14 +220,11 @@ export async function processAICommandHandler(
       });
     }
 
-    // Use OpenAI for all environments with model routing based on complexity
+    // Use OpenAI for all environments
     const provider = "openai";
     aiProvider = provider;
 
-    // Route to appropriate model based on command complexity (already imported above)
-    const routedModel = getModelForCommand(data.command, provider);
-
-    const llm = getLLM(provider, routedModel);
+    const llm = getLLM(provider);
     // Extract model name safely from either provider
     if ("modelName" in llm) {
       modelName = llm.modelName || modelName;
@@ -289,9 +270,9 @@ export async function processAICommandHandler(
       lastCreatedObjectIds: [],
     };
 
-    // Get tools and create AI chain with routed model
+    // Get tools and create AI chain
     const tools = getTools(toolContext);
-    const chain = await createAIChain(tools, llm);
+    const chain = await createAIChain(tools);
 
     // Configure LangGraph with thread ID for memory persistence
     const config = {
@@ -409,9 +390,6 @@ export async function processAICommandHandler(
       message: output,
       actions,
     };
-
-    // Cache the response for future identical commands
-    setCachedResponse(responseCacheKey, response);
 
     return response;
   } catch (error) {

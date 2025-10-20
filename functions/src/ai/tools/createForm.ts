@@ -17,6 +17,11 @@ import {z} from "zod";
 import {CanvasTool} from "./base";
 import {ToolResult, CanvasToolContext} from "./types";
 import {createCanvasObject} from "../../services/canvas-objects";
+import {validateViewportBounds} from "../utils/viewport-validator.js";
+import {adjustToViewport} from "../utils/viewport-adjuster.js";
+import {getBatchZIndexes} from "../utils/zindex-calculator.js";
+import {getSpacing} from "../utils/spacing-calculator.js";
+import {validateFormLayout} from "../utils/layout-validator.js";
 import * as logger from "firebase-functions/logger";
 
 /**
@@ -66,7 +71,7 @@ const CreateFormSchema = z.object({
   // Dimensions
   inputWidth: z.number().default(300).describe("Input field width in pixels"),
   inputHeight: z.number().default(40).describe("Input field height in pixels"),
-  spacing: z.number().default(20).describe("Vertical spacing between fields"),
+  spacing: z.number().default(12).describe("Vertical spacing between fields (default: 12px - form-field spacing)"),
 
   // Naming
   namePrefix: z
@@ -155,26 +160,72 @@ export class CreateFormTool extends CanvasTool {
           break;
       }
 
-      // Calculate positioning
-      const startX =
-        input.x ??
-        (this.context.viewportBounds?.centerX ||
-          this.context.canvasSize.width / 2) -
-          input.inputWidth / 2;
-      const startY =
-        input.y ??
-        (this.context.viewportBounds?.centerY ||
-          this.context.canvasSize.height / 2) -
-          ((formFields.length * (input.inputHeight + input.spacing + 25) + 60) / 2);
+      // Validate form layout before creation
+      try {
+        validateFormLayout(formFields);
+      } catch (validationError) {
+        logger.warn("Form validation failed", {
+          error: String(validationError),
+          fieldCount: formFields.length,
+        });
+        return {
+          success: false,
+          error: String(validationError),
+          message: "Invalid form layout",
+        };
+      }
+
+      // Validate viewport bounds
+      const validatedBounds = validateViewportBounds(this.context.viewportBounds);
+
+      // Use smart spacing for form fields
+      const fieldSpacing = getSpacing('form-field'); // 12px between fields
+      const sectionSpacing = getSpacing('form-section'); // 24px before button
+
+      // Calculate form dimensions
+      const formWidth = input.inputWidth;
+      const formHeight = formFields.length * (input.inputHeight + fieldSpacing + 25) + sectionSpacing + 60;
+
+      // Determine initial position (default to viewport center)
+      let startX = input.x ?? (validatedBounds.centerX - formWidth / 2);
+      let startY = input.y ?? (validatedBounds.centerY - formHeight / 2);
+
+      // ALWAYS adjust to viewport (even if coordinates explicitly provided)
+      const viewportAdjustment = adjustToViewport(
+        startX,
+        startY,
+        formWidth,
+        formHeight,
+        validatedBounds,
+        'rectangle'
+      );
+
+      if (viewportAdjustment.wasAdjusted) {
+        logger.info('Adjusted form position to viewport', {
+          original: { x: startX, y: startY },
+          adjusted: { x: viewportAdjustment.x, y: viewportAdjustment.y },
+          reason: 'Form was outside viewport bounds'
+        });
+      }
+
+      startX = viewportAdjustment.x;
+      startY = viewportAdjustment.y;
 
       let currentY = startY;
       const createdIds: string[] = [];
       const namePrefix = input.namePrefix || input.type.charAt(0).toUpperCase() + input.type.slice(1);
 
+      // Calculate total objects: (label + input + placeholder) per field + button + button text
+      const totalObjects = formFields.length * 3 + 2;
+      const zIndexes = getBatchZIndexes(this.context.currentObjects, totalObjects);
+      let zIndexCounter = 0;
+
       logger.info("Creating form", {
         type: input.type,
         fieldCount: formFields.length,
         position: {x: startX, y: startY},
+        totalObjects,
+        startingZIndex: zIndexes[0],
       });
 
       // Create each form field (label + input)
@@ -191,6 +242,7 @@ export class CreateFormTool extends CanvasTool {
           appearance: {fill: input.labelColor},
           name: `${namePrefix} Label - ${field.label}`,
           userId: this.context.userId,
+          zIndex: zIndexes[zIndexCounter++],
         });
         createdIds.push(labelId);
         currentY += 20; // Label height + small gap
@@ -209,6 +261,7 @@ export class CreateFormTool extends CanvasTool {
           },
           name: `${namePrefix} Input - ${field.label}`,
           userId: this.context.userId,
+          zIndex: zIndexes[zIndexCounter++],
         });
         createdIds.push(inputId);
 
@@ -222,14 +275,15 @@ export class CreateFormTool extends CanvasTool {
           appearance: {fill: "#9ca3af"}, // Gray placeholder color
           name: `${namePrefix} Placeholder - ${field.label}`,
           userId: this.context.userId,
+          zIndex: zIndexes[zIndexCounter++],
         });
         createdIds.push(placeholderId);
 
-        currentY += inputHeight + input.spacing;
+        currentY += inputHeight + fieldSpacing; // Use smart spacing between fields
       }
 
       // Create submit button
-      currentY += 10; // Extra gap before button
+      currentY += sectionSpacing; // Use section spacing before button
       const buttonHeight = 45;
 
       const buttonId = await createCanvasObject({
@@ -244,6 +298,7 @@ export class CreateFormTool extends CanvasTool {
         },
         name: `${namePrefix} Button`,
         userId: this.context.userId,
+        zIndex: zIndexes[zIndexCounter++],
       });
       createdIds.push(buttonId);
 
@@ -260,6 +315,7 @@ export class CreateFormTool extends CanvasTool {
         appearance: {fill: "#ffffff"},
         name: `${namePrefix} Button Text`,
         userId: this.context.userId,
+        zIndex: zIndexes[zIndexCounter++],
       });
       createdIds.push(buttonTextId);
 
