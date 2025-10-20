@@ -16,11 +16,6 @@ import {z} from "zod";
 import {CanvasTool} from "./base";
 import {ToolResult, CanvasToolContext} from "./types";
 import {createCanvasObject} from "../../services/canvas-objects";
-import {validateViewportBounds} from "../utils/viewport-validator.js";
-import {adjustToViewport} from "../utils/viewport-adjuster.js";
-import {getBatchZIndexes} from "../utils/zindex-calculator.js";
-import {getSpacing} from "../utils/spacing-calculator.js";
-import {validateNavbarLayout} from "../utils/layout-validator.js";
 import * as logger from "firebase-functions/logger";
 
 /**
@@ -56,8 +51,8 @@ const CreateNavBarSchema = z.object({
   // Spacing
   itemSpacing: z
     .number()
-    .default(12)
-    .describe("Horizontal spacing between menu items (default: 12px - navbar-item spacing)"),
+    .default(40)
+    .describe("Horizontal spacing between menu items"),
 
   // Options
   includeLogo: z
@@ -98,67 +93,21 @@ export class CreateNavBarTool extends CanvasTool {
    */
   async execute(input: z.infer<typeof CreateNavBarSchema>): Promise<ToolResult> {
     try {
-      // Validate navbar layout before creation
-      const navbarItems = input.menuItems.map(label => ({label}));
-      try {
-        validateNavbarLayout(navbarItems);
-      } catch (validationError) {
-        logger.warn("Navbar validation failed", {
-          error: String(validationError),
-          itemCount: input.menuItems.length,
-        });
-        return {
-          success: false,
-          error: String(validationError),
-          message: "Invalid navbar layout",
-        };
-      }
-
-      // Validate viewport bounds
-      const validatedBounds = validateViewportBounds(this.context.viewportBounds);
-
-      // Use smart spacing for navbar items (12px between items)
-      const navbarItemSpacing = getSpacing('navbar-item');
-
-      // Determine initial position (default to viewport top-left)
-      let startX = input.x ?? (validatedBounds.minX);
-      let startY = input.y ?? (validatedBounds.minY);
-
-      // ALWAYS adjust to viewport (even if coordinates explicitly provided)
-      const viewportAdjustment = adjustToViewport(
-        startX,
-        startY,
-        input.width,
-        input.height,
-        validatedBounds,
-        'rectangle'
-      );
-
-      if (viewportAdjustment.wasAdjusted) {
-        logger.info('Adjusted navbar position to viewport', {
-          original: { x: startX, y: startY },
-          adjusted: { x: viewportAdjustment.x, y: viewportAdjustment.y },
-          reason: 'Navbar was outside viewport bounds'
-        });
-      }
-
-      startX = viewportAdjustment.x;
-      startY = viewportAdjustment.y;
+      // Calculate positioning
+      const startX =
+        input.x ??
+        (this.context.viewportBounds?.minX ||
+          this.context.canvasSize.width / 2 - input.width / 2);
+      const startY =
+        input.y ?? (this.context.viewportBounds?.minY || 50);
 
       const createdIds: string[] = [];
       const namePrefix = input.namePrefix || "NavBar";
-
-      // Calculate total objects: bg + (logo if includeLogo) + menuItems
-      const totalObjects = 1 + (input.includeLogo ? 1 : 0) + input.menuItems.length;
-      const zIndexes = getBatchZIndexes(this.context.currentObjects, totalObjects);
-      let zIndexCounter = 0;
 
       logger.info("Creating navbar", {
         menuItems: input.menuItems,
         position: {x: startX, y: startY},
         width: input.width,
-        totalObjects,
-        startingZIndex: zIndexes[0],
       });
 
       // Create background bar
@@ -170,7 +119,6 @@ export class CreateNavBarTool extends CanvasTool {
         appearance: {fill: input.bgFill, strokeWidth: 0},
         name: `${namePrefix} Background`,
         userId: this.context.userId,
-        zIndex: zIndexes[zIndexCounter++],
       });
       createdIds.push(bgId);
 
@@ -188,7 +136,6 @@ export class CreateNavBarTool extends CanvasTool {
           appearance: {fill: input.textColor},
           name: `${namePrefix} Logo`,
           userId: this.context.userId,
-          zIndex: zIndexes[zIndexCounter++],
         });
         createdIds.push(logoId);
 
@@ -196,17 +143,15 @@ export class CreateNavBarTool extends CanvasTool {
         menuStartX += input.logoText.length * 12 + 60; // Logo width + gap
       }
 
-      // Create menu items with cumulative positioning
-      let currentX = menuStartX;
+      // Create menu items
       for (let i = 0; i < input.menuItems.length; i++) {
         const itemText = input.menuItems[i];
-        const estimatedWidth = itemText.length * 8; // Approximate text width
 
         const itemId = await createCanvasObject({
           canvasId: this.context.canvasId,
           type: "text",
           position: {
-            x: currentX,
+            x: menuStartX + i * (input.itemSpacing + itemText.length * 8),
             y: startY + (input.height - input.fontSize) / 2,
           },
           text: itemText,
@@ -214,12 +159,8 @@ export class CreateNavBarTool extends CanvasTool {
           appearance: {fill: input.textColor},
           name: `${namePrefix} Item - ${itemText}`,
           userId: this.context.userId,
-          zIndex: zIndexes[zIndexCounter++],
         });
         createdIds.push(itemId);
-
-        // Move to next position: current item width + spacing
-        currentX += estimatedWidth + navbarItemSpacing;
       }
 
       // Update context memory

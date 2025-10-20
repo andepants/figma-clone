@@ -16,10 +16,6 @@ import {z} from "zod";
 import {CanvasTool} from "./base";
 import {ToolResult, CanvasToolContext} from "./types";
 import {createCanvasObject} from "../../services/canvas-objects";
-import {validateViewportBounds} from "../utils/viewport-validator.js";
-import {adjustToViewport} from "../utils/viewport-adjuster.js";
-import {getBatchZIndexes} from "../utils/zindex-calculator.js";
-import {getSpacing} from "../utils/spacing-calculator.js";
 import * as logger from "firebase-functions/logger";
 
 /**
@@ -69,7 +65,7 @@ const CreateCardSchema = z.object({
   descriptionSize: z.number().default(14).describe("Description font size"),
 
   // Spacing
-  padding: z.number().default(8).describe("Internal padding in pixels (default: 8px - card-internal spacing)"),
+  padding: z.number().default(20).describe("Internal padding in pixels"),
 
   // Naming
   namePrefix: z.string().optional().describe("Prefix for object names (e.g., 'ProductCard')"),
@@ -104,59 +100,33 @@ export class CreateCardTool extends CanvasTool {
    */
   async execute(input: z.infer<typeof CreateCardSchema>): Promise<ToolResult> {
     try {
-      // Validate viewport bounds
-      const validatedBounds = validateViewportBounds(this.context.viewportBounds);
-
-      // Use smart spacing for cards
-      const internalPadding = getSpacing('card-internal'); // 8px internal padding
-
-      // Calculate card dimensions
+      // Calculate card height based on content
       const imageHeight = input.includeImage ? input.imageHeight : 0;
       const titleHeight = 30;
       const descriptionHeight = 60;
       const totalHeight =
-        imageHeight + titleHeight + descriptionHeight + internalPadding * 2;
+        imageHeight + titleHeight + descriptionHeight + input.padding * 2;
 
-      // Determine initial position (default to viewport center)
-      let startX = input.x ?? (validatedBounds.centerX - input.width / 2);
-      let startY = input.y ?? (validatedBounds.centerY - totalHeight / 2);
-
-      // ALWAYS adjust to viewport (even if coordinates explicitly provided)
-      const viewportAdjustment = adjustToViewport(
-        startX,
-        startY,
-        input.width,
-        totalHeight,
-        validatedBounds,
-        'rectangle'
-      );
-
-      if (viewportAdjustment.wasAdjusted) {
-        logger.info('Adjusted card position to viewport', {
-          original: { x: startX, y: startY },
-          adjusted: { x: viewportAdjustment.x, y: viewportAdjustment.y },
-          reason: 'Card was outside viewport bounds'
-        });
-      }
-
-      startX = viewportAdjustment.x;
-      startY = viewportAdjustment.y;
+      // Calculate positioning (center card)
+      const startX =
+        input.x ??
+        (this.context.viewportBounds?.centerX ||
+          this.context.canvasSize.width / 2) -
+          input.width / 2;
+      const startY =
+        input.y ??
+        (this.context.viewportBounds?.centerY ||
+          this.context.canvasSize.height / 2) -
+          totalHeight / 2;
 
       const createdIds: string[] = [];
       const namePrefix = input.namePrefix || "Card";
       let currentY = startY;
 
-      // Calculate total objects: bg + (image + imageText if includeImage) + title + description
-      const totalObjects = 1 + (input.includeImage ? 2 : 0) + 2;
-      const zIndexes = getBatchZIndexes(this.context.currentObjects, totalObjects);
-      let zIndexCounter = 0;
-
       logger.info("Creating card", {
         title: input.title,
         includeImage: input.includeImage,
         position: {x: startX, y: startY},
-        totalObjects,
-        startingZIndex: zIndexes[0],
       });
 
       // Create card background
@@ -172,7 +142,6 @@ export class CreateCardTool extends CanvasTool {
         },
         name: `${namePrefix} Background`,
         userId: this.context.userId,
-        zIndex: zIndexes[zIndexCounter++],
       });
       createdIds.push(bgId);
 
@@ -186,7 +155,6 @@ export class CreateCardTool extends CanvasTool {
           appearance: {fill: input.imageBgColor, strokeWidth: 0},
           name: `${namePrefix} Image`,
           userId: this.context.userId,
-          zIndex: zIndexes[zIndexCounter++],
         });
         createdIds.push(imageId);
 
@@ -203,26 +171,24 @@ export class CreateCardTool extends CanvasTool {
           appearance: {fill: "#9ca3af"},
           name: `${namePrefix} Image Label`,
           userId: this.context.userId,
-          zIndex: zIndexes[zIndexCounter++],
         });
         createdIds.push(imageTextId);
 
         currentY += input.imageHeight;
       }
 
-      currentY += internalPadding; // Use smart internal padding
+      currentY += input.padding;
 
       // Create title
       const titleId = await createCanvasObject({
         canvasId: this.context.canvasId,
         type: "text",
-        position: {x: startX + internalPadding, y: currentY},
+        position: {x: startX + input.padding, y: currentY},
         text: input.title,
         fontSize: input.titleSize,
         appearance: {fill: input.titleColor},
         name: `${namePrefix} Title`,
         userId: this.context.userId,
-        zIndex: zIndexes[zIndexCounter++],
       });
       createdIds.push(titleId);
       currentY += titleHeight;
@@ -231,13 +197,12 @@ export class CreateCardTool extends CanvasTool {
       const descriptionId = await createCanvasObject({
         canvasId: this.context.canvasId,
         type: "text",
-        position: {x: startX + internalPadding, y: currentY},
+        position: {x: startX + input.padding, y: currentY},
         text: input.description,
         fontSize: input.descriptionSize,
         appearance: {fill: input.descriptionColor},
         name: `${namePrefix} Description`,
         userId: this.context.userId,
-        zIndex: zIndexes[zIndexCounter++],
       });
       createdIds.push(descriptionId);
 

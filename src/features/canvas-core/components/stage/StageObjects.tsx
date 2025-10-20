@@ -11,7 +11,7 @@
  * - Reduces render count from 500 to ~50-100 objects for significant FPS improvement
  */
 
-import { useMemo, memo, useEffect } from 'react';
+import { useMemo, memo } from 'react';
 import type Konva from 'konva';
 import { Rectangle, Circle, TextShape, Line, ImageShape } from '../../shapes';
 import { SelectionOverlay, RemoteResizeOverlay } from '@/features/collaboration/components';
@@ -86,10 +86,6 @@ export const StageObjects = memo(
   projectId,
   stageRef,
 }: StageObjectsProps) {
-    // Debug: Log objects being rendered
-    useEffect(() => {
-      console.log('[StageObjects] Rendering', objects.length, 'objects');
-    }, [objects]);
   // Get viewport state for culling dependencies
   /**
    * Filter objects to only those visible in viewport
@@ -99,11 +95,7 @@ export const StageObjects = memo(
    * so we rely on objects changing to trigger re-filtering rather than viewport changes
    */
   const visibleObjects = useMemo(() => {
-    const filtered = filterVisibleObjects(objects, stageRef.current);
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[StageObjects] Viewport culling:', objects.length, 'total →', filtered.length, 'visible');
-    }
-    return filtered;
+    return filterVisibleObjects(objects, stageRef.current);
   }, [objects, stageRef]);
 
   /**

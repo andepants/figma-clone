@@ -167,11 +167,6 @@ export function CanvasStage({ stageRef: externalStageRef, projectId = 'main' }: 
     }
   }, [toggleSelection, selectObjects]);
 
-  // Cache buster - verify new code is loaded
-  useEffect(() => {
-    console.log('[CanvasStage] Component loaded - useCallback fix applied at', new Date().toISOString());
-  }, []);
-
   return (
     <div {...getRootProps()} className="relative w-full h-full">
       <input {...getInputProps()} />

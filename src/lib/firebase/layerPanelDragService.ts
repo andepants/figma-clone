@@ -67,7 +67,6 @@ export async function acquireLayerDragLock(
       }
 
       // Lock held by another user
-      console.log(`Layer drag locked by ${existingLock.username}`);
       return false;
     }
 

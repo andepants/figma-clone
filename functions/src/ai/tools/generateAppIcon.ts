@@ -6,10 +6,7 @@
  * - 1024x1024 (Glassmorphism)
  * - 1024x1024 (Minimalist)
  *
- * Also creates:
- * - Text labels above each icon showing style
- *
- * Total canvas objects created: 4 (2 labels + 2 images)
+ * Total canvas objects created: 2 (2 images)
  *
  * Design styles:
  * - Glassmorphism: Modern, vibrant gradients, 3D depth, high contrast
@@ -53,11 +50,8 @@ const GenerateAppIconSchema = z.object({
  * 1. Validates and enhances user prompt with TWO different design styles
  * 2. Generates TWO 1024x1024 icons using DALL-E 3 (Glassmorphism + Minimalist)
  * 3. Uploads both images to Firebase Storage for permanent access
- * 4. Creates 9 canvas objects in a grid layout:
- *    - Info box with design guidelines and requirements
- *    - 4 text labels (iOS/Android for each style)
- *    - 4 image objects (iOS 1024, Android 512 for each style)
- * 5. Places everything in viewport-aware grid with proper spacing
+ * 4. Creates 2 image objects in a vertical layout
+ * 5. Places everything in viewport-aware layout with proper spacing
  *
  * Design principles applied:
  * - Glassmorphism: Modern, vibrant gradients, 3D depth (22% higher conversion)
@@ -73,11 +67,11 @@ export class GenerateAppIconTool extends CanvasTool {
       // Tool description for LLM (helps it understand when to use this tool)
       'Generate professional app icons for iOS and Android from a text description. ' +
       'Creates TWO distinct design styles (Glassmorphism & Minimalist) with 1 icon each (2 total): ' +
-      '1024x1024 for each style. Also creates text labels for each icon. Total: 4 canvas objects. ' +
+      '1024x1024 for each style. Total: 2 canvas objects (images only). ' +
       'Automatic prompt enhancement following Apple Human Interface Guidelines and ' +
       '2025 design trends. Icons fill entire image edge-to-edge with NO dark backgrounds or rounded corners. ' +
       'Use this when user asks to create app icons, generate app icons, ' +
-      'make app icons, or design app icons. Everything is placed in a viewport-aware grid layout.',
+      'make app icons, or design app icons. Everything is placed in a viewport-aware vertical layout.',
       GenerateAppIconSchema,
       context
     );
@@ -92,10 +86,9 @@ export class GenerateAppIconTool extends CanvasTool {
    * 3. Generate glassmorphism 1024x1024 image with DALL-E 3
    * 4. Generate minimalist 1024x1024 image with DALL-E 3
    * 5. Upload both images to Firebase Storage
-   * 6. Calculate grid layout placement (viewport-aware)
-   * 7. Create 2 text labels (one for each style)
-   * 8. Create 2 icon images (1024x1024 each)
-   * 9. Return success with all 4 object IDs
+   * 6. Calculate vertical layout placement (viewport-aware)
+   * 7. Create 2 icon images (1024x1024 each)
+   * 8. Return success with both object IDs
    *
    * @param input - Validated input from Zod schema
    * @returns Tool result with success status and all created object IDs
@@ -307,79 +300,76 @@ export class GenerateAppIconTool extends CanvasTool {
         storagePath: minimalistUploadResult.storagePath,
       });
 
-      // Step 5: Calculate canvas placement for grid layout (viewport-aware)
+      // Step 5: Calculate canvas placement for vertical layout (viewport-aware)
       currentStep = 'position_calculation';
-      logger.info('Step 5: Calculating grid layout placement', {
+      logger.info('Step 5: Calculating vertical layout placement', {
         hasViewportBounds: !!this.context.viewportBounds,
         canvasSize: this.context.canvasSize,
         objectCount: this.context.currentObjects?.length || 0,
       });
 
-      // Grid layout dimensions:
-      // Row spacing: 60px between rows
-      // Label height: 40px, gap between label and image: 10px
+      // Vertical layout dimensions:
       // Icon size: 1024x1024 (one per style)
+      // Row spacing: 60px between icons
       // Total width: 1024px
-      // Total height: 40 (label) + 10 (gap) + 1024 (row1) + 60 (gap) + 40 (label) + 10 (gap) + 1024 (row2) = 2208px
+      // Total height: 1024 (icon1) + 60 (gap) + 1024 (icon2) = 2108px
 
-      const GRID_WIDTH = 1024;
-      const GRID_HEIGHT = 2208;
-      const LABEL_HEIGHT = 40;
-      const LABEL_TO_IMAGE_GAP = 10;
-      const ROW_GAP = 60;
+      const LAYOUT_WIDTH = 1024;
+      const LAYOUT_HEIGHT = 2108;
+      const ICON_GAP = 60;
 
-      let gridStartX: number;
-      let gridStartY: number;
+      let layoutStartX: number;
+      let layoutStartY: number;
 
       if (this.context.viewportBounds) {
         // Use viewport center if available (user's current view)
-        gridStartX = this.context.viewportBounds.centerX - GRID_WIDTH / 2;
-        gridStartY = this.context.viewportBounds.centerY - GRID_HEIGHT / 2;
+        layoutStartX = this.context.viewportBounds.centerX - LAYOUT_WIDTH / 2;
+        layoutStartY = this.context.viewportBounds.centerY - LAYOUT_HEIGHT / 2;
 
         logger.info('Using viewport-aware placement', {
           viewportCenter: {
             x: this.context.viewportBounds.centerX,
             y: this.context.viewportBounds.centerY,
           },
-          gridTopLeft: { x: gridStartX, y: gridStartY },
+          layoutTopLeft: { x: layoutStartX, y: layoutStartY },
         });
       } else {
         // Fallback to canvas center
-        gridStartX = this.context.canvasSize.width / 2 - GRID_WIDTH / 2;
-        gridStartY = this.context.canvasSize.height / 2 - GRID_HEIGHT / 2;
+        layoutStartX = this.context.canvasSize.width / 2 - LAYOUT_WIDTH / 2;
+        layoutStartY = this.context.canvasSize.height / 2 - LAYOUT_HEIGHT / 2;
 
         logger.info('Using canvas center placement', {
           canvasSize: this.context.canvasSize,
-          gridTopLeft: { x: gridStartX, y: gridStartY },
+          layoutTopLeft: { x: layoutStartX, y: layoutStartY },
         });
       }
 
       // Check for overlap and adjust if needed
       logger.info('Checking for object overlap', {
-        proposedPosition: { x: gridStartX, y: gridStartY },
-        dimensions: { width: GRID_WIDTH, height: GRID_HEIGHT },
+        proposedPosition: { x: layoutStartX, y: layoutStartY },
+        dimensions: { width: LAYOUT_WIDTH, height: LAYOUT_HEIGHT },
       });
 
       const adjustedPosition = findEmptySpace(
-        gridStartX,
-        gridStartY,
-        GRID_WIDTH,
-        GRID_HEIGHT,
+        layoutStartX,
+        layoutStartY,
+        LAYOUT_WIDTH,
+        LAYOUT_HEIGHT,
         this.context.currentObjects
       );
 
-      if (adjustedPosition.x !== gridStartX || adjustedPosition.y !== gridStartY) {
-        logger.info('Adjusted grid position to avoid overlap', {
-          original: { x: gridStartX, y: gridStartY },
+      if (adjustedPosition.x !== layoutStartX || adjustedPosition.y !== layoutStartY) {
+        logger.info('Adjusted layout position to avoid overlap', {
+          original: { x: layoutStartX, y: layoutStartY },
           adjusted: adjustedPosition,
         });
-        gridStartX = adjustedPosition.x;
-        gridStartY = adjustedPosition.y;
+        layoutStartX = adjustedPosition.x;
+        layoutStartY = adjustedPosition.y;
       } else {
         logger.info('No position adjustment needed - no overlap detected');
       }
 
-      // Step 6: Extract keyword for labels and prepare metadata (first 2 words, capitalized)
+      // Step 6: Extract keyword for metadata (first 2 words, capitalized)
       currentStep = 'keyword_extraction';
       const words = input.description.trim().split(/\s+/).filter(w => w.length > 0);
       const keyword = words.slice(0, 2).join(' ').toLowerCase();
@@ -400,55 +390,20 @@ export class GenerateAppIconTool extends CanvasTool {
         estimatedFileSize,
       });
 
-      // Calculate all positions for grid layout (single column)
-      const row1LabelY = gridStartY;
-      const row1ImageY = row1LabelY + LABEL_HEIGHT + LABEL_TO_IMAGE_GAP;
-      const row2LabelY = row1ImageY + 1024 + ROW_GAP;
-      const row2ImageY = row2LabelY + LABEL_HEIGHT + LABEL_TO_IMAGE_GAP;
+      // Calculate positions for vertical layout
+      const icon1Y = layoutStartY;
+      const icon2Y = layoutStartY + 1024 + ICON_GAP;
+      const iconX = layoutStartX;
 
-      const iconX = gridStartX;
-
-      // Step 7: Create text labels for both icons
-      currentStep = 'create_labels';
-      logger.info('Step 7: Creating text labels for both icons');
-
-      const row1LabelId = await createCanvasObject({
-        canvasId: this.context.canvasId,
-        type: 'text',
-        position: { x: iconX, y: row1LabelY },
-        dimensions: { width: 1024, height: LABEL_HEIGHT },
-        appearance: { fill: '#000000' },
-        text: `1024x1024 - Glassmorphism Style`,
-        fontSize: 24,
-        fontFamily: 'Inter',
-        name: 'Glassmorphism Label',
-        userId: this.context.userId,
-      });
-
-      const row2LabelId = await createCanvasObject({
-        canvasId: this.context.canvasId,
-        type: 'text',
-        position: { x: iconX, y: row2LabelY },
-        dimensions: { width: 1024, height: LABEL_HEIGHT },
-        appearance: { fill: '#000000' },
-        text: `1024x1024 - Minimalist Style`,
-        fontSize: 24,
-        fontFamily: 'Inter',
-        name: 'Minimalist Label',
-        userId: this.context.userId,
-      });
-
-      logger.info('Text labels created successfully');
-
-      // Step 8: Create 2 icon images in vertical layout
+      // Step 7: Create 2 icon images in vertical layout
       currentStep = 'create_icon_images';
-      logger.info('Step 8: Creating 2 icon images in vertical layout');
+      logger.info('Step 7: Creating 2 icon images in vertical layout');
 
-      // Row 1: Glassmorphism style icon
-      const row1IconId = await createCanvasObject({
+      // Icon 1: Glassmorphism style
+      const glassmorphismIconId = await createCanvasObject({
         canvasId: this.context.canvasId,
         type: 'image',
-        position: { x: iconX, y: row1ImageY },
+        position: { x: iconX, y: icon1Y },
         dimensions: { width: 1024, height: 1024 },
         appearance: {},
         imageUrl: glassmorphismUploadResult.publicUrl,
@@ -463,11 +418,11 @@ export class GenerateAppIconTool extends CanvasTool {
         userId: this.context.userId,
       });
 
-      // Row 2: Minimalist style icon
-      const row2IconId = await createCanvasObject({
+      // Icon 2: Minimalist style
+      const minimalistIconId = await createCanvasObject({
         canvasId: this.context.canvasId,
         type: 'image',
-        position: { x: iconX, y: row2ImageY },
+        position: { x: iconX, y: icon2Y },
         dimensions: { width: 1024, height: 1024 },
         appearance: {},
         imageUrl: minimalistUploadResult.publicUrl,
@@ -488,21 +443,19 @@ export class GenerateAppIconTool extends CanvasTool {
 
       currentStep = 'completed';
       logger.info('App icon generation completed successfully', {
-        row1IconId,
-        row2IconId,
+        glassmorphismIconId,
+        minimalistIconId,
         duration: `${duration}ms`,
         finalStep: currentStep,
       });
 
-      // Step 9: Return success result
+      // Step 8: Return success result
       return {
         success: true,
         message: `Created 2 app icon styles (Glassmorphism & Minimalist) at 1024x1024 for "${capitalizedKeyword}"`,
         objectsCreated: [
-          row1LabelId,
-          row1IconId,
-          row2LabelId,
-          row2IconId,
+          glassmorphismIconId,
+          minimalistIconId,
         ],
         data: {
           glassmorphismImageUrl: glassmorphismUploadResult.publicUrl,
