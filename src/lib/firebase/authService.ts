@@ -39,26 +39,11 @@ export async function findUserByEmailOrUsername(
     // Fetch all users and filter client-side for case-insensitive search
     const snapshot = await getDocs(usersRef);
 
-    // Debug logging
-    console.log(`[User Search] Searching for: "${searchQuery}"`);
-    console.log(`[User Search] Normalized query: "${normalizedQuery}"`);
-    console.log(`[User Search] Total users in database: ${snapshot.docs.length}`);
-    console.log(`[User Search] Environment: ${import.meta.env.DEV ? 'DEVELOPMENT (Emulator)' : 'PRODUCTION'}`);
-
-    // Log all users for debugging (remove in production)
-    if (import.meta.env.DEV) {
-      console.log('[User Search] Available users:', snapshot.docs.map(doc => {
-        const user = doc.data() as User;
-        return { email: user.email, username: user.username };
-      }));
-    }
-
     for (const doc of snapshot.docs) {
       const userData = doc.data() as User;
 
       // Check email (case-insensitive)
       if (userData.email.toLowerCase() === normalizedQuery) {
-        console.log(`[User Search] ✅ Found user by email: ${userData.username}`);
         return {
           uid: userData.id,
           username: userData.username,
@@ -68,7 +53,6 @@ export async function findUserByEmailOrUsername(
 
       // Check username (case-insensitive)
       if (userData.username.toLowerCase() === normalizedQuery) {
-        console.log(`[User Search] ✅ Found user by username: ${userData.username}`);
         return {
           uid: userData.id,
           username: userData.username,
@@ -78,7 +62,6 @@ export async function findUserByEmailOrUsername(
     }
 
     // No matches found
-    console.log('[User Search] ❌ No user found matching query');
     return null;
   } catch (error) {
     console.error('[User Search] Error searching for user:', error);

@@ -208,8 +208,6 @@ export async function detectIconBounds(imageUrl: string): Promise<IconBounds> {
   // while icons have high variance (>1000)
   const varianceThreshold = Math.max(centerVariance * 0.3, 200);
 
-  console.log('[IconDetection] Center variance:', centerVariance, 'Threshold:', varianceThreshold);
-
   // Step 6: Find edges
   const left = findEdge(imageData, 'left', varianceThreshold);
   const right = findEdge(imageData, 'right', varianceThreshold);
@@ -234,8 +232,6 @@ export async function detectIconBounds(imageUrl: string): Promise<IconBounds> {
   const y = Math.max(0, top - marginY);
   width = Math.min(canvas.width - x, width + marginX * 2);
   height = Math.min(canvas.height - y, height + marginY * 2);
-
-  console.log('[IconDetection] Detected bounds:', { x, y, width, height });
 
   return { x, y, width, height };
 }

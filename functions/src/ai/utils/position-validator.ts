@@ -38,20 +38,8 @@ export function validatePosition(
   y: number,
   bounds: CanvasBounds = DEFAULT_BOUNDS
 ): CanvasPosition {
-  const originalX = x;
-  const originalY = y;
-
   const validatedX = Math.max(bounds.minX, Math.min(bounds.maxX, x));
   const validatedY = Math.max(bounds.minY, Math.min(bounds.maxY, y));
-
-  // Log if position was adjusted
-  if (validatedX !== originalX || validatedY !== originalY) {
-    console.log('Position adjusted to stay within bounds', {
-      original: { x: originalX, y: originalY },
-      validated: { x: validatedX, y: validatedY },
-      bounds,
-    });
-  }
 
   return { x: validatedX, y: validatedY };
 }
@@ -94,13 +82,6 @@ export function validateSize(
   const validatedWidth = Math.max(minSize, Math.min(maxSize, width));
   const validatedHeight = Math.max(minSize, Math.min(maxSize, height));
 
-  if (validatedWidth !== width || validatedHeight !== height) {
-    console.log('Size adjusted to reasonable bounds', {
-      original: { width, height },
-      validated: { width: validatedWidth, height: validatedHeight },
-    });
-  }
-
   return { width: validatedWidth, height: validatedHeight };
 }
 
@@ -115,13 +96,6 @@ export function validateRadius(radius: number): number {
   const maxRadius = 2500;
 
   const validated = Math.max(minRadius, Math.min(maxRadius, radius));
-
-  if (validated !== radius) {
-    console.log('Radius adjusted to reasonable bounds', {
-      original: radius,
-      validated,
-    });
-  }
 
   return validated;
 }

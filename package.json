@@ -7,7 +7,7 @@
     "dev": "vite --mode development",
     "emulators": "firebase emulators:start",
     "build": "tsc -b && vite build --mode production",
-    "lint": "eslint .",
+    "lint": "eslint src --ext ts,tsx",
     "preview": "vite preview",
     "deploy": "npm run build && firebase deploy --only hosting",
     "prerender": "node scripts/prerender.js",

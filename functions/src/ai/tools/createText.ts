@@ -10,9 +10,6 @@ import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
 import {createCanvasObject} from "../../services/canvas-objects";
 import {findEmptySpace} from "../utils/collision-detector.js";
-import {validateViewportBounds} from "../utils/viewport-validator.js";
-import {adjustToViewport} from "../utils/viewport-adjuster.js";
-import {getNextZIndex} from "../utils/zindex-calculator.js";
 import * as logger from 'firebase-functions/logger';
 
 /**
@@ -99,33 +96,35 @@ export class CreateTextTool extends CanvasTool {
       const estimatedWidth = Math.max(200, input.text.length * charWidth);
       const estimatedHeight = input.fontSize * 1.5; // Line height
 
-      // Validate viewport bounds
-      const validatedBounds = validateViewportBounds(this.context.viewportBounds);
+      // Determine position (default to viewport center)
+      let x = input.x;
+      let y = input.y;
 
-      // Determine initial position (default to viewport center)
-      let x = input.x ?? (validatedBounds.centerX - estimatedWidth / 2);
-      let y = input.y ?? (validatedBounds.centerY - estimatedHeight / 2);
-
-      // ALWAYS adjust to viewport (even if coordinates explicitly provided)
-      const viewportAdjustment = adjustToViewport(
-        x,
-        y,
-        estimatedWidth,
-        estimatedHeight,
-        validatedBounds,
-        'text'
-      );
-
-      if (viewportAdjustment.wasAdjusted) {
-        logger.info('Adjusted text position to viewport', {
-          original: { x, y },
-          adjusted: { x: viewportAdjustment.x, y: viewportAdjustment.y },
-          reason: 'Object was outside viewport bounds'
-        });
+      if (x === undefined || y === undefined) {
+        // Use viewport center if available, else canvas center
+        if (this.context.viewportBounds) {
+          x = this.context.viewportBounds.centerX - estimatedWidth / 2; // Top-left corner
+          y = this.context.viewportBounds.centerY - estimatedHeight / 2;
+          logger.info('Using viewport center for text placement', {
+            viewportCenter: {
+              x: this.context.viewportBounds.centerX,
+              y: this.context.viewportBounds.centerY
+            },
+            textTopLeft: { x, y },
+            estimatedDimensions: { width: estimatedWidth, height: estimatedHeight }
+          });
+        } else {
+          x = this.context.canvasSize.width / 2 - estimatedWidth / 2;
+          y = this.context.canvasSize.height / 2 - estimatedHeight / 2;
+          logger.info('Using canvas center for text placement (no viewport)', {
+            canvasCenter: {
+              x: this.context.canvasSize.width / 2,
+              y: this.context.canvasSize.height / 2
+            },
+            textTopLeft: { x, y }
+          });
+        }
       }
-
-      x = viewportAdjustment.x;
-      y = viewportAdjustment.y;
 
       // Check for overlap and find empty space if needed
       if (input.avoidOverlap) {
@@ -147,14 +146,6 @@ export class CreateTextTool extends CanvasTool {
         }
       }
 
-      // Calculate z-index (new objects always on top)
-      const zIndex = getNextZIndex(this.context.currentObjects);
-
-      logger.info('Assigning z-index to new text', {
-        zIndex,
-        existingObjectsCount: this.context.currentObjects.length,
-      });
-
       // Create object in Firebase RTDB
       const objectId = await createCanvasObject({
         canvasId: this.context.canvasId,
@@ -170,7 +161,6 @@ export class CreateTextTool extends CanvasTool {
         appearance: {fill: input.fill},
         name: input.name,
         userId: this.context.userId,
-        zIndex, // Assign z-index
       });
 
       const textPreview = input.text.length > 30 ?

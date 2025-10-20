@@ -53,12 +53,9 @@ export function usePerformanceMetrics(enabled = import.meta.env.DEV) {
       if (delta >= 1000) {
         const fps = Math.round((frameCount * 1000) / delta)
 
+        // Only warn on low FPS
         if (fps < 30) {
           console.warn(`⚠️ Low FPS: ${fps}`)
-        } else if (fps < 50) {
-          console.log(`📊 FPS: ${fps}`)
-        } else {
-          console.log(`✅ FPS: ${fps}`)
         }
 
         frameCount = 0

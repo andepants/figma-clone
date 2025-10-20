@@ -98,10 +98,6 @@ export async function showThankYouText(
         console.error('[Thank You Text] Failed to delete:', error);
       }
     }, 1300);
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Thank You Text] Displayed successfully');
-    }
   } catch (error) {
     console.error('[Thank You Text] Failed to create:', error);
   }

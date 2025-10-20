@@ -187,12 +187,6 @@ export function ImageSection() {
 
         imageUrlToProcess = uploadResult.url;
         tempStoragePath = uploadResult.storagePath;
-
-        console.log('Cropped image uploaded:', {
-          tempUrl: imageUrlToProcess,
-          tempPath: tempStoragePath,
-          cropDimensions: { cropX, cropY, cropWidth, cropHeight },
-        });
       }
 
       // Call Firebase Function to process image (original or cropped)
@@ -202,7 +196,6 @@ export function ImageSection() {
       if (tempStoragePath) {
         try {
           await deleteImageFromStorage(tempStoragePath);
-          console.log('Temp cropped image deleted:', tempStoragePath);
         } catch (error) {
           console.warn('Failed to cleanup temp cropped image:', error);
           // Don't fail the whole operation if cleanup fails

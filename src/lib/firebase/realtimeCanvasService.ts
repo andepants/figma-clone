@@ -433,11 +433,6 @@ export function initConnectionMonitoring(): void {
     const isConnected = snapshot.val() === true;
     const newStatus: ConnectionStatus = isConnected ? 'connected' : 'disconnected';
 
-    // Development logging for connection state changes
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Firebase Connection] Status changed: ${currentConnectionStatus} → ${newStatus}`);
-    }
-
     // Update global state
     currentConnectionStatus = newStatus;
 

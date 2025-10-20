@@ -141,7 +141,7 @@ export class DistributeObjectsTool extends CanvasTool {
         let alignX: number;
 
         switch (input.alignHorizontal) {
-          case "left":
+          case "left": {
             alignX = Math.min(...boxes.map((b) => b.left));
             objects.forEach((obj, i) => {
               const box = boxes[i];
@@ -150,7 +150,7 @@ export class DistributeObjectsTool extends CanvasTool {
             });
             operations.push("aligned left");
             break;
-
+          }
           case "center": {
             const centers = boxes.map((b) => b.centerX);
             alignX = centers.reduce((sum, c) => sum + c, 0) / centers.length;
@@ -162,8 +162,7 @@ export class DistributeObjectsTool extends CanvasTool {
             operations.push("aligned centers horizontally");
             break;
           }
-
-          case "right":
+          case "right": {
             alignX = Math.max(...boxes.map((b) => b.right));
             objects.forEach((obj, i) => {
               const box = boxes[i];
@@ -172,6 +171,7 @@ export class DistributeObjectsTool extends CanvasTool {
             });
             operations.push("aligned right");
             break;
+          }
         }
       }
 
@@ -180,7 +180,7 @@ export class DistributeObjectsTool extends CanvasTool {
         let alignY: number;
 
         switch (input.alignVertical) {
-          case "top":
+          case "top": {
             alignY = Math.min(...boxes.map((b) => b.top));
             objects.forEach((obj, i) => {
               const box = boxes[i];
@@ -189,7 +189,7 @@ export class DistributeObjectsTool extends CanvasTool {
             });
             operations.push("aligned top");
             break;
-
+          }
           case "middle": {
             const middles = boxes.map((b) => b.centerY);
             alignY = middles.reduce((sum, c) => sum + c, 0) / middles.length;
@@ -201,8 +201,7 @@ export class DistributeObjectsTool extends CanvasTool {
             operations.push("aligned centers vertically");
             break;
           }
-
-          case "bottom":
+          case "bottom": {
             alignY = Math.max(...boxes.map((b) => b.bottom));
             objects.forEach((obj, i) => {
               const box = boxes[i];
@@ -211,6 +210,7 @@ export class DistributeObjectsTool extends CanvasTool {
             });
             operations.push("aligned bottom");
             break;
+          }
         }
       }
 

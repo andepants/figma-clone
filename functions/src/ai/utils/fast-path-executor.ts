@@ -44,9 +44,9 @@ export async function executeFastPathTool(
           type: 'rectangle',
           x: getViewportCenterX(canvasState),
           y: getViewportCenterY(canvasState),
-          width: parameters.width || 200,
-          height: parameters.height || 200,
-          fill: parameters.fill || '#3b82f6',
+          width: typeof parameters.width === 'number' ? parameters.width : 200,
+          height: typeof parameters.height === 'number' ? parameters.height : 200,
+          fill: typeof parameters.fill === 'string' ? parameters.fill : '#3b82f6',
           stroke: '#000000',
           strokeWidth: 0,
           rotation: 0,
@@ -86,8 +86,8 @@ export async function executeFastPathTool(
           type: 'circle',
           x: getViewportCenterX(canvasState),
           y: getViewportCenterY(canvasState),
-          radius: parameters.radius || 50,
-          fill: parameters.fill || '#3b82f6',
+          radius: typeof parameters.radius === 'number' ? parameters.radius : 50,
+          fill: typeof parameters.fill === 'string' ? parameters.fill : '#3b82f6',
           stroke: '#000000',
           strokeWidth: 0,
           rotation: 0,
@@ -127,9 +127,9 @@ export async function executeFastPathTool(
           type: 'text',
           x: getViewportCenterX(canvasState),
           y: getViewportCenterY(canvasState),
-          text: parameters.text || 'Text',
-          fontSize: parameters.fontSize || 24,
-          fill: parameters.fill || '#000000',
+          text: typeof parameters.text === 'string' ? parameters.text : 'Text',
+          fontSize: typeof parameters.fontSize === 'number' ? parameters.fontSize : 24,
+          fill: typeof parameters.fill === 'string' ? parameters.fill : '#000000',
           fontFamily: 'Inter',
           fontStyle: 'normal',
           align: 'left',
@@ -279,13 +279,13 @@ export async function executeFastPathTool(
         const scale = typeof parameters.scale === 'number' ? parameters.scale : 1.5;
         const updates: Record<string, number> = {};
 
-        if ('width' in targetObject && typeof targetObject.width === 'number' && targetObject.width) {
+        if ('width' in targetObject && targetObject.width) {
           updates.width = targetObject.width * scale;
         }
-        if ('height' in targetObject && typeof targetObject.height === 'number' && targetObject.height) {
+        if ('height' in targetObject && targetObject.height) {
           updates.height = targetObject.height * scale;
         }
-        if ('radius' in targetObject && typeof targetObject.radius === 'number' && targetObject.radius) {
+        if ('radius' in targetObject && targetObject.radius) {
           updates.radius = targetObject.radius * scale;
         }
 
@@ -330,7 +330,7 @@ function generateObjectId(): string {
 /**
  * Generate layer name with auto-increment
  */
-function generateLayerName(type: string, objects: {type: string; name?: string}[]): string {
+function generateLayerName(type: string, objects: {type?: string; name?: string}[]): string {
   const existingNames = objects
     .filter((obj) => obj.type === type)
     .map((obj) => obj.name || '');

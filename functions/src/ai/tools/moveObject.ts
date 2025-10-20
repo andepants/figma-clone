@@ -11,7 +11,7 @@ import * as logger from "firebase-functions/logger";
 import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
-import {updateCanvasObject} from "../../services/canvas-objects";
+import {getDatabase} from "../../services/firebase-admin";
 
 /**
  * Schema for move object parameters
@@ -112,8 +112,14 @@ export class MoveObjectTool extends CanvasTool {
         });
       }
 
-      // Move each object
+      // Prepare batch update for atomicity
+      const updates: Record<string, number> = {};
       const movedObjectIds: string[] = [];
+      const moveDetails: Array<{
+        id: string;
+        oldPos: {x: number; y: number};
+        newPos: {x: number; y: number};
+      }> = [];
 
       for (const objectId of objectIds) {
         const obj = this.context.currentObjects.find((o) => o.id === objectId);
@@ -136,19 +142,26 @@ export class MoveObjectTool extends CanvasTool {
           newY = input.y !== undefined ? input.y : obj.y;
         }
 
-        // Update in Firebase
-        await updateCanvasObject(this.context.canvasId, objectId, {
-          x: newX,
-          y: newY,
-        });
+        // Add to batch update
+        const basePath = `canvases/${this.context.canvasId}/objects/${objectId}`;
+        updates[`${basePath}/x`] = newX;
+        updates[`${basePath}/y`] = newY;
 
         movedObjectIds.push(objectId);
+        moveDetails.push({
+          id: objectId,
+          oldPos: {x: obj.x, y: obj.y},
+          newPos: {x: newX, y: newY},
+        });
+      }
 
-        logger.info("Moved object", {
-          objectId,
-          oldPosition: {x: obj.x, y: obj.y},
-          newPosition: {x: newX, y: newY},
+      // Execute atomic batch update
+      if (Object.keys(updates).length > 0) {
+        await getDatabase().ref().update(updates);
+        logger.info("Moved objects (batch update)", {
+          count: movedObjectIds.length,
           isRelative,
+          details: moveDetails,
         });
       }
 

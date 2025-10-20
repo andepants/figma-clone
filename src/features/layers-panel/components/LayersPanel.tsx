@@ -282,10 +282,6 @@ export function LayersPanel() {
     );
 
     dragLockAcquired.current = lockAcquired;
-
-    if (!lockAcquired) {
-      console.log('Layer drag in progress by another user');
-    }
   };
 
   /**
@@ -319,7 +315,6 @@ export function LayersPanel() {
 
       // Only proceed if we acquired the lock
       if (!hadLock) {
-        console.log('Drag operation cancelled: Lock not acquired');
         return;
       }
 

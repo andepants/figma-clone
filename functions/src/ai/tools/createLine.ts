@@ -9,10 +9,6 @@ import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
 import {createCanvasObject} from "../../services/canvas-objects";
-import {validateViewportBounds} from "../utils/viewport-validator.js";
-import {adjustLineToViewport} from "../utils/viewport-adjuster.js";
-import {getNextZIndex} from "../utils/zindex-calculator.js";
-import * as logger from 'firebase-functions/logger';
 
 /**
  * Schema for line creation parameters
@@ -90,63 +86,24 @@ export class CreateLineTool extends CanvasTool {
         };
       }
 
-      // Validate viewport bounds
-      const validatedBounds = validateViewportBounds(this.context.viewportBounds);
-
-      // Adjust line endpoints to viewport if outside
-      const viewportAdjustment = adjustLineToViewport(
-        input.x1,
-        input.y1,
-        input.x2,
-        input.y2,
-        validatedBounds
-      );
-
-      if (viewportAdjustment.wasAdjusted) {
-        logger.info('Adjusted line endpoints to viewport', {
-          original: { x1: input.x1, y1: input.y1, x2: input.x2, y2: input.y2 },
-          adjusted: {
-            x1: viewportAdjustment.x1,
-            y1: viewportAdjustment.y1,
-            x2: viewportAdjustment.x2,
-            y2: viewportAdjustment.y2,
-          },
-          reason: 'Line was outside viewport bounds'
-        });
-      }
-
-      // Use adjusted endpoints
-      const x1 = viewportAdjustment.x1;
-      const y1 = viewportAdjustment.y1;
-      const x2 = viewportAdjustment.x2;
-      const y2 = viewportAdjustment.y2;
-
       // Calculate line position and points (relative to position)
       // Position is MIN of both endpoints
-      const x = Math.min(x1, x2);
-      const y = Math.min(y1, y2);
+      const x = Math.min(input.x1, input.x2);
+      const y = Math.min(input.y1, input.y2);
 
       // Points are relative to position
-      const relX1 = x1 - x;
-      const relY1 = y1 - y;
-      const relX2 = x2 - x;
-      const relY2 = y2 - y;
+      const relX1 = input.x1 - x;
+      const relY1 = input.y1 - y;
+      const relX2 = input.x2 - x;
+      const relY2 = input.y2 - y;
       const points: [number, number, number, number] = [relX1, relY1, relX2, relY2];
 
       // Calculate rotation (angle in degrees)
-      const dx = x2 - x1;
-      const dy = y2 - y1;
+      const dx = input.x2 - input.x1;
+      const dy = input.y2 - input.y1;
       let rotation = Math.atan2(dy, dx) * (180 / Math.PI);
       // Normalize to -179 to 179 (never exactly 180)
       if (rotation === 180) rotation = -180;
-
-      // Calculate z-index (new objects always on top)
-      const zIndex = getNextZIndex(this.context.currentObjects);
-
-      logger.info('Assigning z-index to new line', {
-        zIndex,
-        existingObjectsCount: this.context.currentObjects.length,
-      });
 
       // Create object in Firebase RTDB
       const objectId = await createCanvasObject({
@@ -161,7 +118,6 @@ export class CreateLineTool extends CanvasTool {
         },
         name: input.name,
         userId: this.context.userId,
-        zIndex, // Assign z-index
       });
 
       const message = input.name ?

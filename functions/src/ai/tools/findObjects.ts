@@ -280,30 +280,12 @@ export class FindObjectsTool extends CanvasTool {
       // Build message
       let message: string;
       if (objectIds.length === 0) {
-        // No results - provide helpful diagnostic
-        const totalObjects = this.context.currentObjects.length;
-        message = `❌ No objects found matching criteria: ${filters.join(", ")}. ` +
-                 `Canvas has ${totalObjects} total objects. ` +
-                 `Try: 1) Removing some filters, 2) Checking color spelling, or 3) Using 'inViewport: true' if objects exist outside view.`;
-
-        logger.warn("findObjects returned no results", {
-          filters,
-          totalObjects,
-          selectedCount: this.context.selectedObjectIds?.length || 0,
-          hasViewport: !!this.context.viewportBounds,
-        });
+        message = `No objects found matching criteria: ${filters.join(", ")}`;
       } else if (input.first) {
-        message = `✅ Found object: ${objectDescriptions[0]} (ID: ${objectIds[0]})`;
+        message = `Found object: ${objectDescriptions[0]}`;
       } else {
-        message = `✅ Found ${objectIds.length} object(s) matching: ${filters.join(", ")}`;
+        message = `Found ${objectIds.length} object(s) matching: ${filters.join(", ")}`;
       }
-
-      logger.info("findObjects completed", {
-        filters,
-        count: objectIds.length,
-        objectIds: objectIds.slice(0, 5), // Log first 5 IDs
-        first: input.first || false,
-      });
 
       return {
         success: true,

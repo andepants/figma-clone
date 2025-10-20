@@ -10,9 +10,6 @@ import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
 import {getDatabase} from "../../services/firebase-admin";
 import {CanvasObject} from "../../types";
-import {getSpacing} from "../utils/spacing-calculator.js";
-import {validateGridLayout} from "../utils/layout-validator.js";
-import * as logger from "firebase-functions/logger";
 
 /**
  * Schema for grid arrangement parameters
@@ -25,8 +22,8 @@ const ArrangeInGridSchema = z.object({
     .min(2)
     .describe("Number of columns in the grid (at least 2)"),
   spacing: z.number()
-    .default(16)
-    .describe("Gap between objects in pixels (default: 16px - grid-cell spacing)"),
+    .default(20)
+    .describe("Gap between objects in pixels (default: 20)"),
   startX: z.number()
     .optional()
     .describe("Starting X position (default: current leftmost object)"),
@@ -92,26 +89,6 @@ export class ArrangeInGridTool extends CanvasTool {
       const columns = input.columns;
       const rows = Math.ceil(objects.length / columns);
 
-      // Validate grid layout before arrangement
-      try {
-        validateGridLayout(rows, columns);
-      } catch (validationError) {
-        logger.warn("Grid validation failed", {
-          error: String(validationError),
-          rows,
-          columns,
-          objectCount: objects.length,
-        });
-        return {
-          success: false,
-          error: String(validationError),
-          message: "Invalid grid layout",
-        };
-      }
-
-      // Use smart spacing for grid cells (16px gaps)
-      const gridGap = getSpacing('grid-cell');
-
       // Calculate starting position
       const startX = input.startX ??
                      Math.min(...objects.map(obj => obj.x));
@@ -133,9 +110,9 @@ export class ArrangeInGridTool extends CanvasTool {
         const row = Math.floor(i / columns);
         const col = i % columns;
 
-        // Calculate pixel position using smart grid spacing
-        const x = startX + col * (maxWidth + gridGap);
-        const y = startY + row * (maxHeight + gridGap);
+        // Calculate pixel position
+        const x = startX + col * (maxWidth + input.spacing);
+        const y = startY + row * (maxHeight + input.spacing);
 
         // Update object position
         updates[`canvases/${this.context.canvasId}/objects/${obj.id}/x`] = x;
@@ -148,13 +125,13 @@ export class ArrangeInGridTool extends CanvasTool {
       return {
         success: true,
         message: `Arranged ${objects.length} objects in a ${columns}x${rows} ` +
-                 `grid with ${gridGap}px spacing`,
+                 `grid with ${input.spacing}px spacing`,
         objectsModified: input.objectIds,
         data: {
           count: objects.length,
           columns,
           rows,
-          spacing: gridGap,
+          spacing: input.spacing,
           cellSize: {width: maxWidth, height: maxHeight},
           startX,
           startY,

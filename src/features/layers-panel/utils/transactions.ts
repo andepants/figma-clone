@@ -221,7 +221,6 @@ export async function withRollback<T>(
     console.error('Transaction failed, attempting rollback:', error);
     try {
       await rollback();
-      console.log('Rollback successful');
     } catch (rollbackError) {
       console.error('Rollback failed:', rollbackError);
     }

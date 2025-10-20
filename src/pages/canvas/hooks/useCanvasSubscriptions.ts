@@ -221,7 +221,6 @@ export function useCanvasSubscriptions({
 
     let isFirstLoad = true;
     let stableSnapshotTimer: NodeJS.Timeout | null = null;
-    let callbackCount = 0;
     // Reset migration flag when project changes
     migrationRunRef.current = false;
 
@@ -250,25 +249,12 @@ export function useCanvasSubscriptions({
           userColor
         ).catch(() => {});
 
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[Canvas Subscriptions] Presence + cursor sent - connection fully established');
-        }
-
         // NOW subscribe - connection is GUARANTEED to be active
         const unsubscribe = subscribeToCanvasObjects(projectId, async (remoteObjects) => {
-        callbackCount++;
-
-        // Development logging for debugging initial load
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Canvas Subscriptions] Callback #${callbackCount}: Received ${remoteObjects.length} objects`);
-        }
 
         // LAYER DRAG LOCK: Skip updates during active layer panel drag
         // This prevents race conditions where Firebase sync overwrites local reordering
         if (isLayerDragActiveRef.current && !isFirstLoad) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[Canvas Subscriptions] Skipping update - layer drag in progress');
-          }
           return;
         }
 
@@ -288,10 +274,6 @@ export function useCanvasSubscriptions({
           // Convert accumulated objects to array
           // IMPORTANT: Always create new array to ensure store detects change
           const accumulatedObjects = [...Array.from(objectsMap.values())];
-
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[Canvas Subscriptions] Accumulated ${accumulatedObjects.length} unique objects so far`);
-          }
 
           // Check if migration is needed and hasn't been run yet
           if (!migrationRunRef.current && needsMigration(accumulatedObjects)) {
@@ -327,9 +309,6 @@ export function useCanvasSubscriptions({
           // Only mark first load complete after 200ms of no new data
           // Increased from 100ms to handle network variance and ensure all Firebase callbacks complete
           stableSnapshotTimer = setTimeout(() => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`[Canvas Subscriptions] Stable snapshot detected after ${callbackCount} callbacks`);
-            }
             setIsLoading(false);
             isFirstLoad = false;
 
@@ -339,9 +318,6 @@ export function useCanvasSubscriptions({
               setTimeout(() => {
                 // Create new array reference to force re-render
                 setObjects([...loadedObjectsRef.current!]);
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('[Canvas Subscriptions] Forced canvas re-render');
-                }
               }, 100);
             }
           }, 200);
@@ -394,24 +370,14 @@ export function useCanvasSubscriptions({
       // due to Firebase connection timing. The subscription will take over for
       // subsequent real-time updates.
       getAllCanvasObjects(projectId).then((initialObjects) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Canvas Subscriptions] Initial fetch completed: ${initialObjects.length} objects`);
-        }
-
         // Only use initial fetch if this is still the first load
         // and we received objects. The subscription callback will handle
         // subsequent updates and may arrive before or after this fetch.
         if (isFirstLoad && initialObjects.length > 0) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[Canvas Subscriptions] Using initial fetch data (subscription not yet fired)');
-          }
           setObjects(initialObjects);
         }
-      }).catch((error) => {
+      }).catch(() => {
         // Log error but don't fail - subscription will still work
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Canvas Subscriptions] Initial fetch failed:', error);
-        }
       });
 
         // Cleanup: unsubscribe on unmount and clear any pending timers

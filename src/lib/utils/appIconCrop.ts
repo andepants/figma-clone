@@ -83,11 +83,7 @@ export async function cropAppIcon(
       duration: 2000,
     });
 
-    console.log('[AppIconCrop] Starting detection for image:', imageObject.id);
-
     const bounds = await detectIconBounds(imageObject.src);
-
-    console.log('[AppIconCrop] Detected bounds:', bounds);
 
     // Step 2: Render cropped portion
     toast.info('Cropping icon...', {
@@ -102,11 +98,6 @@ export async function cropAppIcon(
       bounds.width,
       bounds.height
     );
-
-    console.log('[AppIconCrop] Cropped to blob:', {
-      size: croppedBlob.size,
-      type: croppedBlob.type,
-    });
 
     // Step 3: Upload cropped image (temporary)
     toast.info('Uploading cropped image...', {
@@ -124,11 +115,6 @@ export async function cropAppIcon(
 
     tempStoragePath = uploadResult.storagePath;
 
-    console.log('[AppIconCrop] Uploaded temp cropped image:', {
-      url: uploadResult.url,
-      path: tempStoragePath,
-    });
-
     // Step 4: Remove background
     toast.info('Removing background...', {
       description: 'This may take 5-15 seconds',
@@ -141,11 +127,6 @@ export async function cropAppIcon(
       throw new Error(bgRemovalResult.error || 'Background removal failed');
     }
 
-    console.log('[AppIconCrop] Background removed:', {
-      processedUrl: bgRemovalResult.processedImageUrl,
-      processedPath: bgRemovalResult.storagePath,
-    });
-
     // Step 5: Get processed image dimensions
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -154,11 +135,6 @@ export async function cropAppIcon(
       img.onload = resolve;
       img.onerror = reject;
       img.src = bgRemovalResult.processedImageUrl!;
-    });
-
-    console.log('[AppIconCrop] Processed image dimensions:', {
-      width: img.naturalWidth,
-      height: img.naturalHeight,
     });
 
     // Step 6: Create new processed image object
@@ -175,13 +151,10 @@ export async function cropAppIcon(
       userId
     );
 
-    console.log('[AppIconCrop] Created processed image object');
-
     // Step 7: Clean up temporary file
     if (tempStoragePath) {
       try {
         await deleteImageFromStorage(tempStoragePath);
-        console.log('[AppIconCrop] Deleted temp file:', tempStoragePath);
       } catch (error) {
         console.warn('[AppIconCrop] Failed to cleanup temp file:', error);
         // Don't fail entire operation if cleanup fails
@@ -201,7 +174,6 @@ export async function cropAppIcon(
     if (tempStoragePath) {
       try {
         await deleteImageFromStorage(tempStoragePath);
-        console.log('[AppIconCrop] Cleaned up temp file after error');
       } catch (cleanupError) {
         console.warn('[AppIconCrop] Failed to cleanup temp file after error:', cleanupError);
       }

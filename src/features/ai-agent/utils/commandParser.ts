@@ -117,7 +117,8 @@ export function getCommandSuggestions(
  * Extracts the command (e.g., "/icon") and description (e.g., "coffee cup")
  * from user input. Validates that command exists in AI_COMMANDS.
  *
- * Some commands (like /crop-appicon) don't require descriptions.
+ * All commands can be submitted with or without descriptions.
+ * The AI agent will handle the conversation if more details are needed.
  *
  * @param input - Complete user input
  * @returns Object with command and description, or null if invalid
@@ -129,11 +130,11 @@ export function getCommandSuggestions(
  * parseCommand('/crop-appicon')
  * // Returns: { command: '/crop-appicon', description: '' }
  *
+ * parseCommand('/icon')
+ * // Returns: { command: '/icon', description: '' }
+ *
  * parseCommand('/invalid test')
  * // Returns: null (command not recognized)
- *
- * parseCommand('/icon')
- * // Returns: null (no description provided for command that requires it)
  */
 export function parseCommand(input: string): {
   command: string;
@@ -169,14 +170,8 @@ export function parseCommand(input: string): {
     return null;
   }
 
-  // Commands in 'Image Processing' category don't require descriptions
-  // Commands in other categories require descriptions
-  const requiresDescription = commandObj.category !== 'Image Processing';
-
-  if (requiresDescription && (!description || description.length === 0)) {
-    return null;
-  }
-
+  // All commands are valid even without descriptions
+  // The AI agent will handle the conversation if more details are needed
   return {
     command,
     description,
