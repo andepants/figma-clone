@@ -279,6 +279,9 @@ export async function processAICommandHandler(
       configurable: {
         thread_id: threadId,
       },
+      // Increased from default 25 to prevent "Recursion limit reached" errors
+      // Allows complex multi-step operations (e.g., creating navbars with menu items)
+      recursionLimit: 150,
       streamMode: "values" as const,
     };
 

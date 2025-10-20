@@ -196,15 +196,17 @@ export class CreateNavBarTool extends CanvasTool {
         menuStartX += input.logoText.length * 12 + 60; // Logo width + gap
       }
 
-      // Create menu items
+      // Create menu items with cumulative positioning
+      let currentX = menuStartX;
       for (let i = 0; i < input.menuItems.length; i++) {
         const itemText = input.menuItems[i];
+        const estimatedWidth = itemText.length * 8; // Approximate text width
 
         const itemId = await createCanvasObject({
           canvasId: this.context.canvasId,
           type: "text",
           position: {
-            x: menuStartX + i * (navbarItemSpacing + itemText.length * 8),
+            x: currentX,
             y: startY + (input.height - input.fontSize) / 2,
           },
           text: itemText,
@@ -215,6 +217,9 @@ export class CreateNavBarTool extends CanvasTool {
           zIndex: zIndexes[zIndexCounter++],
         });
         createdIds.push(itemId);
+
+        // Move to next position: current item width + spacing
+        currentX += estimatedWidth + navbarItemSpacing;
       }
 
       // Update context memory
