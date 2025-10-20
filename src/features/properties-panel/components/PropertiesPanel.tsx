@@ -160,6 +160,15 @@ export function PropertiesPanel({ onExport, hasSelection = false }: PropertiesPa
 
         {/* Spacer to push content to top */}
         <div className="flex-1" />
+
+        {/* Add User Modal - render outside main content */}
+        <AddUserModal
+          isOpen={isAddUserModalOpen}
+          onClose={() => setIsAddUserModalOpen(false)}
+          projectId={projectId}
+          currentCollaborators={currentProject?.collaborators || {}}
+          onUserAdded={handleUserAdded}
+        />
       </div>
     );
   }
