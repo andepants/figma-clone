@@ -11,7 +11,7 @@ import * as logger from "firebase-functions/logger";
 import {CanvasTool} from "./base";
 import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
-import {getDatabase} from "../../services/firebase-admin";
+import {updateCanvasObject} from "../../services/canvas-objects";
 
 /**
  * Schema for move object parameters
@@ -70,26 +70,12 @@ export class MoveObjectTool extends CanvasTool {
         if (this.context.lastCreatedObjectIds &&
             this.context.lastCreatedObjectIds.length > 0) {
           objectIds = this.context.lastCreatedObjectIds;
-          logger.info("✨ Using last created objects for move", {
-            objectIds,
-            count: objectIds.length,
-          });
+          logger.info("Using last created objects for move", {objectIds});
         } else {
-          const selectedCount = this.context.selectedObjectIds?.length || 0;
-          const totalObjects = this.context.currentObjects.length;
-
-          logger.warn("❌ moveObject called without object IDs", {
-            hasLastCreated: false,
-            selectedCount,
-            totalObjects,
-          });
-
           return {
             success: false,
             error: "No objects specified and no recently created objects",
-            message: `❌ Cannot move objects - no IDs provided. ` +
-                    `Canvas has ${totalObjects} objects (${selectedCount} selected). ` +
-                    `TIP: Use findObjects first to get IDs, or specify objects by properties.`,
+            message: "Please specify which objects to move or create objects first",
           };
         }
       }
@@ -126,14 +112,8 @@ export class MoveObjectTool extends CanvasTool {
         });
       }
 
-      // Prepare batch update for atomicity
-      const updates: Record<string, number> = {};
+      // Move each object
       const movedObjectIds: string[] = [];
-      const moveDetails: Array<{
-        id: string;
-        oldPos: {x: number; y: number};
-        newPos: {x: number; y: number};
-      }> = [];
 
       for (const objectId of objectIds) {
         const obj = this.context.currentObjects.find((o) => o.id === objectId);
@@ -156,26 +136,19 @@ export class MoveObjectTool extends CanvasTool {
           newY = input.y !== undefined ? input.y : obj.y;
         }
 
-        // Add to batch update
-        const basePath = `canvases/${this.context.canvasId}/objects/${objectId}`;
-        updates[`${basePath}/x`] = newX;
-        updates[`${basePath}/y`] = newY;
+        // Update in Firebase
+        await updateCanvasObject(this.context.canvasId, objectId, {
+          x: newX,
+          y: newY,
+        });
 
         movedObjectIds.push(objectId);
-        moveDetails.push({
-          id: objectId,
-          oldPos: {x: obj.x, y: obj.y},
-          newPos: {x: newX, y: newY},
-        });
-      }
 
-      // Execute atomic batch update
-      if (Object.keys(updates).length > 0) {
-        await getDatabase().ref().update(updates);
-        logger.info("Moved objects (batch update)", {
-          count: movedObjectIds.length,
+        logger.info("Moved object", {
+          objectId,
+          oldPosition: {x: obj.x, y: obj.y},
+          newPosition: {x: newX, y: newY},
           isRelative,
-          details: moveDetails,
         });
       }
 

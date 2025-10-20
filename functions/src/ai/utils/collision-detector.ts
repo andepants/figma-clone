@@ -21,6 +21,25 @@ export interface Circle {
 }
 
 /**
+ * Layout context determines collision avoidance behavior
+ * - 'single': Avoid all overlaps (default for individual objects)
+ * - 'row': Allow overlaps (for horizontal row layouts)
+ * - 'column': Allow overlaps (for vertical column layouts)
+ * - 'grid': Allow overlaps (for grid layouts)
+ * - 'form': Use internal spacing, avoid external overlaps
+ * - 'card': Use internal spacing, avoid external overlaps
+ * - 'navbar': Use internal spacing, avoid external overlaps
+ */
+export type LayoutContext =
+  | 'single'
+  | 'row'
+  | 'column'
+  | 'grid'
+  | 'form'
+  | 'card'
+  | 'navbar';
+
+/**
  * Check if two rectangles overlap
  */
 export function rectanglesOverlap(a: Rectangle, b: Rectangle): boolean {
@@ -129,6 +148,7 @@ export function checkCollision(
  * @param height - Height of object to place
  * @param existingObjects - Objects to avoid
  * @param maxRadius - Maximum search radius (default: 500px)
+ * @param context - Layout context (default: 'single')
  * @returns Empty position or target if no collision
  */
 export function findEmptySpace(
@@ -137,8 +157,14 @@ export function findEmptySpace(
   width: number,
   height: number,
   existingObjects: CanvasObject[],
-  maxRadius: number = 500
+  maxRadius: number = 500,
+  context: LayoutContext = 'single'
 ): { x: number; y: number } {
+  // If context allows overlaps (non-single), skip collision detection
+  if (context !== 'single') {
+    return { x: targetX, y: targetY };
+  }
+
   // Check if target position is already empty
   const targetBounds: Rectangle = { x: targetX, y: targetY, width, height };
 

@@ -10,6 +10,9 @@ import {ToolResult} from "./types";
 import {CanvasToolContext} from "./types";
 import {createCanvasObject} from "../../services/canvas-objects";
 import {findEmptySpace} from "../utils/collision-detector.js";
+import {validateViewportBounds} from "../utils/viewport-validator.js";
+import {adjustToViewport} from "../utils/viewport-adjuster.js";
+import {getNextZIndex} from "../utils/zindex-calculator.js";
 import * as logger from 'firebase-functions/logger';
 
 /**
@@ -77,27 +80,35 @@ export class CreateCircleTool extends CanvasTool {
         };
       }
 
-      // Determine position (default to viewport center)
-      let x = input.x;
-      let y = input.y;
+      // Validate viewport bounds
+      const validatedBounds = validateViewportBounds(this.context.viewportBounds);
 
-      if (x === undefined || y === undefined) {
-        // Use viewport center if available, else canvas center
-        // For circles, x,y is the CENTER point (not top-left)
-        if (this.context.viewportBounds) {
-          x = this.context.viewportBounds.centerX;
-          y = this.context.viewportBounds.centerY;
-          logger.info('Using viewport center for circle placement', {
-            viewportCenter: { x, y }
-          });
-        } else {
-          x = this.context.canvasSize.width / 2;
-          y = this.context.canvasSize.height / 2;
-          logger.info('Using canvas center for circle placement (no viewport)', {
-            canvasCenter: { x, y }
-          });
-        }
+      // Determine initial position (default to viewport center)
+      // For circles, x,y is the CENTER point (not top-left)
+      let x = input.x ?? validatedBounds.centerX;
+      let y = input.y ?? validatedBounds.centerY;
+
+      // ALWAYS adjust to viewport (even if coordinates explicitly provided)
+      const diameter = input.radius * 2;
+      const viewportAdjustment = adjustToViewport(
+        x,
+        y,
+        diameter,
+        diameter,
+        validatedBounds,
+        'circle'
+      );
+
+      if (viewportAdjustment.wasAdjusted) {
+        logger.info('Adjusted circle position to viewport', {
+          original: { x, y },
+          adjusted: { x: viewportAdjustment.x, y: viewportAdjustment.y },
+          reason: 'Object was outside viewport bounds'
+        });
       }
+
+      x = viewportAdjustment.x;
+      y = viewportAdjustment.y;
 
       // Check for overlap and find empty space if needed
       if (input.avoidOverlap) {
@@ -128,6 +139,14 @@ export class CreateCircleTool extends CanvasTool {
         }
       }
 
+      // Calculate z-index (new objects always on top)
+      const zIndex = getNextZIndex(this.context.currentObjects);
+
+      logger.info('Assigning z-index to new circle', {
+        zIndex,
+        existingObjectsCount: this.context.currentObjects.length,
+      });
+
       // Create object in Firebase RTDB
       const objectId = await createCanvasObject({
         canvasId: this.context.canvasId,
@@ -137,6 +156,7 @@ export class CreateCircleTool extends CanvasTool {
         appearance: {fill: input.fill},
         name: input.name,
         userId: this.context.userId,
+        zIndex, // Assign z-index
       });
 
       const message = input.name ?

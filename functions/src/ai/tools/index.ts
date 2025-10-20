@@ -22,16 +22,6 @@ import {ArrangeInColumnTool} from "./arrangeInColumn";
 import {ArrangeInGridTool} from "./arrangeInGrid";
 import {GetViewportCenterTool} from "./getViewportCenter.js";
 import {FindEmptySpaceTool} from "./findEmptySpace.js";
-import {GenerateAppIconTool} from "./generateAppIcon";
-import {GenerateFeatureGraphicTool} from "./generateFeatureGraphic";
-import {CreateBatchTool} from "./createBatch";
-import {FindObjectsTool} from "./findObjects";
-import {DistributeObjectsTool} from "./distributeObjects";
-import {CreateFormTool} from "./createForm";
-import {CreateNavBarTool} from "./createNavBar";
-import {CreateCardTool} from "./createCard";
-import {CreatePirateShipOnHorseTool} from "./createPirateShipOnHorse";
-import {CropAppIconTool} from "./cropAppIcon";
 
 /**
  * Get all available canvas tools
@@ -58,35 +48,15 @@ export function getTools(context: CanvasToolContext): DynamicStructuredTool[] {
 
     // Query tools
     new GetCanvasStateTool(context),
-    new FindObjectsTool(context),
 
     // Layout tools
     new ArrangeInRowTool(context),
     new ArrangeInColumnTool(context),
     new ArrangeInGridTool(context),
-    new DistributeObjectsTool(context),
 
     // Spatial awareness tools
     new GetViewportCenterTool(context),
     new FindEmptySpaceTool(context),
-
-    // AI Image Generation tools
-    new GenerateAppIconTool(context),
-    new GenerateFeatureGraphicTool(context),
-
-    // AI Image Processing tools
-    new CropAppIconTool(context),
-
-    // Batch operation tools
-    new CreateBatchTool(context),
-
-    // Composite template tools
-    new CreateFormTool(context),
-    new CreateNavBarTool(context),
-    new CreateCardTool(context),
-
-    // Fun demo tools
-    new CreatePirateShipOnHorseTool(context),
 
     // TODO Phase 4: Add grouping tool
     // - groupObjects (parent-child relationships)

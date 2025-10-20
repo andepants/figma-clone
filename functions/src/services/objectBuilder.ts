@@ -57,6 +57,9 @@ export interface BuildObjectParams {
   // Transform properties
   rotation?: number;
 
+  // Layer properties
+  zIndex?: number;
+
   // Hierarchy properties
   parentId?: string | null;
   isCollapsed?: boolean;
@@ -118,6 +121,9 @@ export function buildCanvasObject(
     scaleY: 1,
     skewX: 0,
     skewY: 0,
+
+    // Layer properties
+    zIndex: params.zIndex ?? 0, // Default to 0 if not provided
   };
 
   // Add hierarchy properties if provided

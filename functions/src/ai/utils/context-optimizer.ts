@@ -35,14 +35,6 @@ import {
 export function optimizeContext(canvasState: CanvasState): CanvasState {
   const objects = canvasState.objects || [];
 
-  // Skip optimization for small canvases (<20 objects)
-  if (objects.length < 20) {
-    logger.info('Skipping context optimization (small canvas)', {
-      objectCount: objects.length,
-    });
-    return canvasState;
-  }
-
   // Calculate viewport bounds if provided
   let viewportBounds: ViewportBounds | null = null;
   if (canvasState.viewport) {
@@ -68,7 +60,7 @@ export function optimizeContext(canvasState: CanvasState): CanvasState {
           const distB = distanceFromViewportCenter(b, viewportBounds!);
           return distA - distB;
         })
-        .slice(0, 30) // Limit to 30 viewport objects
+        .slice(0, 50) // Limit to 50 viewport objects
     : [];
 
   // Priority 3: Recently created AI objects (last 5 minutes)
